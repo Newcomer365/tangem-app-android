@@ -382,6 +382,12 @@
   <string name="markets_sort_by_top_losers_title">Лидеры падения</string>
   <string name="markets_sort_by_trending_title">В тренде</string>
   <string name="markets_token_details_about_token_title">О %s</string>
+  <plurals name="markets_token_details_amount_exchanges">
+    <item quantity="one">%1$s биржа</item>
+    <item quantity="few">%1$s биржи</item>
+    <item quantity="many">%1$s бирж</item>
+    <item quantity="other">%1$s бирж</item>
+  </plurals>
   <plurals name="markets_token_details_based_on_ratings">
     <item quantity="one">На основе %d оценки</item>
     <item quantity="few">На основе %d оценок</item>
@@ -395,6 +401,7 @@
   <string name="markets_token_details_circulating_supply">Циркулир. предл.</string>
   <string name="markets_token_details_circulating_supply_description">Общее количество монет, доступных для торговли и находящихся в обращении на рынке</string>
   <string name="markets_token_details_circulating_supply_full">Циркулирующее предложение</string>
+  <string name="markets_token_details_empty_exchanges">Биржи не найдены</string>
   <string name="markets_token_details_experienced_buyers">Опытные трейдеры</string>
   <string name="markets_token_details_experienced_buyers_description">Покупатели, у которых было как минимум 100 исходящих транзакций.</string>
   <string name="markets_token_details_experienced_buyers_full">Опытные трейдеры</string>
@@ -412,6 +419,7 @@
   <string name="markets_token_details_liquidity_description">Изменение объема ликвидности, доступной для токена в течение указанного периода времени.</string>
   <string name="markets_token_details_liquidity_full">Ликвидность</string>
   <string name="markets_token_details_liquidity_index">Индекс ликвидности</string>
+  <string name="markets_token_details_listed_on">Листинг на</string>
   <string name="markets_token_details_low">Низкий</string>
   <string name="markets_token_details_market_capitalization">Рын. кап.</string>
   <string name="markets_token_details_market_capitalization_description">Общая рыночная стоимость криптовалюты, рассчитываемая путем умножения текущей цены монеты на общее количество монет в обращении.</string>
@@ -434,7 +442,7 @@
   <string name="markets_token_details_trading_volume">Объем торгов (24ч)</string>
   <string name="markets_token_details_trading_volume_24h_description">Общая сумма криптовалюты, которая была продана за последние 24 часа, показывающая уровень активности и ликвидности на рынке.</string>
   <string name="markets_token_details_trading_volume_full">Объем торгов (24ч)</string>
-  <string name="markets_tooltip_message">Потяните вверх или коснитесь поисковой строки, чтобы добавить токены напрямую из маркета</string>
+  <string name="markets_tooltip_message">Потяните вверх или коснитесь поисковой строки, чтобы добавить токены напрямую из рынка</string>
   <string name="markets_tooltip_title">Добавить токены</string>
   <string name="nfc_error_unavailable">Функция NFC недоступна на вашем устройстве</string>
   <string name="onboarding_access_code_feature_1_description">Вам необходимо установить единый код доступа для защиты всех ваших карт</string>
@@ -744,6 +752,7 @@
   <string name="staking_stake_more">Застейкать еще</string>
   <string name="staking_summary_description_text">Вы стейкаете %1$s и будете получать %2$s ежегодно</string>
   <string name="staking_tap_to_unlock">Нажмите для разблокировки</string>
+  <string name="staking_tap_to_unlock_or_vote">Нажмите для разблокировки или голосования</string>
   <string name="staking_tap_to_withdraw">Нажмите для вывода</string>
   <string name="staking_title_stake">Застейкать %s</string>
   <string name="staking_title_unstake">Вывести %s</string>
@@ -757,7 +766,7 @@
   <string name="staking_validator">Валидатор</string>
   <string name="staking_validators">Валидаторы</string>
   <string name="staking_vote">Проголосовать</string>
-  <string name="staking_vote_locked">Голосование заблокировано</string>
+  <string name="staking_vote_locked">Проголосовать</string>
   <string name="staking_withdraw">Вывод</string>
   <string name="staking_your_stakes">Застейканные средства</string>
   <string name="story_awe_description">Держите свои криптосбережения в безопасности. Приватные ключи надежно хранятся на карте.</string>
@@ -773,8 +782,8 @@
   <string name="story_web3_title">Поддержка Web 3.0</string>
   <string name="swap_promo_text">Обменивайте больше токенов по лучшим курсам прямо в вашем кошельке.</string>
   <string name="swap_promo_title">Новый провайдер обмена!</string>
-  <string name="swapping_alert_cex_description">В сумму включено: \n• комиссия провайдера сервиса\n• комиссия сети за отправку %s от биржи обратно на адрес пользователя</string>
-  <string name="swapping_alert_dex_description">В сумму включена комиссия провайдера сервиса.</string>
+  <string name="swapping_alert_cex_description" formatted="false">В сумму включено: \n• комиссия провайдера сервиса\n• комиссия сети за отправку %s от биржи обратно на адрес пользователя \n\nПроскальзывание провайдера составляет до %s \nПри максимальном проскальзывании сумма к получению будет %s</string>
+  <string name="swapping_alert_dex_description" formatted="false">В сумму включена комиссия провайдера сервиса. \n\nПроскальзывание провайдера составляет до %s \nПри максимальном проскальзывании сумма к получению будет %s</string>
   <string name="swapping_alert_title">Комиссии</string>
   <string name="swapping_approve_information_text">Подтверждения считаются отраслевым стандартом для всех децентрализованных бирж и защищают ваш кошелек от доступа со стороны смарт-контракта без вашего разрешения. По замыслу смарт-контракты не могут получить доступ к вашим токенам, если вы не одобрите доступ со своей стороны. «Разблокируя» свои токены, вы даете смарт-контракту 1inch разрешение тратить ваши активы. Майнеры сети получают компенсацию за газ (оплачиваемый вами) за запись этого действия в блокчейне. Как только разрешение будет предоставлено, вы сможете обменять свой токен.</string>
   <string name="swapping_approve_information_title">Подтвердить</string>

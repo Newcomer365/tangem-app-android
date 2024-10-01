@@ -759,8 +759,6 @@
   <string name="story_web3_title">Compatible avec Web 3.0</string>
   <string name="swap_promo_text">Échangez plus de jetons à de meilleurs taux directement dans votre portefeuille.</string>
   <string name="swap_promo_title">Nouveau fournisseur d\'échange disponible !</string>
-  <string name="swapping_alert_cex_description">Le montant comprend :\n• les frais du fournisseur de services\n• les frais de réseau pour l\'envoi de %s depuis l\'échange vers l\'adresse de l\'utilisateur.</string>
-  <string name="swapping_alert_dex_description">Le montant comprend les frais du fournisseur de services.</string>
   <string name="swapping_alert_title">Frais</string>
   <string name="swapping_approve_information_text">Tous les échanges décentralisés nécessitent des approbations pour empêcher les smart contracts d\'accéder à votre portefeuille sans votre permission. Par conception, les smart contracts ne peuvent pas accéder à vos jetons sans votre approbation. En « déverrouillant » vos jetons, vous autorisez le smart contract 1-inch à les dépenser. Les mineurs du réseau reçoivent des frais de gaz (payés par vous) pour enregistrer cette action sur la blockchain. Vous pouvez échanger votre jeton après avoir donné votre approbation.</string>
   <string name="swapping_approve_information_title">Approuver</string>
