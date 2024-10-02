@@ -128,7 +128,7 @@
   <string name="common_no_address">No address</string>
   <string name="common_now">Now</string>
   <string name="common_ok">OK</string>
-  <string name="common_origin_card">Primary Card</string>
+  <string name="common_origin_card">Primary card</string>
   <string name="common_passphrase">Passphrase</string>
   <string name="common_paste">Paste</string>
   <string name="common_privacy_policy">Privacy Policy</string>
@@ -379,8 +379,8 @@
   <string name="markets_sort_by_trending_title">Trending</string>
   <string name="markets_token_details_about_token_title">About %s</string>
   <plurals name="markets_token_details_amount_exchanges">
-    <item quantity="one">%1$s exchange</item>
-    <item quantity="other">%1$s exchanges</item>
+    <item quantity="one">%d exchange</item>
+    <item quantity="other">%d exchanges</item>
   </plurals>
   <plurals name="markets_token_details_based_on_ratings">
     <item quantity="one">Based on %d rating</item>
@@ -394,6 +394,11 @@
   <string name="markets_token_details_circulating_supply_description">The total number of coins that are available for trading and are circulating in the market</string>
   <string name="markets_token_details_circulating_supply_full">Circulating supply</string>
   <string name="markets_token_details_empty_exchanges">No exchanges found</string>
+  <string name="markets_token_details_exchange">Exchange</string>
+  <string name="markets_token_details_exchange_trust_score_caution">Caution</string>
+  <string name="markets_token_details_exchange_trust_score_risky">Risky</string>
+  <string name="markets_token_details_exchange_trust_score_trusted">Trusted</string>
+  <string name="markets_token_details_exchanges_title">Exchanges</string>
   <string name="markets_token_details_experienced_buyers">Experienced buyers</string>
   <string name="markets_token_details_experienced_buyers_description">Net buyers with the additional requirement of having at least 100 outgoing transactions</string>
   <string name="markets_token_details_experienced_buyers_full">Experienced buyers</string>
@@ -434,6 +439,7 @@
   <string name="markets_token_details_trading_volume">Trading volume (24h)</string>
   <string name="markets_token_details_trading_volume_24h_description">The total amount of a cryptocurrency that has been traded within the last 24 hours, indicating the level of activity and liquidity in the market</string>
   <string name="markets_token_details_trading_volume_full">Trading volume (24h)</string>
+  <string name="markets_token_details_volume">Volume</string>
   <string name="markets_tooltip_message">Pull this up or tap the search bar to add tokens directly from the market</string>
   <string name="markets_tooltip_title">Add tokens</string>
   <string name="nfc_error_unavailable">NFC is not available on your device</string>
@@ -567,7 +573,7 @@
     <item quantity="one">%d wallet</item>
     <item quantity="other">%d wallets</item>
   </plurals>
-  <string name="reset_card_to_factory_button_title">Reset the Card</string>
+  <string name="reset_card_to_factory_button_title">Reset the card</string>
   <string name="reset_card_to_factory_condition_1">I understand that after performing this action, I will no longer have access to the current wallet</string>
   <string name="reset_card_to_factory_condition_2">I realize that I can\'t use this card to recover my access code on the other cards of the current wallet</string>
   <string name="reset_card_with_backup_to_factory_message">Factory Reset will completely delete the wallet from the selected card. You will not be able to restore the current wallet or use the card to recover the access code.</string>
@@ -583,7 +589,7 @@
   <string name="save_user_wallet_agreement_enroll_biometrics_title">Enable biometric authorization</string>
   <string name="save_user_wallet_agreement_header_biometrics">Would you like to use biometrics?</string>
   <string name="save_user_wallet_agreement_notice">Note that making a transaction with your funds will still require your card</string>
-  <string name="scan_card_settings_button">Scan Card</string>
+  <string name="scan_card_settings_button">Scan card</string>
   <string name="scan_card_settings_message">Scan the card to change its settings. The changes will impact only the card you\'ve scanned and will not affect other cards tied to your wallet.</string>
   <string name="scan_card_settings_title">Get your card ready!</string>
   <string name="send_additional_field_already_included">Already included in the entered address</string>
@@ -737,6 +743,7 @@
   <string name="staking_stake_more">Stake more</string>
   <string name="staking_summary_description_text">You stake %1$s and will be receiving %2$s yearly</string>
   <string name="staking_tap_to_unlock">Tap to unlock</string>
+  <string name="staking_tap_to_unlock_or_vote">Tap to unlock or vote</string>
   <string name="staking_tap_to_withdraw">Tap to withdraw</string>
   <string name="staking_title_stake">Stake %s</string>
   <string name="staking_title_unstake">Unstake %s</string>
@@ -750,7 +757,7 @@
   <string name="staking_validator">Validator</string>
   <string name="staking_validators">Validators</string>
   <string name="staking_vote">Vote</string>
-  <string name="staking_vote_locked">Vote locked</string>
+  <string name="staking_vote_locked">Vote</string>
   <string name="staking_withdraw">Withdraw</string>
   <string name="staking_your_stakes">Your stakes</string>
   <string name="story_awe_description">Store your crypto assets secure while keeping private keys contained in your card</string>
@@ -766,8 +773,8 @@
   <string name="story_web3_title">Web 3.0 Compatible</string>
   <string name="swap_promo_text">Exchange more tokens at better rates directly in your wallet.</string>
   <string name="swap_promo_title">New Swap Provider Available!</string>
-  <string name="swapping_alert_cex_description">The amount includes:\n• service provider\'s fee\n• network fee for sending %s from the exchange back to the user\'s address.</string>
-  <string name="swapping_alert_dex_description">The amount includes the service provider\'s fee.</string>
+  <string name="swapping_alert_cex_description" formatted="false">The amount includes:\n• service provider\'s fee\n• network fee for sending %s from the exchange back to the user\'s address. \n\nProvider slippage is up to %s \n At maximum slippage, the amount to be received will be %s</string>
+  <string name="swapping_alert_dex_description" formatted="false">The amount includes the service provider\'s fee. \n\nProvider slippage is up to %s \n At maximum slippage, the amount to be received will be %s</string>
   <string name="swapping_alert_title">Fees</string>
   <string name="swapping_approve_information_text">All decentralized exchanges require approvals to prevent smart contracts from accessing your wallet without your permission. By design, smart contracts can\'t access your tokens unless you approve. By \"unlocking\" your tokens, you authorize the 1-inch smart contract to spend them. The network\'s miners receive a gas fee (paid by you) to record this action on the blockchain. You can swap your token after giving approval.</string>
   <string name="swapping_approve_information_title">Approve</string>
@@ -837,7 +844,7 @@
   <string name="user_wallet_list_error_wallet_already_saved">This wallet has already been saved, you can add another one</string>
   <string name="user_wallet_list_rename_popup_error_already_exists">The wallet with name %s already exists</string>
   <string name="user_wallet_list_rename_popup_placeholder">Wallet name</string>
-  <string name="user_wallet_list_rename_popup_title">Rename Wallet</string>
+  <string name="user_wallet_list_rename_popup_title">Rename wallet</string>
   <string name="user_wallet_list_unlock_all">Unlock all</string>
   <string name="user_wallet_list_unlock_all_with">Unlock all with %s</string>
   <string name="wallet_balance_blockchain_unreachable_try_later">Blockchain is unreachable. Try later</string>
