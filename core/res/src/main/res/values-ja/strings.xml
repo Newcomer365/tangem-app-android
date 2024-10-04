@@ -116,12 +116,14 @@
   <string name="common_generate_addresses">アドレスを取得する</string>
   <string name="common_go_to_provider">プロバイダーへ移動</string>
   <string name="common_go_to_token">トークンへ移動</string>
+  <string name="common_hour">時間</string>
   <string name="common_import">インポート</string>
   <string name="common_in_progress">進行中</string>
   <string name="common_later">後で</string>
   <string name="common_left">残り%1$s</string>
   <string name="common_locked">ロックされています</string>
   <string name="common_main_network">メインネットワーク</string>
+  <string name="common_month">月</string>
   <string name="common_network_fee_title">ネットワーク手数料</string>
   <string name="common_network_fee_warning_content">送金額は、選択された手数料レベルをカバーするため、%1$s (%2$s) 減額されます。</string>
   <string name="common_next">次</string>
@@ -144,6 +146,7 @@
   <string name="common_save_changes">変更内容を保存</string>
   <string name="common_search">検索</string>
   <string name="common_search_tokens">トークンを検索</string>
+  <string name="common_second_no_param">秒</string>
   <string name="common_seed_phrase">シードフレーズ</string>
   <string name="common_select_action">アクションを選択</string>
   <string name="common_sell">売る</string>
@@ -169,6 +172,7 @@
   <string name="common_unknown_error">エラーが発生しました。もう一度お試しください。</string>
   <string name="common_unreachable">アクセスできません</string>
   <string name="common_unstake">ステーキング解除</string>
+  <string name="common_week">週</string>
   <string name="common_yes">はい</string>
   <string name="contract_address_copied_message">コントラクトアドレスをコピーしました!</string>
   <string name="currency_subtitle_expanded">利用可能なネットワーク</string>
@@ -287,6 +291,7 @@
   <string name="feedback_subject_support">フィードバック</string>
   <string name="feedback_subject_support_tangem">Tangemへのフィードバック</string>
   <string name="feedback_subject_tx_failed">取引を送信できません</string>
+  <string name="feedback_token_description_error">コインの説明エラー</string>
   <string name="give_permission_current_transaction">取引</string>
   <string name="give_permission_fee_footer">ネットワークは、あなたがトークンのスワップを承認していることを確認するために、トークン承認手数料を請求します。</string>
   <string name="give_permission_policy_type_footer">選択したトークンの承認制限を指定します</string>
