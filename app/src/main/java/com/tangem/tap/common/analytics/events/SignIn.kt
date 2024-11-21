@@ -1,13 +1,14 @@
 package com.tangem.tap.common.analytics.events
 
 import com.tangem.core.analytics.models.AnalyticsEvent
+import com.tangem.core.analytics.models.EventValue
 
 /**
  * Created by Anton Zhilenkov on 23.01.2023.
  */
 sealed class SignIn(
     event: String,
-    params: Map<String, String> = mapOf(),
+    params: Map<String, EventValue> = mapOf(),
     error: Throwable? = null,
 ) : AnalyticsEvent("Sign In", event, params, error) {
 
