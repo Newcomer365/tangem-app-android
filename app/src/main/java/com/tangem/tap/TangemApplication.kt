@@ -208,7 +208,7 @@ abstract class TangemApplication : Application(), ImageLoaderFactory {
 
         // TODO: Try to performance and user experience.
         //  https://tangem.atlassian.net/browse/AND-3859
-        runBlocking(dispatchers.io) {
+        runBlocking {
             awaitAll(
                 async { featureTogglesManager.init() },
                 async { excludedBlockchainsManager.init() },
