@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ANDROID_HOME=/opt/android-sdk
@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install -y \
     curl \
     openssh-client \
     git \
+    ruby \
+    ruby-dev \
+    build-essential \
     && apt-get clean
 
 RUN mkdir -p $ANDROID_HOME/cmdline-tools/latest && \
@@ -37,6 +40,10 @@ COPY x86_64_libs/ld-linux-x86-64.so.2  /lib64/ld-linux-x86-64.so.2
 RUN mkdir -p ~/.gradle && echo "org.gradle.jvmargs=-Xmx4G -Dkotlin.daemon.jvm.options=-Xmx2G -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC -Dfile.encoding=UTF-8" > ~/.gradle/gradle.properties
 
 WORKDIR /workspace
+
+RUN gem install bundler
+COPY Gemfile Gemfile.lock ./
+RUN bundle install
 
 CMD ["bash"]
 
