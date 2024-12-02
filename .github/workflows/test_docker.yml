@@ -33,7 +33,7 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build -t ci-tangem ./docker
+          docker build --platform linux/arm64 -t ci-tangem ./docker
 
       - name: Run Tests in Docker
         env:
