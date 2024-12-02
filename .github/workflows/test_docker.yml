@@ -22,7 +22,7 @@ concurrency:
 jobs:
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, test]
     if: github.event.pull_request.draft == false
     steps:
       - name: Checkout Repository
