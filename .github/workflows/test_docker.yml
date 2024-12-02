@@ -1,12 +1,60 @@
-name: Test action
+name: tests docker
 
 on:
+  pull_request:
+    branches:
+      - 'release'
+      - 'develop'
+      - 'master'
+      - 'hotfix/**'
+      - '*_pre_release'
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
   workflow_dispatch:
 
-jobs:
-  test-job:
-    runs-on: test
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+          token: ${{ secrets.GH_MOBILE_PAT }}
+
+      - name: Run Tests in Docker
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
+        run: |
+          docker run --rm \
+            -e GITHUB_TOKEN \
+            -e GITHUB_ACTOR \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            ci-tangem \
+            sh -c "
+              echo 'Running tests...';
+              bundle exec fastlane test;
+            "
+
+      - name: Build Notification
+        if: failure()
+        uses: adamkdean/simple-slack-notify@master
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_DVELOPMENT_ANDROID }}
+        with:
+          channel: '#development-android'
+          text: 'Tangem app tests #${{ github.run_number }} failed'
+          color: 'danger'
+          fields: |
+            [{ "title": "Action URL", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]
