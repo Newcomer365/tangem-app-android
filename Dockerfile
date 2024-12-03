@@ -27,16 +27,17 @@ RUN yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses && \
     $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-31"
 
 RUN mkdir /lib/x86_64-linux-gnu
-COPY x86_64_libs/* /lib/x86_64-linux-gnu/
+COPY docker/x86_64_libs/* /lib/x86_64-linux-gnu/
 RUN mkdir /lib64
-COPY x86_64_libs/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2
+COPY docker/x86_64_libs/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2
 
 RUN mkdir -p ~/.gradle && echo "org.gradle.jvmargs=-Xmx4G -Dkotlin.daemon.jvm.options=-Xmx2G -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC -Dfile.encoding=UTF-8" > ~/.gradle/gradle.properties
 
-RUN gem install bundler
+RUN gem install bundler:2.5.23
 
-WORKDIR /workspace
 COPY Gemfile Gemfile.lock ./
 RUN bundle install
+
+WORKDIR /workspace
 
 CMD ["bash"]
