@@ -38,7 +38,7 @@ RUN mkdir -p ~/.gradle && echo "org.gradle.jvmargs=-Xmx4G -Dkotlin.daemon.jvm.op
 RUN gem install bundler:2.5.23
 
 COPY Gemfile Gemfile.lock ./
-RUN bundle install
+RUN bundle install --verbose
 
 WORKDIR /workspace
 

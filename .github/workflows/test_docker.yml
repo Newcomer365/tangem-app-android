@@ -39,15 +39,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
+          BUNDLE_PATH: ../.gems
         run: |
           docker run --rm \
             -e GITHUB_TOKEN \
             -e GITHUB_ACTOR \
+            -e BUNDLE_PATH \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             ci-tangem \
             sh -c "
               echo 'Running tests...';
+              bundle install --verbose;
               bundle exec fastlane test;
             "
 
