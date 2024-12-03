@@ -3,6 +3,7 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ANDROID_HOME=/opt/android-sdk
 ENV GRADLE_HOME=/opt/gradle
+ENV BUNDLE_PATH=vendor/bundle
 ENV PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/34.0.0:$GRADLE_HOME/bin
 
 RUN apt-get update && apt-get install -y \
@@ -42,6 +43,7 @@ RUN mkdir -p ~/.gradle && echo "org.gradle.jvmargs=-Xmx4G -Dkotlin.daemon.jvm.op
 RUN gem install bundler:2.5.23
 
 COPY Gemfile Gemfile.lock ./
-RUN bundle install --verbose
+RUN bundle install --jobs=4 --retry=3 --verbose
+
 
 CMD ["bash"]
