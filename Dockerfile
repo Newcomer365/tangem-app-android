@@ -14,6 +14,8 @@ RUN apt-get update && apt-get install -y \
     ruby \
     ruby-dev \
     build-essential \
+    libmagickwand-dev \
+    imagemagick \
     && apt-get clean
 
 RUN mkdir -p $ANDROID_HOME/cmdline-tools/latest && \
