@@ -45,11 +45,11 @@ jobs:
             -e GITHUB_TOKEN \
             -e GITHUB_ACTOR \
             -e BUNDLE_PATH \
-            -v ${{ github.workspace }}:/workspace/fastlane \
+            -v ${{ github.workspace }}:/workspace \
             ci-tangem \
             sh -c "
               echo 'Running tests...';
-              bundle exec fastlane test --non_interactive;
+              cd /workspace/fastlane && bundle exec fastlane test;
             "
 
 #      - name: Build Notification

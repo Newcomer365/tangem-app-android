@@ -1,5 +1,8 @@
 FROM ubuntu:24.04
 
+ENV LC_ALL=en_US.UTF-8
+ENV LANG=en_US.UTF-8
+
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ANDROID_HOME=/opt/android-sdk
 ENV GRADLE_HOME=/opt/gradle
