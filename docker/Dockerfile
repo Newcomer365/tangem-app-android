@@ -39,9 +39,10 @@ COPY x86_64_libs/ld-linux-x86-64.so.2  /lib64/ld-linux-x86-64.so.2
 
 RUN mkdir -p ~/.gradle && echo "org.gradle.jvmargs=-Xmx4G -Dkotlin.daemon.jvm.options=-Xmx2G -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC -Dfile.encoding=UTF-8" > ~/.gradle/gradle.properties
 
+RUN gem install bundler
+
 WORKDIR /workspace
 
-RUN gem install bundler
 COPY Gemfile Gemfile.lock ./
 RUN bundle install
 
