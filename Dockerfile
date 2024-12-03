@@ -44,6 +44,4 @@ RUN gem install bundler:2.5.23
 COPY Gemfile Gemfile.lock ./
 RUN bundle install --verbose
 
-WORKDIR /workspace
-
 CMD ["bash"]
