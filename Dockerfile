@@ -2,7 +2,7 @@ FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ANDROID_HOME=/opt/android-sdk
-ENV PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
+ENV PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/34.0.0
 
 RUN apt-get update && apt-get install -y \
     openjdk-17-jdk \
@@ -14,8 +14,6 @@ RUN apt-get update && apt-get install -y \
     ruby \
     ruby-dev \
     build-essential \
-    libmagickwand-dev \
-    imagemagick \
     && apt-get clean
 
 RUN mkdir -p $ANDROID_HOME/cmdline-tools/latest && \
@@ -26,7 +24,7 @@ RUN mkdir -p $ANDROID_HOME/cmdline-tools/latest && \
     rm -f /tmp/cmdline-tools.zip
 
 RUN yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses && \
-    $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-31"
+    $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
 RUN mkdir /lib/x86_64-linux-gnu
 COPY docker/x86_64_libs/* /lib/x86_64-linux-gnu/
