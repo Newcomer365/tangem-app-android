@@ -45,6 +45,7 @@ jobs:
             -e GITHUB_TOKEN \
             -e GITHUB_ACTOR \
             -e BUNDLE_PATH \
+            -v ~/.gradle:/root/.gradle \
             -v ${{ github.workspace }}:/workspace \
             ci-tangem \
             sh -c "
