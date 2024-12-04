@@ -1,8 +1,5 @@
 FROM ubuntu:24.04
 
-ENV LC_ALL=en_US.UTF-8
-ENV LANG=en_US.UTF-8
-
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ANDROID_HOME=/opt/android-sdk
 ENV GRADLE_HOME=/opt/gradle
@@ -45,8 +42,8 @@ RUN mkdir -p ~/.gradle && echo "org.gradle.jvmargs=-Xmx4G -Dkotlin.daemon.jvm.op
 
 RUN gem install bundler:2.5.23
 
-COPY Gemfile Gemfile.lock ./
-RUN bundle install --jobs=4 --retry=3 --verbose
+COPY Gemfile Gemfile.lock ./workspace/
+RUN cd /workspace && bundle install --jobs=4 --retry=3 --verbose
 
 
 CMD ["bash"]
