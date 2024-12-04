@@ -49,8 +49,9 @@ jobs:
             ci-tangem \
             sh -c "
               echo 'Running tests...';
-              cd /workspace && bundle exec fastlane test;
+              cd /workspace && fastlane test;
             "
+#use bundle
 
 #      - name: Build Notification
 #        if: failure()

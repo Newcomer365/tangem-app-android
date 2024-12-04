@@ -39,9 +39,9 @@ RUN mkdir -p ~/.gradle && echo "org.gradle.jvmargs=-Xmx4G -Dkotlin.daemon.jvm.op
 RUN gem install bundler:2.5.23
 RUN gem install fastlane -v 2.211.0 -N -V
 
-COPY Gemfile Gemfile.lock ./workspace/
-RUN cd /workspace && bundle install --jobs=4 --retry=3 --verbose
+COPY Gemfile Gemfile.lock ./
+RUN bundle install --jobs=4 --retry=3 --verbose
 
-RUN cd /workspace && bundle exec fastlane -v
+RUN bundle exec fastlane -v
 
 CMD ["bash"]
