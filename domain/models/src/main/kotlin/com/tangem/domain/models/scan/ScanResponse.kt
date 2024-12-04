@@ -16,16 +16,42 @@ import kotlinx.serialization.Serializable
 @Serializable(with = ScanResponseAsStringSerializer::class)
 @JsonClass(generateAdapter = true)
 data class ScanResponse(
-    @Json(name = "card") val card: CardDTO,
-    @Json(name = "productType") val productType: ProductType,
-    @Json(name = "walletData") val walletData: WalletData?,
-    @Json(name = "secondTwinPublicKey") val secondTwinPublicKey: String? = null,
-    @Json(name = "derivedKeys") val derivedKeys: Map<KeyWalletPublicKey, ExtendedPublicKeysMap> = mapOf(),
-    @Json(name = "primaryCard") val primaryCard: PrimaryCard? = null,
+    @Json(name = "card")
+    val card: CardDTO,
+    @Json(name = "productType")
+    val productType: ProductType,
+    @Json(name = "walletData")
+    val walletData: WalletData?,
+    @Json(name = "secondTwinPublicKey")
+    val secondTwinPublicKey: String? = null,
+    @Json(name = "derivedKeys")
+    val derivedKeys: Map<KeyWalletPublicKey, ExtendedPublicKeysMap> = mapOf(),
+    @Json(name = "primaryCard")
+    val primaryCard: PrimaryCard? = null,
 )
 
 typealias KeyWalletPublicKey = ByteArrayKey
 
+@JsonClass(generateAdapter = false)
 enum class ProductType {
-    Note, Twins, Wallet, Start2Coin, Wallet2, Ring, Visa,
+    @Json(name = "Note")
+    Note,
+
+    @Json(name = "Twins")
+    Twins,
+
+    @Json(name = "Wallet")
+    Wallet,
+
+    @Json(name = "Start2Coin")
+    Start2Coin,
+
+    @Json(name = "Wallet2")
+    Wallet2,
+
+    @Json(name = "Ring")
+    Ring,
+
+    @Json(name = "Visa")
+    Visa,
 }
