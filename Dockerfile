@@ -28,7 +28,7 @@ RUN mkdir -p $ANDROID_HOME/cmdline-tools/latest && \
 COPY docker/x86_64_libs/* /lib/x86_64-linux-gnu/
 COPY docker/x86_64_libs/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2
 
-#RUN mkdir -p ~/.gradle && echo "org.gradle.jvmargs=-Xmx4G -Dkotlin.daemon.jvm.options=-Xmx2G -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC -Dfile.encoding=UTF-8" > ~/.gradle/gradle.properties
+RUN mkdir -p ~/.gradle && echo "org.gradle.jvmargs=-Xmx4G -Dkotlin.daemon.jvm.options=-Xmx2G -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC -Dfile.encoding=UTF-8" > ~/.gradle/gradle.properties
 
 RUN gem install bundler:2.5.23
 RUN gem install fastlane -v 2.211.0 -N -V

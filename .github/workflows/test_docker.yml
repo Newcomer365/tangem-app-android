@@ -50,7 +50,9 @@ jobs:
             ci-tangem \
             sh -c "
               echo 'Running tests...';
-              cd /workspace && fastlane test;
+              cd /workspace
+              ./gradlew build --info
+               fastlane test;
             "
 #use bundle
 
