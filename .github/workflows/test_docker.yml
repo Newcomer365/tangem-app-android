@@ -49,7 +49,7 @@ jobs:
             ci-tangem \
             sh -c "
               echo 'Running tests...';
-              cd /workspace/fastlane && bundle exec fastlane test;
+              cd /workspace && bundle exec fastlane test;
             "
 
 #      - name: Build Notification
