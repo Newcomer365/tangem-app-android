@@ -23,6 +23,9 @@ platform :android do
 
   desc "Runs all the tests"
   lane :test do
+    FileUtils.cp("../app/ci_resources/8gb_ram_ci_gradle.properties", "../app/gradle.properties")
+    puts "Gradle properties:"
+    puts File.read(destination)
     gradle(task: "detekt")
     gradle(task: "testDebugUnitTest")
   end
