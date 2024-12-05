@@ -51,9 +51,7 @@ jobs:
             sh -c "
               echo 'Running tests...';
               
-              cd /workspace
-              cat gradle.properties
-              fastlane test;
+              cd /workspace && fastlane test;
             "
 #use bundle
 
