@@ -4,16 +4,49 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import com.tangem.domain.onramp.model.OnrampQuote
+import com.tangem.domain.onramp.model.PaymentMethodType
 import com.tangem.domain.onramp.repositories.OnrampRepository
+import com.tangem.domain.settings.repositories.SettingsRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 
-class GetOnrampQuotesUseCase(private val repository: OnrampRepository) {
+class GetOnrampQuotesUseCase(
+    private val settingsRepository: SettingsRepository,
+    private val repository: OnrampRepository,
+) {
 
     operator fun invoke(): Flow<Either<Throwable, List<OnrampQuote>>> {
         return repository.getQuotes()
-            .map<List<OnrampQuote>, Either<Throwable, List<OnrampQuote>>> { it.right() }
+            .map<List<OnrampQuote>, Either<Throwable, List<OnrampQuote>>> { quotes ->
+                val isGooglePayAvailable = settingsRepository.isGooglePayAvailability()
+
+                quotes.groupBy { it.paymentMethod.type }
+                    .asSequence()
+                    .sortedBy { it.key.getPriority(isGooglePayAvailable) }
+                    .sortByRate()
+                    .toList()
+                    .flatten()
+                    .right()
+            }
             .catch { emit(it.left()) }
+    }
+
+    /**
+     * Sorting providers by rule:
+     *
+     * 1. Highest rate
+     * 2. Smallest difference between entered amount and required min/max amount
+     */
+    private fun Sequence<Map.Entry<PaymentMethodType, List<OnrampQuote>>>.sortByRate() = map { grouped ->
+        grouped.value.sortedByDescending {
+            when (it) {
+                is OnrampQuote.Data -> it.toAmount.value
+
+                // negative difference to sort both when data and unavailable is present
+                is OnrampQuote.Error.AmountTooSmallError -> it.fromAmount.value - it.requiredAmount.value
+                is OnrampQuote.Error.AmountTooBigError -> it.requiredAmount.value - it.fromAmount.value
+            }
+        }
     }
 }

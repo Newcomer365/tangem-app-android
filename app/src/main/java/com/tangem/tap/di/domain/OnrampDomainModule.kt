@@ -4,6 +4,7 @@ import com.tangem.domain.onramp.*
 import com.tangem.domain.onramp.repositories.OnrampErrorResolver
 import com.tangem.domain.onramp.repositories.OnrampRepository
 import com.tangem.domain.onramp.repositories.OnrampTransactionRepository
+import com.tangem.domain.settings.repositories.SettingsRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -55,12 +56,10 @@ internal object OnrampDomainModule {
     @Singleton
     fun provideGetOnrampStatusUseCase(
         onrampRepository: OnrampRepository,
-        onrampTransactionRepository: OnrampTransactionRepository,
         onrampErrorResolver: OnrampErrorResolver,
     ): GetOnrampStatusUseCase {
         return GetOnrampStatusUseCase(
             onrampRepository,
-            onrampTransactionRepository,
             onrampErrorResolver,
         )
     }
@@ -105,6 +104,14 @@ internal object OnrampDomainModule {
 
     @Provides
     @Singleton
+    fun provideOnrampUpdateTransactionStatusUseCase(
+        onrampTransactionRepository: OnrampTransactionRepository,
+    ): OnrampUpdateTransactionStatusUseCase {
+        return OnrampUpdateTransactionStatusUseCase(onrampTransactionRepository)
+    }
+
+    @Provides
+    @Singleton
     fun provideGetOnrampPaymentMethodsUseCase(onrampRepository: OnrampRepository): GetOnrampPaymentMethodsUseCase {
         return GetOnrampPaymentMethodsUseCase(onrampRepository)
     }
@@ -123,8 +130,14 @@ internal object OnrampDomainModule {
 
     @Provides
     @Singleton
-    fun provideGetOnrampQuotesUseCase(onrampRepository: OnrampRepository): GetOnrampQuotesUseCase {
-        return GetOnrampQuotesUseCase(onrampRepository)
+    fun provideGetOnrampQuotesUseCase(
+        settingsRepository: SettingsRepository,
+        onrampRepository: OnrampRepository,
+    ): GetOnrampQuotesUseCase {
+        return GetOnrampQuotesUseCase(
+            settingsRepository = settingsRepository,
+            repository = onrampRepository,
+        )
     }
 
     @Provides
@@ -147,6 +160,12 @@ internal object OnrampDomainModule {
     @Singleton
     fun provideOnrampSaveSelectedPaymentMethod(onrampRepository: OnrampRepository): OnrampSaveSelectedPaymentMethod {
         return OnrampSaveSelectedPaymentMethod(onrampRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideOnrampFetchPairsUseCase(onrampRepository: OnrampRepository): OnrampFetchPairsUseCase {
+        return OnrampFetchPairsUseCase(onrampRepository)
     }
 
     @Provides

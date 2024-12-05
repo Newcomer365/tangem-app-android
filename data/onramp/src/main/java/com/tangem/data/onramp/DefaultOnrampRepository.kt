@@ -2,6 +2,7 @@ package com.tangem.data.onramp
 
 import com.squareup.moshi.Moshi
 import com.tangem.blockchain.extensions.toBigDecimalOrDefault
+import com.tangem.core.deeplink.global.BuyCurrencyDeepLink
 import com.tangem.data.common.api.safeApiCall
 import com.tangem.data.onramp.converters.CountryConverter
 import com.tangem.data.onramp.converters.CurrencyConverter
@@ -30,8 +31,10 @@ import com.tangem.datasource.local.onramp.quotes.OnrampQuotesStore
 import com.tangem.datasource.local.preferences.AppPreferencesStore
 import com.tangem.datasource.local.preferences.PreferencesKeys
 import com.tangem.datasource.local.preferences.utils.getObject
+import com.tangem.datasource.local.preferences.utils.getObjectSyncOrDefault
 import com.tangem.datasource.local.preferences.utils.getObjectSyncOrNull
 import com.tangem.datasource.local.preferences.utils.storeObject
+import com.tangem.domain.apptheme.model.AppThemeMode
 import com.tangem.domain.onramp.model.*
 import com.tangem.domain.onramp.model.cache.OnrampTransaction
 import com.tangem.domain.onramp.repositories.OnrampRepository
@@ -49,7 +52,6 @@ import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.withContext
 import org.joda.time.DateTime
 import timber.log.Timber
-import java.math.BigDecimal
 import java.util.UUID
 
 @Suppress("LongParameterList", "LargeClass", "TooManyFunctions")
@@ -200,6 +202,7 @@ internal class DefaultOnrampRepository(
                             call = {
                                 val response = onrampApi.getQuote(
                                     fromCurrencyCode = currency.code,
+                                    fromPrecision = currency.precision,
                                     toContractAddress = cryptoCurrency.getContractAddress(),
                                     toNetwork = cryptoCurrency.network.backendId,
                                     paymentMethod = paymentMethod.id,
@@ -267,10 +270,12 @@ internal class DefaultOnrampRepository(
             val fromAmountString = quote.fromAmount.value.movePointRight(quote.fromAmount.decimals).toString()
             val currency = requireNotNull(getDefaultCurrencySync()) { "Default currency must not be null" }
             val country = requireNotNull(getDefaultCountrySync()) { "Default country must not be null" }
+            val requestId = UUID.randomUUID().toString()
             val data = safeApiCall(
                 call = {
                     onrampApi.getData(
                         fromCurrencyCode = currency.code,
+                        fromPrecision = currency.precision,
                         toContractAddress = cryptoCurrency.getContractAddress(),
                         toNetwork = cryptoCurrency.network.backendId,
                         paymentMethod = quote.paymentMethod.id,
@@ -279,10 +284,10 @@ internal class DefaultOnrampRepository(
                         toDecimals = cryptoCurrency.decimals,
                         providerId = quote.provider.id,
                         toAddress = address,
-                        redirectUrl = "tangem://redirect?action=dismissBrowser",
+                        redirectUrl = BuyCurrencyDeepLink.ONRAMP_REDIRECT_DEEPLINK,
                         language = null,
-                        theme = null,
-                        requestId = UUID.randomUUID().toString(),
+                        theme = getTheme(),
+                        requestId = requestId,
                     ).bind()
                 },
                 onError = { e ->
@@ -294,18 +299,19 @@ internal class DefaultOnrampRepository(
                 val dataJson = requireNotNull(onrampDataAdapter.fromJson(data.dataJson)) {
                     "Can not parse dataJson. ${data.dataJson}"
                 }
+                if (requestId != dataJson.requestId) throw OnrampRedirectError.WrongRequestId
+
                 createOnrampTransaction(
                     txId = data.txId,
+                    quote = quote,
                     onrampDataJson = dataJson,
                     userWalletId = userWalletId,
                     currency = currency,
-                    provider = quote.provider,
                     cryptoCurrency = cryptoCurrency,
-                    fromAmount = quote.fromAmount.value,
-                    toAmount = quote.toAmount.value,
+                    residency = country.name,
                 )
             } else {
-                error("Express signature invalid")
+                throw OnrampRedirectError.VerificationFailed
             }
         } catch (e: Exception) {
             Timber.e(e)
@@ -360,29 +366,30 @@ internal class DefaultOnrampRepository(
 
     private fun createOnrampTransaction(
         txId: String,
+        quote: OnrampProviderWithQuote.Data,
         onrampDataJson: OnrampDataJson,
         userWalletId: UserWalletId,
         currency: OnrampCurrency,
-        provider: OnrampProvider,
         cryptoCurrency: CryptoCurrency,
-        fromAmount: BigDecimal,
-        toAmount: BigDecimal,
+        residency: String,
     ): OnrampTransaction {
         return OnrampTransaction(
             txId = txId,
             userWalletId = userWalletId,
-            fromAmount = fromAmount,
+            fromAmount = quote.fromAmount.value,
             fromCurrency = currency,
-            toAmount = toAmount,
+            toAmount = quote.toAmount.value,
             toCurrencyId = cryptoCurrency.id.value,
             status = OnrampStatus.Status.Expired,
             externalTxUrl = onrampDataJson.externalTxUrl,
             externalTxId = onrampDataJson.externalTxId,
             timestamp = DateTime.now().millis,
-            providerName = provider.info.name,
-            providerImageUrl = provider.info.imageLarge,
+            providerName = quote.provider.info.name,
+            providerImageUrl = quote.provider.info.imageLarge,
             providerType = ExchangeProviderType.ONRAMP.name,
             redirectUrl = onrampDataJson.widgetUrl,
+            paymentMethod = quote.paymentMethod.name,
+            residency = residency,
         )
     }
 
@@ -398,6 +405,19 @@ internal class DefaultOnrampRepository(
             symbol = cryptoCurrency.symbol,
             decimals = cryptoCurrency.decimals,
         )
+    }
+
+    private suspend fun getTheme(): String {
+        val appTheme = appPreferencesStore.getObjectSyncOrDefault(
+            key = PreferencesKeys.APP_THEME_MODE_KEY,
+            default = AppThemeMode.DEFAULT,
+        )
+        return when (appTheme) {
+            AppThemeMode.FORCE_DARK -> "dark"
+            AppThemeMode.FORCE_LIGHT,
+            AppThemeMode.FOLLOW_SYSTEM,
+            -> "light"
+        }
     }
 
     private fun List<PaymentMethodDTO>.removeApplePay(): List<PaymentMethodDTO> = filterNot { it.id == "apple-pay" }
