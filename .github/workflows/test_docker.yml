@@ -22,7 +22,7 @@ concurrency:
 jobs:
   test:
     name: Test
-    runs-on: [self-hosted, ARM64, test]
+    runs-on: [ self-hosted, ARM64, test ]
     if: github.event.pull_request.draft == false
     steps:
       - name: Checkout Repository
@@ -50,19 +50,19 @@ jobs:
             tangem_ci_android_environment \
             sh -c "
               echo 'Running tests...';
-              
+          
               cd /workspace && fastlane test;
             "
-#use bundle
+      #use bundle
 
-#      - name: Build Notification
-#        if: failure()
-#        uses: adamkdean/simple-slack-notify@master
-#        env:
-#          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_DVELOPMENT_ANDROID }}
-#        with:
-#          channel: '#development-android'
-#          text: 'Tangem app tests #${{ github.run_number }} failed'
-#          color: 'danger'
-#          fields: |
-#            [{ "title": "Action URL", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]
+      - name: Build Notification
+        if: failure()
+        uses: adamkdean/simple-slack-notify@master
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_DVELOPMENT_ANDROID }}
+        with:
+          channel: '#development-android'
+          text: 'Tangem app tests #${{ github.run_number }} failed'
+          color: 'danger'
+          fields: |
+            [{ "title": "Action URL", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]
