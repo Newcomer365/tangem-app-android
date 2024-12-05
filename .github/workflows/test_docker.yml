@@ -50,7 +50,10 @@ jobs:
             ci-tangem \
             sh -c "
               echo 'Running tests...';
+              
               cd /workspace
+              mv ci_resources/8gb_ram_ci_gradle.properties gradle.properties
+              cat gradle.properties
               fastlane test;
             "
 #use bundle
