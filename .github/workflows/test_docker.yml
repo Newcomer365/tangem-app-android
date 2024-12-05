@@ -51,8 +51,7 @@ jobs:
             sh -c "
               echo 'Running tests...';
               cd /workspace
-              ./gradlew build --info
-               fastlane test;
+              fastlane test;
             "
 #use bundle
 
