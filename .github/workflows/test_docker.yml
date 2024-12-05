@@ -33,7 +33,7 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build --platform linux/arm64 -t ci-tangem .
+          docker build --platform linux/arm64 -t tangem_ci_android_environment .
 
       - name: Run Tests in Docker
         env:
@@ -47,7 +47,7 @@ jobs:
             -e BUNDLE_PATH \
             -v ~/.gradle:/root/.gradle \
             -v ${{ github.workspace }}:/workspace \
-            ci-tangem \
+            tangem_ci_android_environment \
             sh -c "
               echo 'Running tests...';
               
