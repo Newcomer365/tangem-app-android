@@ -22,7 +22,7 @@ concurrency:
 jobs:
   test:
     name: Test
-    runs-on: [ self-hosted, ARM64, active-android ]
+    runs-on: [ self-hosted, ARM64, builder2 ]
     if: github.event.pull_request.draft == false
     steps:
       - name: Checkout Repository
@@ -51,17 +51,17 @@ jobs:
             sh -c "
               echo 'Running tests...';
           
-              cd /workspace && fastlane test;
+              cd /workspace && fastlane publishToFirebase;
             "
 
-      - name: Build Notification
-        if: failure()
-        uses: adamkdean/simple-slack-notify@master
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_DVELOPMENT_ANDROID }}
-        with:
-          channel: '#development-android'
-          text: 'Tangem app tests #${{ github.run_number }} failed'
-          color: 'danger'
-          fields: |
-            [{ "title": "Action URL", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]
+#      - name: Build Notification
+#        if: failure()
+#        uses: adamkdean/simple-slack-notify@master
+#        env:
+#          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_DVELOPMENT_ANDROID }}
+#        with:
+#          channel: '#development-android'
+#          text: 'Tangem app tests #${{ github.run_number }} failed'
+#          color: 'danger'
+#          fields: |
+#            [{ "title": "Action URL", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]
