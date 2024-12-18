@@ -28,11 +28,6 @@ jobs:
       matrix:
         task: [detekt, test]
     steps:
-      # temporary step, will be deleted soon
-      - name: Change user
-        if: startsWith(runner.os, 'Linux')
-        run: sudo chown -R ubuntu:ubuntu /home/ubuntu/actions-runner/_work/tangem-app-android/tangem-app-android/
-
       - name: Checkout
         uses: actions/checkout@v3
         with:
@@ -50,11 +45,12 @@ jobs:
           BUNDLE_PATH: vendor/bundle
         run: |
           docker run --rm \
-            -e GITHUB_TOKEN \
-            -e GITHUB_ACTOR \
-            -e BUNDLE_PATH \
-            -v ~/.gradle:/root/.gradle \
-            -v ${{ github.workspace }}:/workspace \
+            --user ubuntu \
+            --env GITHUB_TOKEN \
+            --env GITHUB_ACTOR \
+            --env BUNDLE_PATH \
+            --volume ~/.gradle:/home/ubuntu/.gradle \
+            --volume ${{ github.workspace }}:/workspace \
             tangem_ci_android_environment \
             sh -c "
               echo 'Running ${{ matrix.task }}...';
