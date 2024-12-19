@@ -1,33 +1,53 @@
 name: PR check
 
 on:
-  pull_request:
+  push:
     branches:
-      - 'release'
       - 'develop'
-      - 'master'
-      - 'hotfix/**'
-      - '*_pre_release'
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - ready_for_review
   workflow_dispatch:
+    inputs:
+      build_description:
+        description: >
+          Optional additional info about the build
+        type: string
+  workflow_call:
+    secrets:
+      FIREBASE_APP_ID_INTERNAL:
+        required: true
+      FIREBASE_CLI_TOKEN:
+        required: true
+      # Token must have read access to all the submodule repositories
+      GH_MOBILE_PAT:
+        required: true
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+env:
+  INITIAL_VERSION_CODE: ${{ 1000 }}
 
 jobs:
-  checks:
-    name: ${{ matrix.task }}
-    runs-on: [ self-hosted, ARM64, active-android ]
-    if: github.event.pull_request.draft == false
-    strategy:
-      matrix:
-        task: [detekt, test]
+  build_and_upload:
+    name: Upload apk to Firebase
+    runs-on: [ self-hosted, ARM64, active-android, Linux ]
+    environment: Alpha
+    outputs:
+      version_name: ${{ steps.get_version_name.outputs.versionName }}
+      version_code: ${{ steps.get_version_code.outputs.versionCode }}
+      jira_summary: ${{ steps.jira.outputs.summary }}
+      encoded_release_url: ${{ steps.uploading.outputs.encoded_release_url }}
     steps:
+      - name: Jira Login
+        uses: atlassian/gajira-login@master
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_TOKEN }}
+
+      - name: Get Jira Issue Number from Branch Name
+        id: jira
+        uses: tangem/jira-action@master
+        with:
+          action: getBranchSummary
+          branch-name: ${{ github.ref_name }}
+
       - name: Checkout
         uses: actions/checkout@v3
         with:
@@ -38,33 +58,48 @@ jobs:
         run: |
           docker build --platform linux/arm64 -t tangem_ci_android_environment .
 
-      - name: Run ${{ matrix.task }}
+      - name: Increment version code
+        id: get_version_code
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          VERSION_CODE=$((RUN_NUMBER + $INITIAL_VERSION_CODE))
+          echo "versionCode=$VERSION_CODE" >> $GITHUB_OUTPUT
+
+      - name: Read version.properties file
+        id: get_version_name
+        uses: BrycensRanch/read-properties-action@v1
+        with:
+          file: version.properties
+          property: versionName
+          default: 0.0.1
+
+      - name: Run uploading
+        id: uploading
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
-          BUNDLE_PATH: vendor/bundle
+          app_id_internal: ${{ secrets.FIREBASE_APP_ID_INTERNAL }}
+          firebase_cli_token: ${{ secrets.FIREBASE_CLI_TOKEN }}
+          apk_path_internal: app/build/outputs/apk/internal/app-internal.apk
+          version_code: ${{ steps.get_version_code.outputs.versionCode }}
+          version_name:  ${{ steps.get_version_name.outputs.versionName }}
+          release_notes: ${{ github.ref_name }} - ${{ github.sha }}
+          groups: testers
         run: |
+          env > .env
+          
           docker run --rm \
             --user ubuntu \
-            --env GITHUB_TOKEN \
-            --env GITHUB_ACTOR \
-            --env BUNDLE_PATH \
+            --env-file .env \
             --volume ~/.gradle:/home/ubuntu/.gradle \
             --volume ${{ github.workspace }}:/workspace \
+            --volume $GITHUB_OUTPUT:/workspace/github_output.txt \
             tangem_ci_android_environment \
             sh -c "
-              echo 'Running ${{ matrix.task }}...';
-              cd /workspace && fastlane ${{ matrix.task }};
+              cd /workspace;
+          
+              echo 'Deploying APK to Firebase...';
+          
+              fastlane build;
             "
-
-      - name: Build notification
-        if: failure()
-        uses: adamkdean/simple-slack-notify@master
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_DVELOPMENT_ANDROID }}
-        with:
-          channel: '#development-android'
-          text: '${{ matrix.task }} #${{ github.run_number }} failed'
-          color: 'danger'
-          fields: |
-            [{ "title": "Action URL", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]
