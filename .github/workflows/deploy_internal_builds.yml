@@ -34,10 +34,6 @@ jobs:
       jira_summary: ${{ steps.jira.outputs.summary }}
       encoded_release_url: ${{ steps.uploading.outputs.encoded_release_url }}
     steps:
-      - name: Change user
-        if: startsWith(runner.os, 'Linux')
-        run: sudo chown -R ubuntu:ubuntu /home/ubuntu/actions-runner/_work/tangem-app-android/tangem-app-android/
-
       - name: Jira Login
         uses: atlassian/gajira-login@master
         env:
@@ -94,10 +90,11 @@ jobs:
           env > .env
           
           docker run --rm \
+            --user ubuntu \
             --env-file .env \
-            -v ~/.gradle:/root/.gradle \
-            -v ${{ github.workspace }}:/workspace \
-            -v $GITHUB_OUTPUT:/workspace/github_output.txt \
+            --volume ~/.gradle:/home/ubuntu/.gradle \
+            --volume ${{ github.workspace }}:/workspace \
+            --volume $GITHUB_OUTPUT:/workspace/github_output.txt \
             tangem_ci_android_environment \
             sh -c "
               cd /workspace;
