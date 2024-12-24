@@ -107,7 +107,7 @@ jobs:
   notification:
     name: Send Notification
     needs: build_and_upload
-    uses: tangem/actions/.github/workflows/notification.yml@main
+    uses: tangem-developments/actions/.github/workflows/notification.yml@main
     with:
       channel: 'deployments-android'
       status: 'success'
@@ -125,7 +125,7 @@ jobs:
     name: Error Notification
     needs: build_and_upload
     if: failure()
-    uses: tangem/actions/.github/workflows/notification.yml@main
+    uses: tangem-developments/actions/.github/workflows/notification.yml@main
     with:
       channel: 'deployments-android'
       status: 'error'
