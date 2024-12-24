@@ -1,14 +1,21 @@
 name: Deploy to Firebase
+
 on:
+  push:
+    branches:
+      - 'develop'
   workflow_dispatch:
+    inputs:
+      build_description:
+        description: >
+          Optional additional info about the build
+        type: string
   workflow_call:
     secrets:
-      FIREBASE_APP_ID:
-        required: true
       FIREBASE_APP_ID_INTERNAL:
         required: true
       FIREBASE_CLI_TOKEN:
-        required: true
+          required: true
       # Token must have read access to all the submodule repositories
       GH_MOBILE_PAT:
         required: true
@@ -17,44 +24,117 @@ env:
   INITIAL_VERSION_CODE: ${{ 1000 }}
 
 jobs:
-  build:
+  build_and_upload:
     name: Upload apk to Firebase
-    runs-on: [self-hosted, old]
+    runs-on: [ self-hosted, ARM64, active-android, Linux ]
+    environment: Alpha
+    outputs:
+      version_name: ${{ steps.get_version_name.outputs.versionName }}
+      version_code: ${{ steps.get_version_code.outputs.versionCode }}
+      jira_summary: ${{ steps.jira.outputs.summary }}
+      encoded_release_url: ${{ steps.uploading.outputs.encoded_release_url }}
     steps:
+      - name: Jira Login
+        uses: atlassian/gajira-login@master
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_TOKEN }}
+
+      - name: Get Jira Issue Number from Branch Name
+        id: jira
+        uses: tangem/jira-action@master
+        with:
+          action: getBranchSummary
+          branch-name: ${{ github.ref_name }}
+
       - name: Checkout
         uses: actions/checkout@v3
         with:
           submodules: true
           token: ${{ secrets.GH_MOBILE_PAT }}
-      - name: set up JDK 11
-        uses: actions/setup-java@v1
-        with:
-          java-version: '17'
+
+      - name: Build Docker image
+        run: |
+          docker build --platform linux/arm64 -t tangem_ci_android_environment .
+
       - name: Increment version code
+        id: get_version_code
         env:
           RUN_NUMBER: ${{ github.run_number }}
         run: |
-          echo "VERSION_CODE=$((RUN_NUMBER + $INITIAL_VERSION_CODE))" >> $GITHUB_ENV
+          VERSION_CODE=$((RUN_NUMBER + $INITIAL_VERSION_CODE))
+          echo "versionCode=$VERSION_CODE" >> $GITHUB_OUTPUT
+
       - name: Read version.properties file
+        id: get_version_name
         uses: BrycensRanch/read-properties-action@v1
-        id: version
         with:
           file: version.properties
           property: versionName
           default: 0.0.1
-      - name: Bundle install
-        run: |
-          bundle config path vendor/bundle
-          bundle install --jobs 4 --retry 3
-      - name: Build and upload
+
+      - name: Run uploading
+        id: uploading
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
-          app_id_internal: ${{secrets.FIREBASE_APP_ID_INTERNAL}}
+          app_id_internal: ${{ secrets.FIREBASE_APP_ID_INTERNAL }}
+          firebase_cli_token: ${{ secrets.FIREBASE_CLI_TOKEN }}
           apk_path_internal: app/build/outputs/apk/internal/app-internal.apk
-          versionCode: ${{ env.VERSION_CODE }}
-          versionName: ${{ steps.version.outputs.versionName }}
-          releaseNotes: ${{ github.ref_name }} - ${{ github.sha }}
+          version_code: ${{ steps.get_version_code.outputs.versionCode }}
+          version_name:  ${{ steps.get_version_name.outputs.versionName }}
+          release_notes: ${{ github.ref_name }} - ${{ github.sha }}
           groups: testers
         run: |
-          bundle exec fastlane publishToFirebase
+          env > .env
+          
+          docker run --rm \
+            --user ubuntu \
+            --env-file .env \
+            --volume ~/.gradle:/home/ubuntu/.gradle \
+            --volume ${{ github.workspace }}:/workspace \
+            --volume $GITHUB_OUTPUT:/workspace/github_output.txt \
+            tangem_ci_android_environment \
+            sh -c "
+              cd /workspace;
+          
+              echo 'Deploying APK to Firebase...';
+          
+              fastlane publishToFirebase;
+            "
+
+  notification:
+    name: Send Notification
+    needs: build_and_upload
+    uses: tangem/actions/.github/workflows/notification.yml@main
+    with:
+      channel: 'deployments-android'
+      status: 'success'
+      app_name: 'Tangem Internal'
+      deploy_to: 'Firebase app distribution'
+      version: ${{ needs.build_and_upload.outputs.version_name }}
+      build_number: ${{ needs.build_and_upload.outputs.version_code }}
+      changelog: ${{ needs.build_and_upload.outputs.jira_summary }}
+      build_description: ${{ inputs.build_description }}
+      encoded_release_url: ${{ needs.build_and_upload.outputs.encoded_release_url }}
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+  error_notification:
+    name: Error Notification
+    needs: build_and_upload
+    if: failure()
+    uses: tangem/actions/.github/workflows/notification.yml@main
+    with:
+      channel: 'deployments-android'
+      status: 'error'
+      app_name: 'Tangem Internal'
+      deploy_to: 'Firebase App Distribution'
+      version: ${{ needs.build_and_upload.outputs.version_name }}
+      build_number: ${{ needs.build_and_upload.outputs.version_code }}
+      changelog: ${{ needs.build_and_upload.outputs.jira_summary }}
+      build_description: ${{ inputs.build_description }}
+      encoded_release_url: ${{ needs.build_and_upload.outputs.encoded_release_url }}
+    secrets:
+        SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
