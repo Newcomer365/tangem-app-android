@@ -1,0 +1,26 @@
+name: Sync Fork
+
+on:
+  push:
+    branches:
+      - release
+  pull_request:
+    branches:
+      - release
+  schedule:
+    - cron: '0 1 * * *'
+
+jobs:
+  sync:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Sync Fork
+      uses: tgymnich/fork-sync@v1.8
+      with:
+        owner: tangem
+        base: release
+        head: release

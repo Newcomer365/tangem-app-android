@@ -1,0 +1,149 @@
+name: Compile and Release Tangem Application
+
+on:
+  push:
+    branches:
+      - release
+  pull_request:
+    branches:
+      - release
+  
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Install at tool
+      run: sudo apt-get install -y at
+    
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        cache: 'gradle'
+    
+    - name: Install Android SDK
+      uses: android-actions/setup-android@v2
+      with:
+        api-level: 30
+        build-tools: 30.0.3
+        ndk: '21.3.6528147'
+
+    - name: Cache Gradle dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          gradle-${{ runner.os }}-
+
+    - name: Cache Android SDK cmdline-tools
+      uses: actions/cache@v3
+      with:
+        path: ~/Android/Sdk/cmdline-tools
+        key: android-sdk-cmdline-tools-${{ runner.os }}-${{ hashFiles('**/*.xml') }}
+        restore-keys: |
+          android-sdk-cmdline-tools-${{ runner.os }}-
+
+    - name: Set up gradle.properties and Download Keystore
+      run: |
+        mkdir -p ~/.gradle
+        echo "gpr.key=${{ secrets.GITHUB_TOKEN }}" > ~/.gradle/gradle.properties
+        echo "gpr.user=${{ github.actor }}" >> ~/.gradle/gradle.properties
+        echo "sdk.dir=~/Android/Sdk" >> ~/.gradle/gradle.properties
+        echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode > ~/keystore.jks
+
+    - name: Build local.properties
+      run: |
+        echo "gpr.user=${{ github.actor }}" >> local.properties
+        echo "gpr.key=${{ secrets.GITHUB_TOKEN }}" >> local.properties
+        echo "sdk.dir=~/Android/Sdk" >> local.properties
+
+    - name: Read version from version.properties
+      run: |
+        VERSION_NAME=$(grep 'versionName' version.properties | cut -d '=' -f2)
+        echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+        echo "VERSION_NAME=$VERSION_NAME"
+
+    - name: Clone external repository (tangem-app-config)
+      run: |
+        git clone https://github.com/Newcomer365/tangem-app-config.git
+        mkdir -p app/src/main/assets/tangem-app-config/
+        cp -r tangem-app-config/* app/src/main/assets/tangem-app-config/
+
+    - name: Decode and Extract Package Name from google-services.json
+      run: |
+        echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > app/google-services.json
+        PACKAGE_NAME=$(jq -r '.client[0].client_info.android_client_info.package_name' app/google-services.json)
+        echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
+
+    - name: Set versionCode as current timestamp
+      run: |
+        VERSION_CODE=$(date +'%Y%m%d%H')
+        echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+
+    - name: Update versionCode and packageName in AppConfig.kt
+      run: |
+        sed -i 's|const val packageName = ".*"|const val packageName = "${{ env.PACKAGE_NAME }}"|' plugins/configuration/src/main/kotlin/com/tangem/plugin/configuration/model/AppConfig.kt
+        
+    - name: Build and Sign APK
+      run: |
+        cd ${{ github.workspace }}
+        ./gradlew assembleRelease -Pandroid.injected.signing.store.file=$HOME/keystore.jks -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }} -PversionName=${{ env.VERSION_NAME }} -PversionCode=${{ env.VERSION_CODE }} -PpackageName=${{ env.PACKAGE_NAME }}
+
+    - name: Rename APK to include version name
+      run: |
+        VERSION_NAME=${{ env.VERSION_NAME }}
+        APK_PATH="app/build/outputs/apk/release/app-release.apk"
+        mv $APK_PATH app/build/outputs/apk/release/tangem_${VERSION_NAME}.apk
+        echo "APK renamed to: tangem_${VERSION_NAME}.apk"
+
+    - name: Generate SHA256 Hash
+      run: |
+        APK_FILE=app/build/outputs/apk/release/tangem_${{ env.VERSION_NAME }}.apk
+        SHA256_HASH=$(sha256sum $APK_FILE | cut -d ' ' -f 1)
+        echo "SHA256: $SHA256_HASH"
+        echo "SHA256=$SHA256_HASH" >> $GITHUB_ENV
+
+    - name: Set tag name and release name
+      id: set_tag_and_release_name
+      run: |
+        TIMESTAMP=${{ github.event.head_commit.timestamp }}
+        FORMATTED_TIMESTAMP=$(date -d "$TIMESTAMP" '+%Y-%m-%d %H:%M:%S')
+        TAG_NAME="v${{ env.VERSION_NAME }}_${FORMATTED_TIMESTAMP// /_}"
+        TAG_NAME="${TAG_NAME//:/-}"
+        RELEASE_NAME="Tangem APK Release v${{ env.VERSION_NAME }} ${FORMATTED_TIMESTAMP}"
+        echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+        echo "RELEASE_NAME=$RELEASE_NAME" >> $GITHUB_ENV
+
+    - name: Create GitHub Release and Upload APK and SHA256 Hash
+      id: create_release
+      uses: softprops/action-gh-release@v2
+      with:
+        name: ${{ env.RELEASE_NAME }}
+        tag_name: ${{ env.TAG_NAME }}
+        body: |
+          Release APK
+
+          ### Version ${{ env.VERSION_NAME }}
+          Below is the SHA256 hash of the APK:
+          SHA256: ${{ env.SHA256 }}
+        draft: false
+        prerelease: false
+        files: app/build/outputs/apk/release/tangem_${{ env.VERSION_NAME }}.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Schedule Tag and Release Deletion
+      run: |
+        echo "Deleting tag and release after 30 days"
+        echo "0 0 * * * githubcli delete tag ${{ env.TAG_NAME }}" | at now + 30 days
+        echo "0 0 * * * githubcli delete release ${{ env.RELEASE_NAME }}" | at now + 30 days
