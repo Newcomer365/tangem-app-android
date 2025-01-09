@@ -1,0 +1,70 @@
+name: PR check
+
+on:
+  pull_request:
+    branches:
+      - 'release'
+      - 'develop'
+      - 'master'
+      - 'hotfix/**'
+      - '*_pre_release'
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: ${{ matrix.task }}
+    runs-on: [ self-hosted, ARM64, active-android ]
+    if: github.event.pull_request.draft == false
+    strategy:
+      matrix:
+        task: [detekt, test]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+          token: ${{ secrets.GH_MOBILE_PAT }}
+
+      - name: Build Docker image
+        run: |
+          docker build --platform linux/arm64 -t tangem_ci_android_environment .
+
+      - name: Run ${{ matrix.task }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
+          BUNDLE_PATH: vendor/bundle
+        run: |
+          docker run --rm \
+            --user ubuntu \
+            --env GITHUB_TOKEN \
+            --env GITHUB_ACTOR \
+            --env BUNDLE_PATH \
+            --volume ~/.gradle:/home/ubuntu/.gradle \
+            --volume ${{ github.workspace }}:/workspace \
+            tangem_ci_android_environment \
+            sh -c "
+              echo 'Running ${{ matrix.task }}...';
+              cd /workspace && fastlane ${{ matrix.task }};
+            "
+
+      - name: Build notification
+        if: failure()
+        uses: adamkdean/simple-slack-notify@master
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_DVELOPMENT_ANDROID }}
+        with:
+          channel: '#development-android'
+          text: '${{ matrix.task }} #${{ github.run_number }} failed'
+          color: 'danger'
+          fields: |
+            [{ "title": "Action URL", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]
