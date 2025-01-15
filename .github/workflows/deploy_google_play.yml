@@ -6,69 +6,22 @@ on:
       - 'release'
   workflow_dispatch:
 
-env:
-  INITIAL_VERSION_CODE: ${{ 1500 }}
-
 jobs:
-  build_and_upload:
-    name: Upload apk to Google Play Internal
-    runs-on: [ self-hosted, ARM64, active-android, Linux ]
-    environment: Alpha
-    outputs:
-      version_name: ${{ steps.get_version_name.outputs.versionName }}
-      version_code: ${{ steps.get_version_code.outputs.versionCode }}
-      jira_summary: ${{ steps.jira.outputs.summary }}
+  prepare:
+    uses: ./.github/workflows/prepare.yml
+    name: Prepare
+    with:
+      initial_version_code: 1500
+      use_dexprotector: true
+    secrets: inherit
+
+  build_apk_and_aab:
+    name: Build APK & AAB
+    runs-on: [self-hosted, ARM64, active-android, Linux]
+    needs: prepare
     steps:
-      - name: Jira Login
-        uses: atlassian/gajira-login@master
-        env:
-          JIRA_BASE_URL: ${{ secrets.JIRA_URL }}
-          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER }}
-          JIRA_API_TOKEN: ${{ secrets.JIRA_TOKEN }}
-
-      - name: Get Jira Issue Number from Branch Name
-        id: jira
-        uses: tangem/jira-action@master
-        with:
-          action: getBranchSummary
-          branch-name: ${{ github.ref_name }}
-
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          submodules: true
-          token: ${{ secrets.GH_MOBILE_PAT }}
-
-      - name: Checkout dexprotector config
-        uses: actions/checkout@v3
-        with:
-          repository: 'tangem/private-app-config'
-          ref: 'main'
-          token: ${{ secrets.GH_MOBILE_PAT }}
-          path: 'app-config'
-
-      - name: Build Docker image
-        run: |
-          docker build --platform linux/arm64 -t tangem_ci_android_environment .
-
-      - name: Increment version code
-        id: get_version_code
-        env:
-          RUN_NUMBER: ${{ github.run_number }}
-        run: |
-          VERSION_CODE=$((RUN_NUMBER + $INITIAL_VERSION_CODE))
-          echo "versionCode=$VERSION_CODE" >> $GITHUB_OUTPUT
-
-      - name: Read version.properties file
-        id: get_version_name
-        uses: BrycensRanch/read-properties-action@v1
-        with:
-          file: version.properties
-          property: versionName
-          default: 0.0.1
-
-      - name: Run uploading
-        id: uploading
+      - name: Build & deploy
+        id: build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
@@ -78,12 +31,11 @@ jobs:
           store_password: ${{ secrets.TEST_STORE_PASSWORD }}
           key_alias: ${{ secrets.TEST_KEY_ALIAS }}
           key_password: ${{ secrets.TEST_KEY_PASSWORD }}
-          version_code: ${{ steps.get_version_code.outputs.versionCode }}
-          version_name:  ${{ steps.get_version_name.outputs.versionName }}
+          version_code: ${{ needs.prepare.outputs.version_code }}
+          version_name: ${{ needs.prepare.outputs.version_name }}
           release_notes: ${{ github.ref_name }} - ${{ github.sha }}
         run: |
           env > .env
-          
           docker run --rm \
             --user ubuntu \
             --env-file .env \
@@ -95,18 +47,13 @@ jobs:
             tangem_ci_android_environment \
             sh -c "
               cd /workspace;
-  
+          
               # decoding keystore
               echo \"\$keystore_encoded_base64\" | base64 --decode > keystore
               export keystore=\$(pwd)/keystore
-              
-              if [ ! -f \"\$keystore\" ]; then
-                echo 'Keystore file was not created.'
-                exit 1
-              fi
-              
+          
               # building release
-              fastlane build \
+              fastlane buildRelease \
                 versionCode:\"\$version_code\" \
                 versionName:\"\$version_name\" \
                 keystore:\"\$keystore\" \
@@ -126,7 +73,7 @@ jobs:
                 -storepass $store_password \
                 -keypass $key_password \
                 app/build/outputs/apk/release/app-release.apk \
-                app/build/outputs/apk/release/app-release-protected.apk
+                app/build/outputs/apk/release/app-release-protected.apk > output.log 2>&1
           
               # protecting aar
               java -jar $DEX_PROTECTOR_HOME/dexprotector.jar \
@@ -139,18 +86,18 @@ jobs:
                 -storepass $store_password \
                 -keypass $key_password \
                 app/build/outputs/bundle/release/app-release.aab \
-                app/build/outputs/bundle/release/app-release-protected.aab
-              
+                app/build/outputs/bundle/release/app-release-protected.aab > output.log 2>&1
+          
               # copy apk and aab to host
-              cp app/build/outputs/apk/release/app-release.apk /home/ubuntu/apks/app-release-$version_code-$version_name.apk     
-              cp app/build/outputs/apk/release/app-release-protected.apk /home/ubuntu/apks/app-release-protected-$version_code-$version_name.apk
-              
+              cp app/build/outputs/apk/release/app-release.apk /home/ubuntu/apks/app-release-\$version_code-\$version_name.apk
+              cp app/build/outputs/apk/release/app-release-protected.apk /home/ubuntu/apks/app-release-protected-\$version_code-\$version_name.apk
+          
               # upload to Google Play
               fastlane supply \
                 package_name:com.tangem.wallet \
                 track:internal \
                 aab:app/build/outputs/bundle/release/app-release-protected.aab \
-                json_key_data:{TODO_AND-9952} \
+                json_key_data:{TODO_AND-9552} \
                 release_status:completed \
                 skip_upload_apk:false \
                 skip_upload_aab:false \
@@ -167,12 +114,13 @@ jobs:
                 changes_not_sent_for_review:false \
                 rescue_changes_not_sent_for_review:true \
                 ack_bundle_installation_warning:false
-                "
+              "
+          
 
 # TODO: uncomment when AND-9552 is ready
 #  notification:
 #    name: Send Notification
-#    needs: build_and_upload
+#    needs: build_apk_and_aab
 #    uses: tangem/actions/.github/workflows/notification.yml@main
 #    with:
 #      channel: 'deployments-android'
@@ -189,7 +137,7 @@ jobs:
 #
 #  error_notification:
 #    name: Error Notification
-#    needs: build_and_upload
+#    needs: build_apk_and_aab
 #    if: failure()
 #    uses: tangem/actions/.github/workflows/notification.yml@main
 #    with:
