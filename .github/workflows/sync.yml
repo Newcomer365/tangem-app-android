@@ -24,3 +24,9 @@ jobs:
         owner: tangem
         base: release
         head: release
+
+    - name: Trigger Compile Workflow
+      uses: peter-evans/workflow-dispatch@v3
+      with:
+        workflow: 'build.yml'  
+        ref: release
