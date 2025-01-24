@@ -79,10 +79,6 @@ jobs:
         mkdir -p app/src/main/assets/tangem-app-config/
         cp -r tangem-app-config/* app/src/main/assets/tangem-app-config/
 
-    - name: Generate Placeholder Debug Keystore Properties
-      run: |
-        mkdir -p app/src/main/assets/tangem-app-config/android/keystore/
-        echo "# Empty placeholder file" > app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
     
     - name: Decode and Extract Package Name from google-services.json
       run: |
@@ -99,11 +95,21 @@ jobs:
       run: |
         sed -i 's|const val packageName = ".*"|const val packageName = "${{ env.PACKAGE_NAME }}"|' plugins/configuration/src/main/kotlin/com/tangem/plugin/configuration/model/AppConfig.kt
         
+    - name: Generate Default Debug Keystore
+      run: |
+        mkdir -p ~/.android
+        keytool -genkeypair -v \
+          -keystore ~/.android/debug.keystore \
+          -alias androiddebugkey \
+          -keyalg RSA -keysize 2048 -validity 10000 \
+          -storepass android \
+          -keypass android \
+          -dname "CN=Android Debug, OU=Unknown, O=Unknown, L=Unknown, ST=Unknown, C=US"
+    
     - name: Build and Sign APK
       run: |
-        cd ${{ github.workspace }}
-        ./gradlew assembleRelease -Pandroid.injected.signing.store.file=$HOME/keystore.jks -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }} -PversionName=${{ env.VERSION_NAME }} -PversionCode=${{ env.VERSION_CODE }} -PpackageName=${{ env.PACKAGE_NAME }}
-
+        cd ${{ github.workspace }} && ./gradlew assembleRelease -Pandroid.injected.signing.store.file=$HOME/keystore.jks -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }} -Pandroid.injected.signing.debug.store.file=/home/runner/.android/debug.keystore -Pandroid.injected.signing.debug.store.password=android -Pandroid.injected.signing.debug.key.alias=androiddebugkey -Pandroid.injected.signing.debug.key.password=android -PversionName=${{ env.VERSION_NAME }} -PversionCode=${{ env.VERSION_CODE }} -PpackageName=${{ env.PACKAGE_NAME }}
+    
     - name: Rename APK to include version name
       run: |
         VERSION_NAME=${{ env.VERSION_NAME }}
