@@ -15,6 +15,8 @@ import com.tangem.datasource.api.onramp.OnrampApi
 import com.tangem.datasource.api.stakekit.StakeKitApi
 import com.tangem.datasource.api.tangemTech.TangemTechApi
 import com.tangem.datasource.api.tangemTech.TangemTechApiV2
+import com.tangem.datasource.api.visa.TangemVisaApi
+import com.tangem.datasource.api.visa.TangemVisaAuthApi
 import com.tangem.datasource.local.logs.AppLogsStore
 import com.tangem.datasource.local.preferences.AppPreferencesStore
 import com.tangem.datasource.utils.*
@@ -38,6 +40,7 @@ internal object NetworkModule {
 
     private const val PROD_V2_TANGEM_TECH_BASE_URL = "https://api.tangem-tech.com/v2/"
     private const val TANGEM_TECH_MARKETS_SERVICE_TIMEOUT_SECONDS = 60L
+    private const val STAKE_KIT_API_TIMEOUT_SECONDS = 60L
 
     @Provides
     @Singleton
@@ -87,6 +90,12 @@ internal object NetworkModule {
             moshi = moshi,
             context = context,
             apiConfigsManager = apiConfigsManager,
+            timeouts = Timeouts(
+                callTimeoutSeconds = STAKE_KIT_API_TIMEOUT_SECONDS,
+                connectTimeoutSeconds = STAKE_KIT_API_TIMEOUT_SECONDS,
+                readTimeoutSeconds = STAKE_KIT_API_TIMEOUT_SECONDS,
+                writeTimeoutSeconds = STAKE_KIT_API_TIMEOUT_SECONDS,
+            ),
             clientBuilder = {
                 addInterceptor(
                     NetworkLogsSaveInterceptor(appLogsStore),
@@ -169,6 +178,48 @@ internal object NetworkModule {
         )
     }
 
+    @Provides
+    @Singleton
+    fun provideTangemVisaAuthApi(
+        @NetworkMoshi moshi: Moshi,
+        @ApplicationContext context: Context,
+        apiConfigsManager: ApiConfigsManager,
+        appLogsStore: AppLogsStore,
+    ): TangemVisaAuthApi {
+        return createApi<TangemVisaAuthApi>(
+            id = ApiConfig.ID.TangemVisaAuth,
+            moshi = moshi,
+            context = context,
+            apiConfigsManager = apiConfigsManager,
+            clientBuilder = {
+                addInterceptor(
+                    NetworkLogsSaveInterceptor(appLogsStore),
+                )
+            },
+        )
+    }
+
+    @Provides
+    @Singleton
+    fun provideTangemVisaApi(
+        @NetworkMoshi moshi: Moshi,
+        @ApplicationContext context: Context,
+        apiConfigsManager: ApiConfigsManager,
+        appLogsStore: AppLogsStore,
+    ): TangemVisaApi {
+        return createApi<TangemVisaApi>(
+            id = ApiConfig.ID.TangemVisa,
+            moshi = moshi,
+            context = context,
+            apiConfigsManager = apiConfigsManager,
+            clientBuilder = {
+                addInterceptor(
+                    NetworkLogsSaveInterceptor(appLogsStore),
+                )
+            },
+        )
+    }
+
     @Deprecated("use createApi instead")
     private inline fun <reified T> provideTangemTechApiInternal(
         moshi: Moshi,
@@ -218,6 +269,7 @@ internal object NetworkModule {
         moshi: Moshi,
         context: Context,
         apiConfigsManager: ApiConfigsManager,
+        timeouts: Timeouts = Timeouts(),
         clientBuilder: OkHttpClient.Builder.() -> OkHttpClient.Builder = { this },
     ): T {
         val environmentConfig = apiConfigsManager.getEnvironmentConfig(id)
@@ -229,6 +281,23 @@ internal object NetworkModule {
             .client(
                 OkHttpClient.Builder()
                     .applyApiConfig(id, apiConfigsManager)
+                    .applyTimeoutAnnotations()
+                    .let { builder ->
+                        var b = builder
+                        if (timeouts.callTimeoutSeconds != null) {
+                            b = b.callTimeout(timeouts.callTimeoutSeconds, TimeUnit.SECONDS)
+                        }
+                        if (timeouts.connectTimeoutSeconds != null) {
+                            b = b.connectTimeout(timeouts.connectTimeoutSeconds, TimeUnit.SECONDS)
+                        }
+                        if (timeouts.readTimeoutSeconds != null) {
+                            b = b.readTimeout(timeouts.readTimeoutSeconds, TimeUnit.SECONDS)
+                        }
+                        if (timeouts.writeTimeoutSeconds != null) {
+                            b = b.writeTimeout(timeouts.writeTimeoutSeconds, TimeUnit.SECONDS)
+                        }
+                        b
+                    }
                     .addLoggers(context)
                     .clientBuilder()
                     .build(),

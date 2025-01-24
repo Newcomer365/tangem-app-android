@@ -6,18 +6,18 @@ import com.tangem.common.routing.AppRoute
 import com.tangem.common.routing.AppRouter
 import com.tangem.core.analytics.Analytics
 import com.tangem.domain.onramp.model.OnrampSource
-import com.tangem.domain.settings.usercountry.models.UserCountry
 import com.tangem.domain.tokens.legacy.TradeCryptoAction
 import com.tangem.domain.tokens.model.CryptoCurrency
 import com.tangem.domain.tokens.model.NetworkAddress
 import com.tangem.domain.wallets.models.UserWalletId
 import com.tangem.tap.common.analytics.events.Token
 import com.tangem.tap.common.apptheme.MutableAppThemeModeHolder
-import com.tangem.tap.common.extensions.*
-import com.tangem.tap.common.redux.AppDialog
+import com.tangem.tap.common.extensions.dispatchDebugErrorNotification
+import com.tangem.tap.common.extensions.dispatchNavigationAction
+import com.tangem.tap.common.extensions.dispatchOpenUrl
+import com.tangem.tap.common.extensions.inject
 import com.tangem.tap.common.redux.AppState
 import com.tangem.tap.features.demo.DemoHelper
-import com.tangem.tap.features.home.RUSSIA_COUNTRY_CODE
 import com.tangem.tap.network.exchangeServices.CurrencyExchangeManager
 import com.tangem.tap.network.exchangeServices.buyErc20TestnetTokens
 import com.tangem.tap.proxy.redux.DaggerGraphState
@@ -26,7 +26,6 @@ import com.tangem.tap.store
 import kotlinx.coroutines.launch
 import org.rekotlin.Middleware
 
-@Suppress("LargeClass")
 @Deprecated("Will be removed soon")
 object TradeCryptoMiddleware {
 
@@ -41,23 +40,22 @@ object TradeCryptoMiddleware {
         }
     }
 
-    @Suppress("LongMethod", "CyclomaticComplexMethod")
     private fun handle(state: () -> AppState?, action: TradeCryptoAction) {
         if (DemoHelper.tryHandle(state, action)) return
 
         when (action) {
             is TradeCryptoAction.FinishSelling -> openReceiptUrl(action.transactionId)
-            is TradeCryptoAction.Buy -> proceedBuyAction(state, action)
+            is TradeCryptoAction.Buy -> proceedBuyAction(action)
             is TradeCryptoAction.Sell -> proceedSellAction(action)
         }
     }
 
-    private fun proceedBuyAction(state: () -> AppState?, action: TradeCryptoAction.Buy) {
+    private fun proceedBuyAction(action: TradeCryptoAction.Buy) {
         val isOnrampEnabled = store.inject(DaggerGraphState::onrampFeatureToggles).isFeatureEnabled
         if (isOnrampEnabled) {
             proceedWithOnramp(action.userWallet.walletId, action.cryptoCurrencyStatus.currency, action.source)
         } else {
-            proceedWithLegacyBuyAction(state, action)
+            proceedWithLegacyBuyAction(action)
         }
     }
 
@@ -73,7 +71,7 @@ object TradeCryptoMiddleware {
         }
     }
 
-    private fun proceedWithLegacyBuyAction(state: () -> AppState?, action: TradeCryptoAction.Buy) {
+    private fun proceedWithLegacyBuyAction(action: TradeCryptoAction.Buy) {
         val networkAddress = action.cryptoCurrencyStatus.value.networkAddress
             ?.defaultAddress
             ?.let(NetworkAddress.Address::value)
@@ -92,24 +90,6 @@ object TradeCryptoMiddleware {
         )
 
         scope.launch {
-            val homeFeatureToggles = store.inject(DaggerGraphState::homeFeatureToggles)
-            val onrampFeatureToggles = store.inject(DaggerGraphState::onrampFeatureToggles)
-            val isRussia = if (homeFeatureToggles.isMigrateUserCountryCodeEnabled) {
-                val getUserCountryCodeUseCase = store.inject(DaggerGraphState::getUserCountryUseCase)
-
-                getUserCountryCodeUseCase().isRight { it is UserCountry.Russia }
-            } else {
-                state()?.globalState?.userCountryCode == RUSSIA_COUNTRY_CODE
-            }
-
-            if (action.checkUserLocation && isRussia && !onrampFeatureToggles.isFeatureEnabled) {
-                val dialogData = topUrl?.let {
-                    AppDialog.RussianCardholdersWarningDialog.Data(topUpUrl = it)
-                }
-                store.dispatchDialogShow(AppDialog.RussianCardholdersWarningDialog(data = dialogData))
-                return@launch
-            }
-
             if (currency is CryptoCurrency.Token && currency.network.isTestnet) {
                 val walletManager = store.inject(DaggerGraphState::walletManagersFacade)
                     .getOrCreateWalletManager(

@@ -13,7 +13,6 @@ import com.tangem.domain.common.util.twinsIsTwinned
 import com.tangem.domain.models.scan.CardDTO
 import com.tangem.domain.models.scan.ProductType
 import com.tangem.domain.models.scan.ScanResponse
-import com.tangem.domain.settings.usercountry.models.UserCountry
 import com.tangem.domain.wallets.builder.UserWalletBuilder
 import com.tangem.domain.wallets.builder.UserWalletIdBuilder
 import com.tangem.domain.wallets.models.UserWallet
@@ -21,12 +20,9 @@ import com.tangem.tap.common.analytics.converters.ParamCardCurrencyConverter
 import com.tangem.tap.common.analytics.events.AnalyticsParam
 import com.tangem.tap.common.analytics.events.Onboarding
 import com.tangem.tap.common.extensions.*
-import com.tangem.tap.common.redux.AppDialog
-import com.tangem.tap.common.redux.global.GlobalState
 import com.tangem.tap.features.demo.DemoHelper
-import com.tangem.tap.features.home.RUSSIA_COUNTRY_CODE
-import com.tangem.tap.features.onboarding.products.wallet.redux.OnboardingWalletAction
 import com.tangem.tap.features.onboarding.products.wallet.redux.BackupStartedSource
+import com.tangem.tap.features.onboarding.products.wallet.redux.OnboardingWalletAction
 import com.tangem.tap.features.saveWallet.redux.SaveWalletAction
 import com.tangem.tap.mainScope
 import com.tangem.tap.proxy.redux.DaggerGraphState
@@ -50,7 +46,7 @@ object OnboardingHelper {
                 if (!response.twinsIsTwinned()) {
                     true
                 } else {
-                    onboardingManager.isActivationInProgress(cardId) ?: false
+                    onboardingManager.isActivationInProgress(cardId)
                 }
             }
 
@@ -62,7 +58,7 @@ object OnboardingHelper {
                 emptyWallets || activationInProgress || isNoBackup
             }
 
-            response.card.wallets.isNotEmpty() -> onboardingManager.isActivationInProgress(cardId) ?: false
+            response.card.wallets.isNotEmpty() -> onboardingManager.isActivationInProgress(cardId)
             else -> true
         }
     }
@@ -70,7 +66,7 @@ object OnboardingHelper {
     fun whereToNavigate(scanResponse: ScanResponse): AppRoute {
         val newOnboardingSupportTypes = scanResponse.productType == ProductType.Wallet2 ||
             scanResponse.productType == ProductType.Ring ||
-            scanResponse.productType == ProductType.Wallet
+            scanResponse.productType == ProductType.Wallet // AppRoute.OnboardingOther is also supported
         if (store.inject(DaggerGraphState::onboardingV2FeatureToggles).isOnboardingV2Enabled &&
             newOnboardingSupportTypes
         ) {
@@ -222,7 +218,7 @@ object OnboardingHelper {
         }
     }
 
-    fun handleTopUpAction(walletManager: WalletManager, scanResponse: ScanResponse, globalState: GlobalState) {
+    fun handleTopUpAction(walletManager: WalletManager, scanResponse: ScanResponse) {
         val blockchain = walletManager.wallet.blockchain
         val excludedBlockchains = store.inject(DaggerGraphState::excludedBlockchains)
 
@@ -237,25 +233,7 @@ object OnboardingHelper {
         val currencyType = AnalyticsParam.CurrencyType.Blockchain(blockchain)
         Analytics.send(Onboarding.Topup.ButtonBuyCrypto(currencyType))
 
-        scope.launch {
-            val homeFeatureToggles = store.inject(DaggerGraphState::homeFeatureToggles)
-            val onrampFeatureToggles = store.inject(DaggerGraphState::onrampFeatureToggles)
-
-            val isRussia = if (homeFeatureToggles.isMigrateUserCountryCodeEnabled) {
-                val getUserCountryCodeUseCase = store.inject(DaggerGraphState::getUserCountryUseCase)
-
-                getUserCountryCodeUseCase().isRight { it is UserCountry.Russia }
-            } else {
-                globalState.userCountryCode == RUSSIA_COUNTRY_CODE
-            }
-
-            if (isRussia && !onrampFeatureToggles.isFeatureEnabled) {
-                val dialogData = AppDialog.RussianCardholdersWarningDialog.Data(topUpUrl)
-                store.dispatchDialogShow(AppDialog.RussianCardholdersWarningDialog(dialogData))
-            } else {
-                store.dispatchOpenUrl(topUpUrl)
-            }
-        }
+        store.dispatchOpenUrl(topUpUrl)
     }
 
     private suspend fun proceedWithScanResponse(

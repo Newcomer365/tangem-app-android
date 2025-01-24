@@ -1,14 +1,21 @@
 package com.tangem.features.onboarding.v2.multiwallet.impl.child.backup.model
 
+import androidx.compose.runtime.Stable
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.tangem.common.CompletionResult
 import com.tangem.common.core.TangemSdkError
 import com.tangem.core.analytics.api.AnalyticsEventHandler
+import com.tangem.core.analytics.models.event.OnboardingAnalyticsEvent
 import com.tangem.core.decompose.di.ComponentScoped
 import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
+import com.tangem.core.decompose.ui.UiMessageSender
 import com.tangem.core.ui.extensions.resourceReference
+import com.tangem.core.ui.extensions.toWrappedList
+import com.tangem.core.ui.message.dialog.Dialogs
 import com.tangem.domain.card.repository.CardSdkConfigRepository
+import com.tangem.domain.feedback.SendFeedbackEmailUseCase
+import com.tangem.domain.feedback.models.FeedbackEmailType
 import com.tangem.domain.models.scan.ProductType
 import com.tangem.features.onboarding.v2.impl.R
 import com.tangem.features.onboarding.v2.multiwallet.impl.analytics.OnboardingEvent
@@ -20,6 +27,7 @@ import com.tangem.features.onboarding.v2.multiwallet.impl.child.backup.ui.resetB
 import com.tangem.features.onboarding.v2.multiwallet.impl.child.backup.ui.state.MultiWalletBackupUM
 import com.tangem.sdk.api.BackupServiceHolder
 import com.tangem.sdk.api.TangemSdkManager
+import com.tangem.sdk.extensions.localizedDescriptionRes
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,14 +36,18 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+@Stable
 @ComponentScoped
+@Suppress("LongParameterList")
 class MultiWalletBackupModel @Inject constructor(
     paramsContainer: ParamsContainer,
     override val dispatchers: CoroutineDispatcherProvider,
     private val backupServiceHolder: BackupServiceHolder,
     private val cardSdkConfigRepository: CardSdkConfigRepository,
     private val tangemSdkManager: TangemSdkManager,
-    private val analyticsHandler: AnalyticsEventHandler,
+    private val analyticsEventHandler: AnalyticsEventHandler,
+    private val uiMessageSender: UiMessageSender,
+    private val sendFeedbackEmailUseCase: SendFeedbackEmailUseCase,
 ) : Model() {
 
     @Suppress("UnusedPrivateMember")
@@ -63,10 +75,10 @@ class MultiWalletBackupModel @Inject constructor(
     init {
         // for wallet 1 this event is sent in Wallet1ChooseOptionModel
         if (scanResponse.productType == ProductType.Wallet2 || scanResponse.productType == ProductType.Ring) {
-            analyticsHandler.send(OnboardingEvent.Backup.ScreenOpened)
+            analyticsEventHandler.send(OnboardingEvent.Backup.ScreenOpened)
         }
 
-        analyticsHandler.send(OnboardingEvent.Backup.Started)
+        analyticsEventHandler.send(OnboardingEvent.Backup.Started)
     }
 
     private fun getInitState(): MultiWalletBackupUM {
@@ -82,15 +94,16 @@ class MultiWalletBackupModel @Inject constructor(
     }
 
     private fun startBackupWallet() {
-        if (state.value.numberOfBackupCards == 0) {
+        if (state.value.numberOfBackupCards == 0 && scanResponse.primaryCard != null) {
             backupService.discardSavedBackup()
         }
-        val primaryCard = scanResponse.primaryCard
 
+        val primaryCard = scanResponse.primaryCard
         if (primaryCard != null) {
             backupService.setPrimaryCard(primaryCard)
-            addBackupCardWithService()
         }
+
+        addBackupCardWithService()
     }
 
     private fun setNumberOfBackupCards(number: Int) {
@@ -150,7 +163,7 @@ class MultiWalletBackupModel @Inject constructor(
 
         modelScope.launch { eventFlow.emit(MultiWalletBackupComponent.Event.Done) }
 
-        analyticsHandler.send(OnboardingEvent.Backup.Finished(cardsCount = state.value.numberOfBackupCards + 1))
+        analyticsEventHandler.send(OnboardingEvent.Backup.Finished(cardsCount = state.value.numberOfBackupCards + 1))
     }
 
     private fun showOnlyOneBackupWarningDialog() {
@@ -200,6 +213,7 @@ class MultiWalletBackupModel @Inject constructor(
                 }
                 is CompletionResult.Failure -> {
                     when (val error = result.error) {
+                        is TangemSdkError.CardVerificationFailed -> showCardVerificationFailedDialog(error)
                         is TangemSdkError.BackupFailedNotEmptyWallets -> {
                             _uiState.update { st ->
                                 st.copy(
@@ -209,7 +223,7 @@ class MultiWalletBackupModel @Inject constructor(
                                             _uiState.update { it.copy(dialog = null) }
                                         },
                                         onDismissClick = {
-                                            analyticsHandler.send(OnboardingEvent.Backup.ResetCancelEvent)
+                                            analyticsEventHandler.send(OnboardingEvent.Backup.ResetCancelEvent)
                                         },
                                     ),
                                 )
@@ -231,8 +245,27 @@ class MultiWalletBackupModel @Inject constructor(
         }
     }
 
+    private fun showCardVerificationFailedDialog(error: TangemSdkError.CardVerificationFailed) {
+        analyticsEventHandler.send(event = OnboardingAnalyticsEvent.Onboarding.OfflineAttestationFailed)
+
+        val resource = error.localizedDescriptionRes()
+        val resId = resource.resId ?: com.tangem.core.ui.R.string.common_unknown_error
+        val resArgs = resource.args.map { it.value }
+
+        uiMessageSender.send(
+            message = Dialogs.cardVerificationFailed(
+                errorDescription = resourceReference(id = resId, resArgs.toWrappedList()),
+                onRequestSupport = {
+                    modelScope.launch {
+                        sendFeedbackEmailUseCase(type = FeedbackEmailType.CardAttestationFailed)
+                    }
+                },
+            ),
+        )
+    }
+
     private fun resetBackupCard(cardId: String) {
-        analyticsHandler.send(OnboardingEvent.Backup.ResetPerformEvent)
+        analyticsEventHandler.send(OnboardingEvent.Backup.ResetPerformEvent)
 
         modelScope.launch {
             tangemSdkManager.resetToFactorySettings(
