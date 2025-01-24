@@ -79,6 +79,11 @@ jobs:
         mkdir -p app/src/main/assets/tangem-app-config/
         cp -r tangem-app-config/* app/src/main/assets/tangem-app-config/
 
+    - name: Generate Placeholder Debug Keystore Properties
+      run: |
+        mkdir -p app/src/main/assets/tangem-app-config/android/keystore/
+        echo "# Empty placeholder file" > app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
+    
     - name: Decode and Extract Package Name from google-services.json
       run: |
         echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > app/google-services.json
