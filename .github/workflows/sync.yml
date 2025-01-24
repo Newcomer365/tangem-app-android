@@ -24,7 +24,6 @@ jobs:
         owner: tangem
         base: release
         head: release
-        auto_approve: true
 
     - name: Trigger Compile Workflow
       uses: peter-evans/repository-dispatch@v3
