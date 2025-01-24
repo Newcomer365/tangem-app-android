@@ -112,11 +112,13 @@ jobs:
         echo "key_password=android" >> app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
         cp ~/.android/debug.keystore app/src/main/assets/tangem-app-config/android/keystore/
     
+  
     - name: Build and Sign APK
-      run:
+      run: |
         cd ${{ github.workspace }}
-        ./gradlew assembleRelease -Pandroid.injected.signing.store.file=$HOME/keystore.jks -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }} -PversionName=${{ env.VERSION_NAME }}
-    
+        ./gradlew assembleRelease -Pandroid.injected.signing.store.file=$HOME/keystore.jks -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }} -PversionName=${{ env.VERSION_NAME }} -PversionCode=${{ env.VERSION_CODE }} -PpackageName=${{ env.PACKAGE_NAME }}
+
+
     - name: Rename APK to include version name
       run: |
         VERSION_NAME=${{ env.VERSION_NAME }}
