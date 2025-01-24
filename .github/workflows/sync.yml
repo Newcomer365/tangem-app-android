@@ -26,7 +26,7 @@ jobs:
         head: release
 
     - name: Trigger Compile Workflow
-      uses: peter-evans/workflow-dispatch@v3
+      uses: peter-evans/repository-dispatch@v3
       with:
         workflow: 'build.yml'  
         ref: release
