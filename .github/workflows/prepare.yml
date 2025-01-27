@@ -25,7 +25,7 @@ on:
 jobs:
   prepare:
     name: Prepare
-    runs-on: [self-hosted, ARM64, active-android, Linux]
+    runs-on: [self-hosted, ARM64, test, Linux]
     outputs:
       version_name: ${{ steps.get_version_name.outputs.versionName }}
       version_code: ${{ steps.get_version_code.outputs.versionCode }}
