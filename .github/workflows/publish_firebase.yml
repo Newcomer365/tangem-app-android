@@ -21,7 +21,7 @@ on:
         required: true
 
 env:
-  INITIAL_VERSION_CODE: ${{ 1000 }}
+  INITIAL_VERSION_CODE: ${{ 1050 }}
 
 jobs:
   prepare:

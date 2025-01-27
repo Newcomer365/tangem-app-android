@@ -11,7 +11,7 @@ jobs:
     uses: ./.github/workflows/prepare.yml
     name: Prepare
     with:
-      initial_version_code: 1500
+      initial_version_code: 1200
       checkout_dexprotector_config: true
     secrets: inherit
 
