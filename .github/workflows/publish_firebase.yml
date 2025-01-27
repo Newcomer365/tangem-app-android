@@ -33,7 +33,7 @@ jobs:
 
   build_and_publish:
     name: Build and publish
-    runs-on: [ self-hosted, ARM64, active-android, Linux ]
+    runs-on: [ self-hosted, ARM64, test, Linux ]
     environment: Alpha # required for obtaining token
     needs: prepare
     outputs:
@@ -42,7 +42,7 @@ jobs:
       - name: Build internal
         id: build
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_MOBILE_PAT }}
           GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
           version_code: ${{ needs.prepare.outputs.version_code }}
           version_name: ${{ needs.prepare.outputs.version_name }}
@@ -64,7 +64,7 @@ jobs:
       - name: Publish to Firebase
         id: publish
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_MOBILE_PAT }}
           GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
           app_id_internal: ${{ secrets.FIREBASE_APP_ID_INTERNAL }}
           firebase_cli_token: ${{ secrets.FIREBASE_CLI_TOKEN }}
@@ -91,7 +91,7 @@ jobs:
     needs:
       - prepare
       - build_and_publish
-    uses: tangem/actions/.github/workflows/notification.yml@main
+    uses: tangem-developments/actions/.github/workflows/notification.yml@main
     with:
       channel: 'deployments-android'
       status: 'success'
@@ -111,7 +111,7 @@ jobs:
       - prepare
       - build_and_publish
     if: failure()
-    uses: tangem/actions/.github/workflows/notification.yml@main
+    uses: tangem-developments/actions/.github/workflows/notification.yml@main
     with:
       channel: 'deployments-android'
       status: 'error'
