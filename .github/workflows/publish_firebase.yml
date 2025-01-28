@@ -33,7 +33,7 @@ jobs:
 
   build_and_publish:
     name: Build and publish
-    runs-on: [ self-hosted, ARM64, test, Linux ]
+    runs-on: [ self-hosted, active-android, build ]
     environment: Alpha # required for obtaining token
     needs: prepare
     outputs:
