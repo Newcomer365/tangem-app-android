@@ -20,15 +20,12 @@ on:
       GH_MOBILE_PAT:
         required: true
 
-env:
-  INITIAL_VERSION_CODE: ${{ 1050 }}
-
 jobs:
   prepare:
     uses: ./.github/workflows/prepare.yml
     name: Prepare
     with:
-      initial_version_code: ${{ env.INITIAL_VERSION_CODE }}
+      initial_version_code: 1050
     secrets: inherit
 
   build_and_publish:
