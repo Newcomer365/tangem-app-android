@@ -28,7 +28,7 @@ jobs:
     uses: ./.github/workflows/prepare.yml
     name: Prepare
     with:
-      initial_version_code: 1000
+      initial_version_code: ${{ env.INITIAL_VERSION_CODE }}
     secrets: inherit
 
   build_and_publish:
