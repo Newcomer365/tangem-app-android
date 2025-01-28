@@ -55,7 +55,7 @@ jobs:
         if: ${{ inputs.checkout_dexprotector_config == true }}
         uses: actions/checkout@v3
         with:
-          repository: 'tangem/private-app-config'
+          repository: 'tangem-developments/private-app-config'
           ref: 'main'
           token: ${{ secrets.GH_MOBILE_PAT }}
           path: 'app-config'
