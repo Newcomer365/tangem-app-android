@@ -22,7 +22,7 @@ concurrency:
 jobs:
   checks:
     name: ${{ matrix.task }}
-    runs-on: [ self-hosted, ARM64, active-android ]
+    runs-on: [ self-hosted, active-android, tests ]
     if: github.event.pull_request.draft == false
     strategy:
       matrix:
@@ -36,11 +36,11 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build --platform linux/arm64 -t tangem_ci_android_environment .
+          docker build --platform linux/arm64 -t tangem_ci_android_environment -f ci_resources/Dockerfile.android .
 
       - name: Run ${{ matrix.task }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_MOBILE_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GH_MOBILE_PAT}}
           GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
           BUNDLE_PATH: vendor/bundle
         run: |
