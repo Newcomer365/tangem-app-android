@@ -6,13 +6,16 @@ on:
       - 'release'
   workflow_dispatch:
 
+env:
+  ENABLE_DEX_PROTECTION: "false"
+
 jobs:
   prepare:
     uses: ./.github/workflows/prepare.yml
     name: Prepare
     with:
       initial_version_code: 1200
-      checkout_dexprotector_config: true
+      checkout_dexprotector_config: ${{ env.ENABLE_DEX_PROTECTION == 'true' }}
     secrets: inherit
 
   publish:
@@ -58,10 +61,13 @@ jobs:
           
               cp app/build/outputs/apk/release/app-release.apk /workspace/app-release.apk
               cp app/build/outputs/bundle/release/app-release.aab /workspace/app-release.aab
+              
+              cp app/build/outputs/apk/release/app-release.apk /home/ubuntu/apks/app-release-$version_code-$version_name.apk
             '
 
       - name: Protect APK & AAB
         id: dexprotector
+        if: ${{ env.ENABLE_DEX_PROTECTION == 'true' }}
         env:
           DEX_PROTECTOR_HOME: /home/ubuntu/CI/dexprotector
           SHA_256_CERTIFICATE_FINGERPRINT: ${{ secrets.UPLOAD_SHA_256_CERTIFICATE_FINGERPRINT }}
@@ -111,12 +117,22 @@ jobs:
                 app-release.aab app-release-protected.aab > output.log 2>&1
             '
           
-          # copy two apk to host
-          cp app-release.apk /home/ubuntu/apks/app-release-$version_code-$version_name.apk
+          # copy apk to host
           cp app-release-protected.apk /home/ubuntu/apks/app-release-protected-$version_code-$version_name.apk
 
+
+
       - name: Upload to Google Play
+        env:
+          UPLOAD_JSON_KEY_DATA: ${{ secrets.UPLOAD_JSON_KEY_DATA }}
+          ENABLE_DEX_PROTECTION: ${{ env.ENABLE_DEX_PROTECTION }}
         run: |
+          if [[ "$ENABLE_DEX_PROTECTION" == "true" ]]; then
+            AAB_FILE="app-release-protected.aab"
+          else
+            AAB_FILE="app-release.aab"
+          fi
+
           docker run --rm \
             --user ubuntu \
             --volume ${{ github.workspace }}:/workspace \
@@ -126,8 +142,8 @@ jobs:
               fastlane supply \
                 package_name:com.tangem.wallet \
                 track:internal \
-                aab:app-release-protected.aab \
-                json_key_data:{TODO_AND-9552} \
+                aab:$AAB_FILE \
+                json_key_data:$UPLOAD_JSON_KEY_DATA \
                 release_status:completed \
                 skip_upload_apk:false \
                 skip_upload_aab:false \
@@ -145,6 +161,7 @@ jobs:
                 rescue_changes_not_sent_for_review:true \
                 ack_bundle_installation_warning:false
             '
+
 
 
 
