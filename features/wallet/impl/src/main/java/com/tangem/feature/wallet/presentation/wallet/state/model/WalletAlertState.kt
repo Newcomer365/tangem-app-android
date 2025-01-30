@@ -36,6 +36,7 @@ internal sealed interface WalletAlertState {
         override val onConfirmClick: (() -> Unit)?,
     ) : Basic()
 
+    // TODO: reuse RenameWalletComponent https://tangem.atlassian.net/browse/AND-9875
     data class RenameWalletAlert(
         override val text: String,
         override val onConfirmClick: (String) -> Unit,
