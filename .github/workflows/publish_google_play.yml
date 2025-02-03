@@ -52,6 +52,7 @@ jobs:
             --user ubuntu \
             --env-file .env \
             --volume ~/.gradle:/home/ubuntu/.gradle \
+            --volume ~/apks:/home/ubuntu/apks \
             --volume ${{ github.workspace }}:/workspace \
             tangem_ci_android_environment \
             sh -c '
