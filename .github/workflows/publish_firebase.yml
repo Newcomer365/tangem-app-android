@@ -1,4 +1,4 @@
-name: Publish internal build to Firebase App Distribution
+name: Publish internal build to Firebase AD
 
 on:
   push:
@@ -20,30 +20,107 @@ on:
       GH_MOBILE_PAT:
         required: true
 
-env:
-  INITIAL_VERSION_CODE: ${{ 1000 }}
-
 jobs:
+  jira_changelog:
+    name: Jira changelog
+    runs-on: ubuntu-latest
+    outputs:
+      jira_changelog: ${{ steps.jira-issues-summary.outputs.result }}
+    steps:
+      - name: Jira Login
+        uses: atlassian/gajira-login@master
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_TOKEN }}
+
+      - name: Checkout 'find-latest-pre-release-branch' script
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          sparse-checkout: |
+            ci_resources/find-latest-pre-release-branch.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Find latest release branch
+        id: find-latest-pre-release-branch
+        run: |
+          ./ci_resources/find-latest-pre-release-branch.sh '${{ github.ref_name }}'
+          echo "result=$(< 'find-latest-pre-release-branch.output')" >> $GITHUB_OUTPUT
+
+      - name: Get unreleased tasks
+        id: git-diff
+        uses: tangem/github-action@main
+        with:
+          github-token: '${{ secrets.GH_MOBILE_PAT }}'
+          base: '${{ steps.find-latest-pre-release-branch.outputs.result }}'
+          head: '${{ github.ref_name }}'
+
+      - name: Verify Jira issues and generate JSON
+        id: verify-jira-issues
+        run: |
+          issues_json='${{ steps.git-diff.outputs.issues }}'
+          base_url="https://tangem.atlassian.net/rest/api/3/issue"
+          valid_issues=()
+
+          # Parse JSON array to get individual issue keys
+          issues=$(echo $issues_json | jq -r '.[]')
+
+          # Iterate through each issue in the list
+          for issue in $issues; do
+            response=$(curl -s -o /dev/null -w "%{http_code}" -u "${{ secrets.JIRA_USER }}:${{ secrets.JIRA_TOKEN }}" "$base_url/$issue")
+            if [[ "$response" -eq 200 ]]; then
+              echo "Issue $issue exists."
+              valid_issues+=("\"$issue\"")
+            else
+              echo "Issue $issue does not exist."
+            fi
+          done
+
+          # Create JSON array from valid issues
+          valid_issues_json=$(printf "[%s]" "$(IFS=,; echo "${valid_issues[*]}")")
+          echo "valid_issues=$valid_issues_json"
+          echo "valid_issues=$valid_issues_json" >> $GITHUB_OUTPUT
+      
+
+      - name: Jira Get Issues Summary
+        uses: tangem/jira-action@master
+        id: jira-issues-summary
+        continue-on-error: true
+        with:
+          action: 'getIssuesSummary'
+          issues: '${{ steps.verify-jira-issues.outputs.valid_issues }}'
+
+      - name: Print issues
+        id: print_issues
+        run: |
+          echo '${{ steps.jira-issues-summary.outputs.result }}'
+
   prepare:
     uses: ./.github/workflows/prepare.yml
     name: Prepare
     with:
-      initial_version_code: 1000
+      initial_version_code: 1050
     secrets: inherit
 
   build_and_publish:
     name: Build and publish
-    runs-on: [ self-hosted, ARM64, active-android, Linux ]
+    runs-on: [ self-hosted, active-android, build ]
     environment: Alpha # required for obtaining token
-    needs: prepare
+    needs:
+      - prepare
+      - jira_changelog
+    outputs:
+      encoded_release_url: ${{ steps.publish.outputs.encoded_release_url }}
     steps:
       - name: Build internal
         id: build
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_MOBILE_PAT }}
           GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
           version_code: ${{ needs.prepare.outputs.version_code }}
           version_name: ${{ needs.prepare.outputs.version_name }}
+          jira_issues_summary: ${{ needs.prepare.outputs.jira_issues_summary }}
         run: |
           env > .env
           
@@ -62,7 +139,7 @@ jobs:
       - name: Publish to Firebase
         id: publish
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_MOBILE_PAT }}
           GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
           app_id_internal: ${{ secrets.FIREBASE_APP_ID_INTERNAL }}
           firebase_cli_token: ${{ secrets.FIREBASE_CLI_TOKEN }}
@@ -86,16 +163,19 @@ jobs:
 
   notification:
     name: Send Notification
-    needs: build_and_publish
-    uses: tangem/actions/.github/workflows/notification.yml@main
+    needs:
+      - jira_changelog
+      - prepare
+      - build_and_publish
+    uses: tangem-developments/actions/.github/workflows/notification.yml@main
     with:
       channel: 'deployments-android'
       status: 'success'
       app_name: 'Tangem Internal'
       deploy_to: 'Firebase app distribution'
-      version: ${{ needs.build_and_publish.outputs.version_name }}
-      build_number: ${{ needs.build_and_publish.outputs.version_code }}
-      changelog: ${{ needs.build_and_publish.outputs.jira_summary }}
+      version: ${{ needs.prepare.outputs.version_name }}
+      build_number: ${{ needs.prepare.outputs.version_code }}
+      changelog: ${{ needs.jira_changelog.outputs.jira_changelog }}
       build_description: ${{ inputs.build_description }}
       encoded_release_url: ${{ needs.build_and_publish.outputs.encoded_release_url }}
     secrets:
@@ -103,17 +183,19 @@ jobs:
 
   error_notification:
     name: Error Notification
-    needs: build_and_publish
+    needs:
+      - prepare
+      - build_and_publish
     if: failure()
-    uses: tangem/actions/.github/workflows/notification.yml@main
+    uses: tangem-developments/actions/.github/workflows/notification.yml@main
     with:
       channel: 'deployments-android'
       status: 'error'
       app_name: 'Tangem Internal'
       deploy_to: 'Firebase App Distribution'
-      version: ${{ needs.build_and_publish.outputs.version_name }}
-      build_number: ${{ needs.build_and_publish.outputs.version_code }}
-      changelog: ${{ needs.build_and_publish.outputs.jira_summary }}
+      version: ${{ needs.prepare.outputs.version_name }}
+      build_number: ${{ needs.prepare.outputs.version_code }}
+      changelog: ${{ needs.prepare.outputs.jira_summary }}
       build_description: ${{ inputs.build_description }}
       encoded_release_url: ${{ needs.build_and_publish.outputs.encoded_release_url }}
     secrets:

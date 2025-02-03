@@ -25,7 +25,7 @@ on:
 jobs:
   prepare:
     name: Prepare
-    runs-on: [self-hosted, ARM64, active-android, Linux]
+    runs-on: [ self-hosted, active-android, build ]
     outputs:
       version_name: ${{ steps.get_version_name.outputs.versionName }}
       version_code: ${{ steps.get_version_code.outputs.versionCode }}
@@ -55,7 +55,7 @@ jobs:
         if: ${{ inputs.checkout_dexprotector_config == true }}
         uses: actions/checkout@v3
         with:
-          repository: 'tangem/private-app-config'
+          repository: 'tangem-developments/private-app-config'
           ref: 'main'
           token: ${{ secrets.GH_MOBILE_PAT }}
           path: 'app-config'
@@ -79,4 +79,4 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build --platform linux/arm64 -t tangem_ci_android_environment .
+          docker build --platform linux/arm64 -t tangem_ci_android_environment -f ci_resources/Dockerfile.android .

@@ -1,4 +1,4 @@
-name: Publish release build to Google Play Beta
+name: Publish release build to GP Beta
 
 on:
   push:
@@ -6,28 +6,43 @@ on:
       - 'release'
   workflow_dispatch:
 
+env:
+  ENABLE_DEX_PROTECTION: "false"
+
 jobs:
+  set_dex_protection:
+    name: Set dex protection flag
+    runs-on: ubuntu-latest
+    outputs:
+      checkout_dexprotector_config: ${{ steps.set-output.outputs.value }}
+    steps:
+      - name: Set output
+        id: set-output
+        run: echo "value=${{ env.ENABLE_DEX_PROTECTION == 'true' }}" >> "$GITHUB_OUTPUT"
+
   prepare:
+    needs: set_dex_protection
     uses: ./.github/workflows/prepare.yml
     name: Prepare
     with:
-      initial_version_code: 1500
-      checkout_dexprotector_config: true
+      initial_version_code: 1200
+      checkout_dexprotector_config: ${{ needs.set_dex_protection.outputs.checkout_dexprotector_config == 'true' }}
     secrets: inherit
 
   publish:
     name: Build, protect and publish
-    runs-on: [ self-hosted, ARM64, active-android, Linux ]
+    runs-on: [ self-hosted, active-android, build ]
+    environment: Release
     needs: prepare
     steps:
       - name: Build APK & AAB
         id: build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          keystore_encoded_base64: ${{ secrets.TEST_KEYSTORE }}
-          store_password: ${{ secrets.TEST_STORE_PASSWORD }}
-          key_alias: ${{ secrets.TEST_KEY_ALIAS }}
-          key_password: ${{ secrets.TEST_KEY_PASSWORD }}
+          keystore_encoded_base64: ${{ secrets.UPLOAD_KEYSTORE }}
+          store_password: ${{ secrets.UPLOAD_STORE_PASSWORD }}
+          key_alias: ${{ secrets.UPLOAD_KEY_ALIAS }}
+          key_password: ${{ secrets.UPLOAD_KEY_PASSWORD }}
           version_code: ${{ needs.prepare.outputs.version_code }}
           version_name: ${{ needs.prepare.outputs.version_name }}
         run: |
@@ -39,57 +54,63 @@ jobs:
             --volume ~/.gradle:/home/ubuntu/.gradle \
             --volume ${{ github.workspace }}:/workspace \
             tangem_ci_android_environment \
-            sh -c "
+            sh -c '
               cd /workspace;
           
               # decoding keystore
-              echo \"\$keystore_encoded_base64\" | base64 --decode > keystore
-              export keystore=\$(pwd)/keystore
+              echo $keystore_encoded_base64 | base64 --decode > keystore
+              export keystore=$(pwd)/keystore
           
               # build release
               fastlane buildRelease \
-                versionCode:\"\$version_code\" \
-                versionName:\"\$version_name\" \
-                keystore:\"\$keystore\" \
-                store_password:\"\$store_password\" \
-                key_alias:\"\$key_alias\" \
-                key_password:\"\$key_password\"
+                versionCode:$version_code \
+                versionName:$version_name \
+                keystore:$keystore \
+                store_password:$store_password \
+                key_alias:$key_alias \
+                key_password:$key_password
           
               cp app/build/outputs/apk/release/app-release.apk /workspace/app-release.apk
               cp app/build/outputs/bundle/release/app-release.aab /workspace/app-release.aab
-            "
+              
+              cp app/build/outputs/apk/release/app-release.apk /home/ubuntu/apks/app-release-$version_code-$version_name.apk
+            '
 
       - name: Protect APK & AAB
         id: dexprotector
+        if: ${{ env.ENABLE_DEX_PROTECTION == 'true' }}
         env:
           DEX_PROTECTOR_HOME: /home/ubuntu/CI/dexprotector
-          SHA_256_CERTIFICATE_FINGERPRINT: ${{ secrets.SHA_256_CERTIFICATE_FINGERPRINT }}
-          keystore_encoded_base64: ${{ secrets.TEST_KEYSTORE }}
-          store_password: ${{ secrets.TEST_STORE_PASSWORD }}
-          key_alias: ${{ secrets.TEST_KEY_ALIAS }}
-          key_password: ${{ secrets.TEST_KEY_PASSWORD }}
+          SHA_256_CERTIFICATE_FINGERPRINT: ${{ secrets.UPLOAD_SHA_256_CERTIFICATE_FINGERPRINT }}
+          keystore_encoded_base64: ${{ secrets.UPLOAD_KEYSTORE }}
+          store_password: ${{ secrets.UPLOAD_STORE_PASSWORD }}
+          key_alias: ${{ secrets.UPLOAD_KEY_ALIAS }}
+          key_password: ${{ secrets.UPLOAD_KEY_PASSWORD }}
           version_code: ${{ needs.prepare.outputs.version_code }}
           version_name: ${{ needs.prepare.outputs.version_name }}
         run: |
+          env > .env
+          
           docker run --rm \
             --user ubuntu \
             --env-file .env \
             --volume $DEX_PROTECTOR_HOME:$DEX_PROTECTOR_HOME \
+            --volume ~/apks:/home/ubuntu/apks \
             --volume ${{ github.workspace }}:/workspace \
             tangem_ci_android_environment \
-            sh -c "
+            sh -c '
               cd /workspace;
           
               # decoding keystore
-              echo \"\$keystore_encoded_base64\" | base64 --decode > keystore
-              export keystore=\$(pwd)/keystore
+              echo $keystore_encoded_base64 | base64 --decode > keystore
+              export keystore=$(pwd)/keystore
           
               java -jar $DEX_PROTECTOR_HOME/dexprotector.jar \
                 -licenseFile $DEX_PROTECTOR_HOME/dexprotector.licel \
                 -configFile /workspace/app-config/dex-android-config.xml \
                 -signMode release \
                 -sha256CertificateFingerprint $SHA_256_CERTIFICATE_FINGERPRINT \
-                -keystore \$keystore \
+                -keystore $keystore \
                 -alias $key_alias \
                 -storepass $store_password \
                 -keypass $key_password \
@@ -100,32 +121,40 @@ jobs:
                 -configFile /workspace/app-config/dex-android-config.xml \
                 -signMode release \
                 -sha256CertificateFingerprint $SHA_256_CERTIFICATE_FINGERPRINT \
-                -keystore \$keystore \
+                -keystore $keystore \
                 -alias $key_alias \
                 -storepass $store_password \
                 -keypass $key_password \
                 app-release.aab app-release-protected.aab > output.log 2>&1
-            "
+            '
           
-          # copy two apk to host
-          cp app-release.apk /home/ubuntu/apks/app-release-\$version_code-\$version_name.apk
-          cp app-release-protected.apk /home/ubuntu/apks/app-release-protected-\$version_code-\$version_name.apk
+          # copy apk to host
+          cp app-release-protected.apk /home/ubuntu/apks/app-release-protected-$version_code-$version_name.apk
+
+
 
       - name: Upload to Google Play
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPLOAD_JSON_KEY_DATA: ${{ secrets.UPLOAD_JSON_KEY_DATA }}
+          ENABLE_DEX_PROTECTION: ${{ env.ENABLE_DEX_PROTECTION }}
         run: |
+          if [[ "$ENABLE_DEX_PROTECTION" == "true" ]]; then
+            AAB_FILE="app-release-protected.aab"
+          else
+            AAB_FILE="app-release.aab"
+          fi
+
           docker run --rm \
             --user ubuntu \
             --volume ${{ github.workspace }}:/workspace \
             tangem_ci_android_environment \
-            sh -c "
+            sh -c '
               cd /workspace;
               fastlane supply \
                 package_name:com.tangem.wallet \
                 track:internal \
-                aab:app-release-protected.aab \
-                json_key_data:{TODO_AND-9552} \
+                aab:$AAB_FILE \
+                json_key_data:$UPLOAD_JSON_KEY_DATA \
                 release_status:completed \
                 skip_upload_apk:false \
                 skip_upload_aab:false \
@@ -142,7 +171,8 @@ jobs:
                 changes_not_sent_for_review:false \
                 rescue_changes_not_sent_for_review:true \
                 ack_bundle_installation_warning:false
-            "
+            '
+
 
 
 
