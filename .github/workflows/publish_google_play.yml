@@ -32,7 +32,7 @@ jobs:
   publish:
     name: Build, protect and publish
     runs-on: [ self-hosted, active-android, build ]
-    environment: Release
+    environment: Production
     needs: prepare
     steps:
       - name: Build APK & AAB
@@ -41,7 +41,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           keystore_encoded_base64: ${{ secrets.UPLOAD_KEYSTORE }}
           store_password: ${{ secrets.UPLOAD_STORE_PASSWORD }}
-          key_alias: ${{ secrets.UPLOAD_KEY_ALIAS }}
+          key_alias: ${{ vars.UPLOAD_KEY_ALIAS }}
           key_password: ${{ secrets.UPLOAD_KEY_PASSWORD }}
           version_code: ${{ needs.prepare.outputs.version_code }}
           version_name: ${{ needs.prepare.outputs.version_name }}
@@ -84,7 +84,7 @@ jobs:
           SHA_256_CERTIFICATE_FINGERPRINT: ${{ secrets.UPLOAD_SHA_256_CERTIFICATE_FINGERPRINT }}
           keystore_encoded_base64: ${{ secrets.UPLOAD_KEYSTORE }}
           store_password: ${{ secrets.UPLOAD_STORE_PASSWORD }}
-          key_alias: ${{ secrets.UPLOAD_KEY_ALIAS }}
+          key_alias: ${{ vars.UPLOAD_KEY_ALIAS }}
           key_password: ${{ secrets.UPLOAD_KEY_PASSWORD }}
           version_code: ${{ needs.prepare.outputs.version_code }}
           version_name: ${{ needs.prepare.outputs.version_name }}
