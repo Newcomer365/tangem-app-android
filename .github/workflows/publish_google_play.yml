@@ -139,8 +139,6 @@ jobs:
           UPLOAD_JSON_KEY_DATA: ${{ secrets.UPLOAD_JSON_KEY_DATA }}
           ENABLE_DEX_PROTECTION: ${{ env.ENABLE_DEX_PROTECTION }}
         run: |
-          env > .env
-          
           if [[ "$ENABLE_DEX_PROTECTION" == "true" ]]; then
             AAB_FILE="app-release-protected.aab"
           else
@@ -149,7 +147,7 @@ jobs:
 
           docker run --rm \
             --user ubuntu \
-            --env-file .env \
+            --env UPLOAD_JSON_KEY_DATA="${UPLOAD_JSON_KEY_DATA}" \
             --volume ${{ github.workspace }}:/workspace \
             tangem_ci_android_environment \
             sh -c '
