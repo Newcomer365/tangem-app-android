@@ -158,6 +158,7 @@ jobs:
                 track:"internal" \
                 aab:$AAB_FILE \
                 json_key_data:"$UPLOAD_JSON_KEY_DATA" \
+                skip_upload_apk:true \
             '
 
 
