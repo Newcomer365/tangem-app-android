@@ -149,6 +149,7 @@ jobs:
 
           docker run --rm \
             --user ubuntu \
+            --env-file .env \
             --volume ${{ github.workspace }}:/workspace \
             tangem_ci_android_environment \
             sh -c '
