@@ -29,7 +29,7 @@ jobs:
       checkout_dexprotector_config: ${{ needs.set_dex_protection.outputs.checkout_dexprotector_config == 'true' }}
     secrets: inherit
 
-  publish:
+  build_and_publish:
     name: Build, protect and publish
     runs-on: [ self-hosted, active-android, build ]
     environment: Production
@@ -162,40 +162,37 @@ jobs:
             '
 
 
+  notification:
+    name: Send Notification
+    needs:
+      - prepare
+      - build_and_publish
+    uses: tangem-developments/actions/.github/workflows/notification.yml@main
+    with:
+      channel: 'deployments-android'
+      status: 'success'
+      app_name: 'Tangem Release'
+      deploy_to: 'Google Play Internal'
+      version: ${{ needs.prepare.outputs.version_name }}
+      build_number: ${{ needs.prepare.outputs.version_code }}
+      changelog: ${{ needs.prepare.outputs.jira_summary }}
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
-
-# TODO: uncomment when AND-9552 is ready
-#  notification:
-#    name: Send Notification
-#    needs: publish
-#    uses: tangem/actions/.github/workflows/notification.yml@main
-#    with:
-#      channel: 'deployments-android'
-#      status: 'success'
-#      app_name: 'Tangem Release'
-#      deploy_to: 'Google Play Internal'
-#      version: ${{ needs.build_and_upload.outputs.version_name }}
-#      build_number: ${{ needs.build_and_upload.outputs.version_code }}
-#      changelog: ${{ needs.build_and_upload.outputs.jira_summary }}
-#      build_description: ${{ inputs.build_description }}
-#      encoded_release_url: ${{ needs.build_and_upload.outputs.encoded_release_url }}
-#    secrets:
-#      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-#
-#  error_notification:
-#    name: Error Notification
-#    needs: publish
-#    if: failure()
-#    uses: tangem/actions/.github/workflows/notification.yml@main
-#    with:
-#      channel: 'deployments-android'
-#      status: 'error'
-#      app_name: 'Tangem Release'
-#      deploy_to: 'Google Play Internal'
-#      version: ${{ needs.build_and_upload.outputs.version_name }}
-#      build_number: ${{ needs.build_and_upload.outputs.version_code }}
-#      changelog: ${{ needs.build_and_upload.outputs.jira_summary }}
-#      build_description: ${{ inputs.build_description }}
-#      encoded_release_url: ${{ needs.build_and_upload.outputs.encoded_release_url }}
-#    secrets:
-#      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+  error_notification:
+    name: Error Notification
+    needs:
+      - prepare
+      - build_and_publish
+    if: failure()
+    uses: tangem-developments/actions/.github/workflows/notification.yml@main
+    with:
+      channel: 'deployments-android'
+      status: 'error'
+      app_name: 'Tangem Release'
+      deploy_to: 'Google Play Internal'
+      version: ${{ needs.prepare.outputs.version_name }}
+      build_number: ${{ needs.prepare.outputs.version_code }}
+      changelog: ${{ needs.prepare.outputs.jira_summary }}
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
