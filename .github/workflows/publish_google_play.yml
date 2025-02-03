@@ -10,12 +10,23 @@ env:
   ENABLE_DEX_PROTECTION: "false"
 
 jobs:
+  set_dex_protection:
+    name: Set dex protection flag
+    runs-on: ubuntu-latest
+    outputs:
+      checkout_dexprotector_config: ${{ steps.set-output.outputs.value }}
+    steps:
+      - name: Set output
+        id: set-output
+        run: echo "value=${{ env.ENABLE_DEX_PROTECTION == 'true' }}" >> "$GITHUB_OUTPUT"
+
   prepare:
+    needs: set_dex_protection
     uses: ./.github/workflows/prepare.yml
     name: Prepare
     with:
       initial_version_code: 1200
-      checkout_dexprotector_config: ${{ env.ENABLE_DEX_PROTECTION == 'true' }}
+      checkout_dexprotector_config: ${{ needs.set_dex_protection.outputs.checkout_dexprotector_config == 'true' }}
     secrets: inherit
 
   publish:
