@@ -153,7 +153,7 @@ jobs:
             tangem_ci_android_environment \
             sh -c '
               cd /workspace;
-              fastlane supply \
+              fastlane run supply \
                 package_name:"com.tangem.wallet" \
                 track:"internal" \
                 aab:$AAB_FILE \
