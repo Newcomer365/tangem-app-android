@@ -153,27 +153,7 @@ jobs:
             tangem_ci_android_environment \
             sh -c '
               cd /workspace;
-              fastlane supply \
-                package_name:com.tangem.wallet \
-                track:internal \
-                aab:$AAB_FILE \
-                json_key_data:$UPLOAD_JSON_KEY_DATA \
-                release_status:completed \
-                skip_upload_apk:false \
-                skip_upload_aab:false \
-                skip_upload_metadata:false \
-                skip_upload_changelogs:false \
-                skip_upload_images:false \
-                skip_upload_screenshots:false \
-                sync_image_upload:false \
-                track_promote_release_status:completed \
-                validate_only:false \
-                check_superseded_tracks:false \
-                timeout:300 \
-                deactivate_on_promote:true \
-                changes_not_sent_for_review:false \
-                rescue_changes_not_sent_for_review:true \
-                ack_bundle_installation_warning:false
+              fastlane supply package_name:com.tangem.wallet track:internal aab:$AAB_FILE json_key_data:$UPLOAD_JSON_KEY_DATA
             '
 
 
