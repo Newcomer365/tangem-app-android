@@ -140,9 +140,9 @@ jobs:
           ENABLE_DEX_PROTECTION: ${{ env.ENABLE_DEX_PROTECTION }}
         run: |
           if [[ "$ENABLE_DEX_PROTECTION" == "true" ]]; then
-            AAB_FILE="app-release-protected.aab"
+            export AAB_FILE="app-release-protected.aab"
           else
-            AAB_FILE="app-release.aab"
+            export AAB_FILE="app-release.aab"
           fi
 
           docker run --rm \
