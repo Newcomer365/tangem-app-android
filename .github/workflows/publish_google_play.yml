@@ -157,7 +157,7 @@ jobs:
                 package_name:"com.tangem.wallet" \
                 track:"internal" \
                 aab:$AAB_FILE \
-                json_key_data:$UPLOAD_JSON_KEY_DATA \
+                json_key_data:"$UPLOAD_JSON_KEY_DATA" \
             '
 
 
