@@ -148,6 +148,7 @@ jobs:
           docker run --rm \
             --user ubuntu \
             --env UPLOAD_JSON_KEY_DATA="${UPLOAD_JSON_KEY_DATA}" \
+            --env AAB_FILE \
             --volume ${{ github.workspace }}:/workspace \
             tangem_ci_android_environment \
             sh -c '
