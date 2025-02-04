@@ -6,19 +6,33 @@ on:
       - 'release'
   workflow_dispatch:
 
+env:
+  ENABLE_DEX_PROTECTION: "false"
+
 jobs:
+  set_dex_protection:
+    name: Set dex protection flag
+    runs-on: ubuntu-latest
+    outputs:
+      checkout_dexprotector_config: ${{ steps.set-output.outputs.value }}
+    steps:
+      - name: Set output
+        id: set-output
+        run: echo "value=${{ env.ENABLE_DEX_PROTECTION == 'true' }}" >> "$GITHUB_OUTPUT"
+
   prepare:
+    needs: set_dex_protection
     uses: ./.github/workflows/prepare.yml
     name: Prepare
     with:
       initial_version_code: 1200
-      checkout_dexprotector_config: true
+      checkout_dexprotector_config: ${{ needs.set_dex_protection.outputs.checkout_dexprotector_config == 'true' }}
     secrets: inherit
 
-  publish:
+  build_and_publish:
     name: Build, protect and publish
     runs-on: [ self-hosted, active-android, build ]
-    environment: Release
+    environment: Production
     needs: prepare
     steps:
       - name: Build APK & AAB
@@ -27,7 +41,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           keystore_encoded_base64: ${{ secrets.UPLOAD_KEYSTORE }}
           store_password: ${{ secrets.UPLOAD_STORE_PASSWORD }}
-          key_alias: ${{ secrets.UPLOAD_KEY_ALIAS }}
+          key_alias: ${{ vars.UPLOAD_KEY_ALIAS }}
           key_password: ${{ secrets.UPLOAD_KEY_PASSWORD }}
           version_code: ${{ needs.prepare.outputs.version_code }}
           version_name: ${{ needs.prepare.outputs.version_name }}
@@ -38,6 +52,7 @@ jobs:
             --user ubuntu \
             --env-file .env \
             --volume ~/.gradle:/home/ubuntu/.gradle \
+            --volume ~/apks:/home/ubuntu/apks \
             --volume ${{ github.workspace }}:/workspace \
             tangem_ci_android_environment \
             sh -c '
@@ -58,16 +73,19 @@ jobs:
           
               cp app/build/outputs/apk/release/app-release.apk /workspace/app-release.apk
               cp app/build/outputs/bundle/release/app-release.aab /workspace/app-release.aab
+              
+              cp app/build/outputs/apk/release/app-release.apk /home/ubuntu/apks/app-release-$version_code-$version_name.apk
             '
 
       - name: Protect APK & AAB
         id: dexprotector
+        if: ${{ env.ENABLE_DEX_PROTECTION == 'true' }}
         env:
           DEX_PROTECTOR_HOME: /home/ubuntu/CI/dexprotector
           SHA_256_CERTIFICATE_FINGERPRINT: ${{ secrets.UPLOAD_SHA_256_CERTIFICATE_FINGERPRINT }}
           keystore_encoded_base64: ${{ secrets.UPLOAD_KEYSTORE }}
           store_password: ${{ secrets.UPLOAD_STORE_PASSWORD }}
-          key_alias: ${{ secrets.UPLOAD_KEY_ALIAS }}
+          key_alias: ${{ vars.UPLOAD_KEY_ALIAS }}
           key_password: ${{ secrets.UPLOAD_KEY_PASSWORD }}
           version_code: ${{ needs.prepare.outputs.version_code }}
           version_name: ${{ needs.prepare.outputs.version_name }}
@@ -111,75 +129,70 @@ jobs:
                 app-release.aab app-release-protected.aab > output.log 2>&1
             '
           
-          # copy two apk to host
-          cp app-release.apk /home/ubuntu/apks/app-release-$version_code-$version_name.apk
+          # copy apk to host
           cp app-release-protected.apk /home/ubuntu/apks/app-release-protected-$version_code-$version_name.apk
 
+
+
       - name: Upload to Google Play
+        env:
+          UPLOAD_JSON_KEY_DATA: ${{ secrets.UPLOAD_JSON_KEY_DATA }}
+          ENABLE_DEX_PROTECTION: ${{ env.ENABLE_DEX_PROTECTION }}
         run: |
+          if [[ "$ENABLE_DEX_PROTECTION" == "true" ]]; then
+            export AAB_FILE="app-release-protected.aab"
+          else
+            export AAB_FILE="app-release.aab"
+          fi
+
           docker run --rm \
             --user ubuntu \
+            --env UPLOAD_JSON_KEY_DATA="${UPLOAD_JSON_KEY_DATA}" \
+            --env AAB_FILE \
             --volume ${{ github.workspace }}:/workspace \
             tangem_ci_android_environment \
             sh -c '
               cd /workspace;
-              fastlane supply \
-                package_name:com.tangem.wallet \
-                track:internal \
-                aab:app-release-protected.aab \
-                json_key_data:{TODO_AND-9552} \
-                release_status:completed \
-                skip_upload_apk:false \
-                skip_upload_aab:false \
-                skip_upload_metadata:false \
-                skip_upload_changelogs:false \
-                skip_upload_images:false \
-                skip_upload_screenshots:false \
-                sync_image_upload:false \
-                track_promote_release_status:completed \
-                validate_only:false \
-                check_superseded_tracks:false \
-                timeout:300 \
-                deactivate_on_promote:true \
-                changes_not_sent_for_review:false \
-                rescue_changes_not_sent_for_review:true \
-                ack_bundle_installation_warning:false
+              fastlane run supply \
+                package_name:"com.tangem.wallet" \
+                track:"internal" \
+                aab:$AAB_FILE \
+                json_key_data:"$UPLOAD_JSON_KEY_DATA" \
+                skip_upload_apk:true \
             '
 
 
+  notification:
+    name: Send Notification
+    needs:
+      - prepare
+      - build_and_publish
+    uses: tangem-developments/actions/.github/workflows/notification.yml@main
+    with:
+      channel: 'deployments-android'
+      status: 'success'
+      app_name: 'Tangem Release'
+      deploy_to: 'Google Play Internal'
+      version: ${{ needs.prepare.outputs.version_name }}
+      build_number: ${{ needs.prepare.outputs.version_code }}
+      changelog: ${{ needs.prepare.outputs.jira_summary }}
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
-# TODO: uncomment when AND-9552 is ready
-#  notification:
-#    name: Send Notification
-#    needs: publish
-#    uses: tangem/actions/.github/workflows/notification.yml@main
-#    with:
-#      channel: 'deployments-android'
-#      status: 'success'
-#      app_name: 'Tangem Release'
-#      deploy_to: 'Google Play Internal'
-#      version: ${{ needs.build_and_upload.outputs.version_name }}
-#      build_number: ${{ needs.build_and_upload.outputs.version_code }}
-#      changelog: ${{ needs.build_and_upload.outputs.jira_summary }}
-#      build_description: ${{ inputs.build_description }}
-#      encoded_release_url: ${{ needs.build_and_upload.outputs.encoded_release_url }}
-#    secrets:
-#      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-#
-#  error_notification:
-#    name: Error Notification
-#    needs: publish
-#    if: failure()
-#    uses: tangem/actions/.github/workflows/notification.yml@main
-#    with:
-#      channel: 'deployments-android'
-#      status: 'error'
-#      app_name: 'Tangem Release'
-#      deploy_to: 'Google Play Internal'
-#      version: ${{ needs.build_and_upload.outputs.version_name }}
-#      build_number: ${{ needs.build_and_upload.outputs.version_code }}
-#      changelog: ${{ needs.build_and_upload.outputs.jira_summary }}
-#      build_description: ${{ inputs.build_description }}
-#      encoded_release_url: ${{ needs.build_and_upload.outputs.encoded_release_url }}
-#    secrets:
-#      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+  error_notification:
+    name: Error Notification
+    needs:
+      - prepare
+      - build_and_publish
+    if: failure()
+    uses: tangem-developments/actions/.github/workflows/notification.yml@main
+    with:
+      channel: 'deployments-android'
+      status: 'error'
+      app_name: 'Tangem Release'
+      deploy_to: 'Google Play Internal'
+      version: ${{ needs.prepare.outputs.version_name }}
+      build_number: ${{ needs.prepare.outputs.version_code }}
+      changelog: ${{ needs.prepare.outputs.jira_summary }}
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
