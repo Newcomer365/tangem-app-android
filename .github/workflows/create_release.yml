@@ -1,0 +1,23 @@
+name: Create release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: 'Name of version (ie 1.3.0)'
+        default: '5.21' # TODO: Test only, remove
+        required: true
+
+jobs:
+  prepare:
+    name: Prepare Release
+    uses: tangem-developments/actions/.github/workflows/prepare-release.yml@feature/AND-9908_create_release
+    with:
+      version_name: ${{ inputs.version_name }}
+      project_name: 'AND'
+    secrets:
+      GH_MOBILE_PAT: ${{ secrets.GH_MOBILE_PAT }}
+      JIRA_BASE_URL: ${{ secrets.JIRA_URL }}
+      JIRA_USER_EMAIL: ${{ secrets.JIRA_USER }}
+      JIRA_API_TOKEN: ${{ secrets.JIRA_TOKEN }}
+      CREATE_RELEASE_BRANCH_KEY: ${{ secrets.CREATE_RELEASE_BRANCH_KEY }}
