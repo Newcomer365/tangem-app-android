@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - 'develop'
+      - 'releases/*'
     types:
       - closed
 
@@ -11,9 +12,26 @@ jobs:
   prepare:
     name: Prepare Release
     if: ${{ github.event.pull_request.merged }}
+    runs-on: ubuntu-latest
+    outputs:
+      version_name: ${{ steps.version.outputs.VERSION_NAME }}
+    steps:
+      - name: Determine Version Name
+        id: version
+        run: |
+          if [[ "${{ github.base_ref }}" == "develop" ]]; then
+            echo "VERSION_NAME=Next Release" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.base_ref }}" == releases/* ]]; then
+            VERSION=$(echo "${{ github.base_ref }}" | sed 's/releases\///')
+            echo "VERSION_NAME=${VERSION}.0" >> $GITHUB_OUTPUT
+          fi
+
+  set-jira-version:
+    name: Set Jira Task Version
+    needs: prepare
     uses: tangem-developments/actions/.github/workflows/set-jira-task-version.yml@feature/AND-9908_create_release
     with:
-      next_version_name: 'Next Release'
+      next_version_name: ${{ needs.prepare.outputs.version_name }}
       project_name: 'AND'
     secrets:
       JIRA_BASE_URL: ${{ secrets.JIRA_URL }}
