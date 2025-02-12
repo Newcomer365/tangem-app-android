@@ -9,6 +9,8 @@ import com.tangem.domain.common.TapWorkarounds.isTestCard
 import com.tangem.domain.common.configs.CardConfig
 import com.tangem.domain.models.scan.CardDTO
 
+// TODO: refactor https://tangem.atlassian.net/browse/AND-10006
+
 /**
  * Created by Anton Zhilenkov on 28/04/2022.
  */
