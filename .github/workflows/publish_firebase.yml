@@ -94,7 +94,7 @@ jobs:
       - name: Print issues
         id: print_issues
         run: |
-          echo '${{ steps.jira-issues-summary.outputs.result }}'
+          echo "${{ steps.jira-issues-summary.outputs.result }}"
 
   prepare:
     uses: ./.github/workflows/prepare.yml
