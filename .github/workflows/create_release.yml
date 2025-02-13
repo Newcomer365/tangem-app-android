@@ -5,13 +5,12 @@ on:
     inputs:
       version_name:
         description: 'Name of version (ie 1.3.0)'
-        default: '5.21' # TODO: Test only, remove
         required: true
 
 jobs:
   prepare:
     name: Prepare Release
-    uses: tangem-developments/actions/.github/workflows/prepare-release.yml@feature/AND-9908_create_release
+    uses: tangem-developments/actions/.github/workflows/prepare-release.yml@feature/IOS-8785_ci_cd_create_release
     with:
       version_name: ${{ inputs.version_name }}
       project_name: 'AND'
