@@ -53,7 +53,7 @@ jobs:
             --volume ${{ github.workspace }}:/workspace \
             tangem_ci_android_environment \
             sh -c "
-              echo "Running ${{ matrix.task }}...";
+              echo 'Running ${{ matrix.task }}...';
               cd /workspace && fastlane ${{ matrix.task }};
             "
 
