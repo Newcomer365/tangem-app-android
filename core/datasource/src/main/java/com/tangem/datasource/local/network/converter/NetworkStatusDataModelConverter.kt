@@ -9,9 +9,9 @@ import com.tangem.utils.converter.Converter
  *
  * @author Andrew Khokhlov on 18/02/2025
  */
-internal object NetworkStatusDataModelConverter : Converter<NetworkStatus, NetworkStatusDM> {
+internal object NetworkStatusDataModelConverter : Converter<NetworkStatus, NetworkStatusDM?> {
 
-    override fun convert(value: NetworkStatus): NetworkStatusDM {
+    override fun convert(value: NetworkStatus): NetworkStatusDM? {
         return when (val status = value.value) {
             is NetworkStatus.Verified -> {
                 NetworkStatusDM.Verified(
@@ -32,7 +32,7 @@ internal object NetworkStatusDataModelConverter : Converter<NetworkStatus, Netwo
                     errorMessage = status.errorMessage,
                 )
             }
-            else -> error("Unsupported network status: $value")
+            else -> null
         }
     }
 }
