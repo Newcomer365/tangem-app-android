@@ -33,6 +33,7 @@ jobs:
     with:
       version_name: ${{ needs.prepare.outputs.version_name }}
       project_name: 'AND'
+      pull_request_number: ${{ github.event.pull_request.number }}
     secrets:
       JIRA_BASE_URL: ${{ secrets.JIRA_URL }}
       JIRA_USER_EMAIL: ${{ secrets.JIRA_USER }}
