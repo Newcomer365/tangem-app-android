@@ -172,7 +172,6 @@ jobs:
     with:
       channel: 'deployments-android'
       status: 'success'
-      app_name: 'Tangem Release'
       deploy_to: 'Google Play Internal'
       version: ${{ needs.prepare.outputs.version_name }}
       build_number: ${{ needs.prepare.outputs.version_code }}
@@ -192,7 +191,6 @@ jobs:
     with:
       channel: 'deployments-android'
       status: 'error'
-      app_name: 'Tangem Release'
       deploy_to: 'Google Play Internal'
       version: ${{ needs.prepare.outputs.version_name }}
       build_number: ${{ needs.prepare.outputs.version_code }}
