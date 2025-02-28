@@ -77,7 +77,6 @@ jobs:
               cp app/build/outputs/bundle/release/app-release.aab /workspace/app-release-$version_code-$version_name.aab
               
               cp app/build/outputs/apk/release/app-release.apk /home/ubuntu/apks/app-release-$version_code-$version_name.apk
-              cp app/build/outputs/bundle/release/app-release.aab /home/ubuntu/bundles/app-release-$version_code-$version_name.aab
             '
 
       - name: Protect APK & AAB
@@ -134,7 +133,6 @@ jobs:
           
           # copy apk&aab to host
           cp app-release-protected.apk /home/ubuntu/apks/app-release-protected-$version_code-$version_name.apk
-          cp app-release-protected.aab /home/ubuntu/bundles/app-release-protected-$version_code-$version_name.aab
           
           cp app-release-protected.aab /workspace/app-release-protected-$version_code-$version_name.aab
 
@@ -158,7 +156,6 @@ jobs:
             --env UPLOAD_JSON_KEY_DATA="${UPLOAD_JSON_KEY_DATA}" \
             --env AAB_FILE \
             --volume ${{ github.workspace }}:/workspace \
-            --volume ~/bundles:/home/ubuntu/bundles \
             tangem_ci_android_environment \
             sh -c '
               cd /workspace;
