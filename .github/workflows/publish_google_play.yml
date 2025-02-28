@@ -35,6 +35,9 @@ jobs:
     environment: Production
     needs: prepare
     steps:
+      - name: Clean
+        run: rm -rf *
+
       - name: Build APK & AAB
         id: build
         env:
@@ -75,6 +78,7 @@ jobs:
               cp app/build/outputs/bundle/release/app-release.aab /workspace/app-release.aab
               
               cp app/build/outputs/apk/release/app-release.apk /home/ubuntu/apks/app-release-$version_code-$version_name.apk
+              cp app/build/outputs/bundle/release/app-release.aab /home/ubuntu/bundles/app-release-$version_code-$version_name.aab
             '
 
       - name: Protect APK & AAB
@@ -129,8 +133,9 @@ jobs:
                 app-release.aab app-release-protected.aab > output.log 2>&1
             '
           
-          # copy apk to host
+          # copy apk&aab to host
           cp app-release-protected.apk /home/ubuntu/apks/app-release-protected-$version_code-$version_name.apk
+          cp app-release-protected.aab /home/ubuntu/bundles/app-release-protected-$version_code-$version_name.aab
 
 
 
@@ -138,11 +143,13 @@ jobs:
         env:
           UPLOAD_JSON_KEY_DATA: ${{ secrets.UPLOAD_JSON_KEY_DATA }}
           ENABLE_DEX_PROTECTOR: ${{ env.ENABLE_DEX_PROTECTOR }}
+          version_code: ${{ needs.prepare.outputs.version_code }}
+          version_name: ${{ needs.prepare.outputs.version_name }}
         run: |
           if [[ "$ENABLE_DEX_PROTECTOR" == "true" ]]; then
-            export AAB_FILE="app-release-protected.aab"
+            export AAB_FILE="/home/ubuntu/bundles/app-release-protected-$version_code-$version_name.aab"
           else
-            export AAB_FILE="app-release.aab"
+            export AAB_FILE="/home/ubuntu/bundles/app-release-$version_code-$version_name.aab"
           fi
 
           docker run --rm \
