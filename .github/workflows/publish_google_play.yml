@@ -35,9 +35,6 @@ jobs:
     environment: Production
     needs: prepare
     steps:
-      - name: Clean
-        run: rm -rf *
-
       - name: Build APK & AAB
         id: build
         env:
@@ -56,6 +53,7 @@ jobs:
             --env-file .env \
             --volume ~/.gradle:/home/ubuntu/.gradle \
             --volume ~/apks:/home/ubuntu/apks \
+            --volume ~/bundles:/home/ubuntu/bundles \
             --volume ${{ github.workspace }}:/workspace \
             tangem_ci_android_environment \
             sh -c '
@@ -157,6 +155,7 @@ jobs:
             --env UPLOAD_JSON_KEY_DATA="${UPLOAD_JSON_KEY_DATA}" \
             --env AAB_FILE \
             --volume ${{ github.workspace }}:/workspace \
+            --volume ~/bundles:/home/ubuntu/bundles \
             tangem_ci_android_environment \
             sh -c '
               cd /workspace;
