@@ -23,6 +23,9 @@ jobs:
   build_and_publish:
     name: Build, protect and publish
     runs-on: [ self-hosted, active-android, build ]
+    outputs:
+      version_name: ${{ steps.get_version_name.outputs.versionName }}
+      version_code: ${{ steps.get_version_code.outputs.versionCode }}
     environment: Production
     needs:
       - set_dex_protector_flag
@@ -209,8 +212,8 @@ jobs:
       channel: 'deployments-android'
       status: 'success'
       deploy_to: 'Google Play Internal'
-      version: ${{ steps.get_version_name.outputs.versionName }}
-      build_number: ${{ steps.get_version_code.outputs.versionCode }}
+      version: ${{ needs.build_and_publish.outputs.version_name }}
+      build_number: ${{ needs.build_and_publish.outputs.version_code }}
       is_archive_analyzed: ${{ needs.set_dex_protector_flag.outputs.use_dexprotector == 'true' }}
     secrets:
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -226,8 +229,8 @@ jobs:
       channel: 'deployments-android'
       status: 'error'
       deploy_to: 'Google Play Internal'
-      version: ${{ steps.get_version_name.outputs.versionNamee }}
-      build_number: ${{ steps.get_version_code.outputs.versionCode }}
+      version: ${{ needs.build_and_publish.outputs.version_name }}
+      build_number: ${{ needs.build_and_publish.outputs.version_code }}
       is_archive_analyzed: ${{ needs.set_dex_protector_flag.outputs.use_dexprotector == 'true' }}
     secrets:
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
