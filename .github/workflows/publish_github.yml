@@ -7,6 +7,11 @@ on:
         description: 'Required version code to upload APK'
         required: true
         type: number
+  workflow_call:
+    inputs:
+      version_code:
+        required: true
+        type: number
 
 
 jobs:
@@ -26,7 +31,7 @@ jobs:
       - name: Publish
         env:
           GITHUB_TOKEN: ${{ secrets.TANGEM_BINARIES_REPOSITORY_TOKEN }}
-          VERSION_CODE: ${{ github.event.inputs.version_code }}
+          VERSION_CODE: ${{ inputs.version_code }}
         run: |
           env > .env
                   

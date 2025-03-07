@@ -2,11 +2,159 @@ name: Finish release
 
 on:
   workflow_dispatch:
+    inputs:
+      version_code:
+        description: 'Required version code to upload APK to binaries repo'
+        required: true
+        type: number
 
 jobs:
-  publish:
-    runs-on: [ self-hosted, ARM64, active-android ]
+  check_branch:
+    runs-on: ubuntu-latest
+    outputs:
+      version_name: ${{ steps.get_version_name.outputs.versionName }}
     steps:
-      - name: Start
+      - name: Check branch and get version name from branch name
+        id: get_version_name
         run: |
-          env > .env
+          BRANCH=${{ github.ref_name }}
+          
+          if [[ "$BRANCH" =~ ^(releases)/([0-9]+)\.([0-9]+)(\.[0-9]+)?$ ]]; then
+            MAJOR=${BASH_REMATCH[2]}
+            MINOR=${BASH_REMATCH[3]}
+            PATCH=${BASH_REMATCH[4]:-.0}
+            VERSION="${MAJOR}.${MINOR}${PATCH}"
+          else 
+              echo "This action must be run from release branch"
+              exit 1
+          fi
+          
+          echo "versionName=$VERSION"
+          echo "versionName=$VERSION" >> $GITHUB_OUTPUT
+
+  publish_binary_to_github:
+    runs-on: [ self-hosted, active-android, build ]
+    environment: Production
+    needs: check_branch
+    steps:
+      - name: Publish APK to binaries repo
+        uses: ./.github/workflows/publish_github.yml
+        with:
+          version_code: ${{ inputs.version_code }}
+
+  finish_release_jira:
+    runs-on: ubuntu-latest
+    needs: check_branch
+    steps:
+      - name: Release version in Jira
+        uses: tangem-developments/jira-action@master
+        with:
+          action: releaseVersion
+          project: AND
+          version: ${{ needs.check_branch.outputs.version_name }}
+
+  find_latest_release_branch:
+    runs-on: ubuntu-latest
+    outputs:
+      latest_release_branch: ${{ steps.find_latest_release_branch.outputs.latest_release_branch }}
+    needs: check_branch
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find latest release branch
+        id: find_latest_release_branch
+        run: |
+          echo "Fetching all remote branches..."
+
+          # Retrieve all remote branches without cloning the repository
+          BRANCHES=$(git ls-remote --heads https://github.com/${{ github.repository }}.git)
+
+          echo "Retrieved branches from the remote repository:"
+          echo "$BRANCHES"
+
+          echo "Extracting full branch names..."
+          # Extract branch names while preserving the full path (e.g., "refs/heads/releases/1.0")
+          BRANCH_NAMES=$(echo "$BRANCHES" | sed 's?.*refs/heads/??')
+
+          echo "Extracted branch names:"
+          echo "$BRANCH_NAMES"
+
+          echo "Filtering only release branches..."
+          # Select only release branches (format: releases/X.Y or releases/X.Y.Z)
+          RELEASE_BRANCHES=$(echo "$BRANCH_NAMES" | grep -E '^releases/[0-9]+\.[0-9]+(\.[0-9]+)?$' || true)
+
+          if [[ -z "$RELEASE_BRANCHES" ]]; then
+            echo "No release branches found. Exiting."
+            exit 0
+          fi
+
+          echo "Found release branches:"
+          echo "$RELEASE_BRANCHES"
+
+          echo "Sorting release branches lexicographically..."
+          # Sort branches lexicographically to get the latest version
+          LATEST_RELEASE=$(echo "$RELEASE_BRANCHES" | sort -V | tail -n 1)
+
+          echo "Latest release branch found: $LATEST_RELEASE"
+          echo "Current branch: ${{ github.ref_name }}"
+
+          # Save the result to GitHub output
+          echo "latest_release_branch=$LATEST_RELEASE" >> $GITHUB_OUTPUT
+
+  create_pr_to_next_release:
+    needs:
+      - check_branch
+      - find_latest_release_branch
+    if: needs.find_latest_release_branch.outputs.latest_release_branch != github.ref_name
+    uses: tangem-developments/actions/.github/workflows/create_pr.yml@feature/IOS-8785_ci_cd_create_release
+    with:
+      source_branch: ${{ github.ref_name }}
+      target_branch: ${{ needs.find_latest_release_branch.outputs.latest_release_branch }}
+      replace_android_tangem_dependencies: true
+    secrets:
+      AUTO_MERGE_TOKEN: ${{ secrets.AUTO_MERGE_TOKEN }}
+
+  create_pr_to_release:
+    runs-on: ubuntu-latest
+    needs:
+      - check_branch
+    uses: tangem-developments/actions/.github/workflows/create_pr.yml@feature/IOS-8785_ci_cd_create_release
+    with:
+      source_branch: ${{ github.ref_name }}
+      target_branch: release
+    secrets:
+      AUTO_MERGE_TOKEN: ${{ secrets.AUTO_MERGE_TOKEN }}
+
+  sync_with_public_repo:
+    runs-on: ubuntu-latest
+    environment: Production
+    needs: check_branch
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push to public repo
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+          mkdir -p ~/.ssh
+          echo "${{ secrets.ANDROID_PUBLIC_REPO_SYNC_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          eval $(ssh-agent -s)
+          ssh-add ~/.ssh/id_rsa
+
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+          git remote -v
+
+          git remote remove mirror || true
+          git remote add mirror git@github.com:tangem/tangem-app-android.git
+
+          git push --force --tags mirror "refs/remotes/origin/*:refs/heads/*"
+
