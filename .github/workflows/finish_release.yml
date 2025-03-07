@@ -118,7 +118,6 @@ jobs:
       AUTO_MERGE_TOKEN: ${{ secrets.AUTO_MERGE_TOKEN }}
 
   create_pr_to_release:
-    runs-on: ubuntu-latest
     needs: check_branch
     uses: tangem-developments/actions/.github/workflows/create_pr.yml@feature/IOS-8785_ci_cd_create_release
     with:
