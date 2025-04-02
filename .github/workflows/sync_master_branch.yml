@@ -1,0 +1,56 @@
+name: Sync master branch with public repo
+
+on:
+  push:
+    branches:
+      - 'master'
+  workflow_dispatch:
+
+jobs:
+  sync_with_public_repo:
+    runs-on: ubuntu-latest
+    environment: Production
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+
+      - name: Setup SSH
+        env:
+          SSH_KEY: ${{ secrets.ANDROID_PUBLIC_REPO_SYNC_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          eval $(ssh-agent -s)
+          ssh-add ~/.ssh/id_rsa
+
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Clone public repo
+        run: |
+          git clone git@github.com:tangem/tangem-app-android.git ../public_repo
+          cd ../public_repo
+          git checkout master || git checkout -b master
+
+      - name: Sync snapshot and create commit
+        run: |
+          cd ../public_repo
+          
+          rsync -av --delete --exclude='.git' ../tangem-app-android/ .
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git commit -m "Sync: Snapshot of private master branch ($(date +"%Y-%m-%d %H:%M:%S"))"
+
+      - name: Push to public repo
+        run: |
+          cd ../public_repo
+          git push origin master

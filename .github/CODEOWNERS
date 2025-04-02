@@ -2,4 +2,69 @@
 # Each line is a file pattern followed by one or more owners.
 
 # These owners will be the default owners for everything in the repo.
-*           @roman-pv @gbixahue @iiiburnyiii @MamaLemon @kozarezvlad
+#* @tangem-developments/android-team
+
+# Order is important; the last matching pattern takes the most
+# precedence.
+
+# Region Global
+* @ahohlov_tangem @vkozarez_tangem
+
+# Region CI/CD
+
+.github/workflows/ @ishulgin_tangem @vkozarez_tangem
+ci_resources/ @ishulgin_tangem @vkozarez_tangem
+fastlane @ishulgin_tangem @vkozarez_tangem
+
+# Region App Legacy
+app/ @ahohlov_tangem @vkozarez_tangem
+
+# Region Test
+app/src/androidTest/ @tnagmetulla_tangem @ishulgin_tangem
+
+# Region Common
+
+common/ui/ @mismoilov_tangem
+
+common/ui-charts/ @nsamoylov_tangem @mismoilov_tangem
+
+# Region Core
+
+core/decompose/ @nsamoylov_tangem
+
+core/pagination/ @nsamoylov_tangem
+
+core/ui/ @mismoilov_tangem
+
+core/utils/ @ahohlov_tangem
+
+
+# Region features
+
+**/disclaimer/ @mismoilov_tangem
+
+**/markets/ @nsamoylov_tangem
+
+**/onboarding/ @ahohlov_tangem
+
+**/onboarding-v2/ @nsamoylov_tangem
+
+**/onramp/ @dkamalov_tangem
+
+**/push-notifications/ @mismoilov_tangem
+
+**/qr-scanning/ @mismoilov_tangem
+
+**/send/ @mismoilov_tangem
+
+**/staking/ @ishulgin_tangem @mismoilov_tangem
+
+**/stories/ @mismoilov_tangem
+
+**/swap/ @vkozarez_tangem
+
+**/tester/ @ahohlov_tangem
+
+**/tokendetails/ @dkamalov_tangem
+
+**/wallet/ @ahohlov_tangem
