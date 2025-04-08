@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 env:
-  PACKAGE_NAME: "com.tangem.wallet.debug"
+  ANDROID_MODULE: "app"  
 
 jobs:
   build:
@@ -15,7 +15,15 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4  
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive  
+
+    - name: Validate project structure
+      run: |
+        ls -la
+        echo "Android module path: ${{ env.ANDROID_MODULE }}"
+        test -f "${{ env.ANDROID_MODULE }}/build.gradle" || (echo "build.gradle not found"; exit 1)
 
     - name: Setup JDK 17
       uses: actions/setup-java@v3
@@ -28,17 +36,20 @@ jobs:
 
     - name: Decode and place google-services.json
       run: |
-        echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
-        echo "PACKAGE_NAME=$(jq -r '.client[0].client_info.android_client_info.package_name' app/google-services.json)" >> $GITHUB_ENV
+        mkdir -p ${{ env.ANDROID_MODULE }}  
+        echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > ${{ env.ANDROID_MODULE }}/google-services.json
+        echo "PACKAGE_NAME=$(jq -r '.client[0].client_info.android_client_info.package_name' ${{ env.ANDROID_MODULE }}/google-services.json)" >> $GITHUB_ENV
 
     - name: Update package name
       run: |
-        sed -i "s/applicationId \".*\"/applicationId \"${{ env.PACKAGE_NAME }}\"/g" app/build.gradle
+        sed -i "s/applicationId \".*\"/applicationId \"${{ env.PACKAGE_NAME }}\"/g" ${{ env.ANDROID_MODULE }}/build.gradle
+        cat ${{ env.ANDROID_MODULE }}/build.gradle | grep applicationId  
 
     - name: Setup Keystore
       run: |
-        echo "${{ secrets.KEYSTORE_FILE }}" | base64 -d > app/keystore.jks
-        echo "KEYSTORE_PATH=app/keystore.jks" >> $GITHUB_ENV
+        mkdir -p ${{ env.ANDROID_MODULE }}
+        echo "${{ secrets.KEYSTORE_FILE }}" | base64 -d > ${{ env.ANDROID_MODULE }}/keystore.jks
+        echo "KEYSTORE_PATH=${{ env.ANDROID_MODULE }}/keystore.jks" >> $GITHUB_ENV
 
     - name: Setup GitHub Packages Auth
       run: |
@@ -47,25 +58,25 @@ jobs:
 
     - name: Create config directory
       run: |
-        mkdir -p app/src/main/assets/tangem-app-config
-        touch app/src/main/assets/tangem-app-config/config_dev.json
+        mkdir -p ${{ env.ANDROID_MODULE }}/src/main/assets/tangem-app-config
+        touch ${{ env.ANDROID_MODULE }}/src/main/assets/tangem-app-config/config_dev.json
 
     - name: Build APK
       run: |
-        ./gradlew assembleRelease \
+        ./gradlew :${{ env.ANDROID_MODULE }}:assembleRelease \
           -PkeystoreFile=${{ env.KEYSTORE_PATH }} \
           -PkeystorePassword=${{ secrets.KEYSTORE_PASSWORD }} \
           -PkeyAlias=${{ secrets.KEY_ALIAS }} \
           -PkeyPassword=${{ secrets.KEY_PASSWORD }}
 
     - name: Upload APK
-      uses: actions/upload-artifact@v4  
+      uses: actions/upload-artifact@v4
       with:
         name: tangem-release-${{ github.run_number }}
-        path: app/build/outputs/apk/release/*.apk
+        path: ${{ env.ANDROID_MODULE }}/build/outputs/apk/release/*.apk
         retention-days: 7
 
-    - name: Cleanup sensitive files
+    - name: Cleanup
       run: |
         rm -f ${{ env.KEYSTORE_PATH }}
         rm -f local.properties
