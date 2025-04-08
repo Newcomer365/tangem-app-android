@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 env:
-  ANDROID_MODULE: "app"  
+  ANDROID_MODULE: "app"
 
 jobs:
   build:
@@ -17,7 +17,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        submodules: recursive  
+        submodules: recursive
 
     - name: Validate project structure
       run: |
@@ -36,14 +36,14 @@ jobs:
 
     - name: Decode and place google-services.json
       run: |
-        mkdir -p ${{ env.ANDROID_MODULE }}  
+        mkdir -p ${{ env.ANDROID_MODULE }}
         echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > ${{ env.ANDROID_MODULE }}/google-services.json
         echo "PACKAGE_NAME=$(jq -r '.client[0].client_info.android_client_info.package_name' ${{ env.ANDROID_MODULE }}/google-services.json)" >> $GITHUB_ENV
 
     - name: Update package name
       run: |
         sed -i "s/applicationId \".*\"/applicationId \"${{ env.PACKAGE_NAME }}\"/g" ${{ env.ANDROID_MODULE }}/build.gradle
-        cat ${{ env.ANDROID_MODULE }}/build.gradle | grep applicationId  
+        cat ${{ env.ANDROID_MODULE }}/build.gradle | grep applicationId
 
     - name: Setup Keystore
       run: |
