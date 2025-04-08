@@ -17,12 +17,17 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        submodules: recursive
+        submodules: false  
+        token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}  
+
+    - name: Manual submodule setup
+      run: |
+        git config --global url."https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com".insteadOf "https://github.com"
+        git submodule sync
+        git submodule update --init --recursive --remote
 
     - name: Validate project structure
       run: |
-        ls -la
-        echo "Android module path: ${{ env.ANDROID_MODULE }}"
         test -f "${{ env.ANDROID_MODULE }}/build.gradle" || (echo "build.gradle not found"; exit 1)
 
     - name: Setup JDK 17
@@ -38,16 +43,13 @@ jobs:
       run: |
         mkdir -p ${{ env.ANDROID_MODULE }}
         echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > ${{ env.ANDROID_MODULE }}/google-services.json
-        echo "PACKAGE_NAME=$(jq -r '.client[0].client_info.android_client_info.package_name' ${{ env.ANDROID_MODULE }}/google-services.json)" >> $GITHUB_ENV
 
     - name: Update package name
       run: |
-        sed -i "s/applicationId \".*\"/applicationId \"${{ env.PACKAGE_NAME }}\"/g" ${{ env.ANDROID_MODULE }}/build.gradle
-        cat ${{ env.ANDROID_MODULE }}/build.gradle | grep applicationId
+        sed -i "s/applicationId \".*\"/applicationId \"$(jq -r '.client[0].client_info.android_client_info.package_name' ${{ env.ANDROID_MODULE }}/google-services.json)\"/g" ${{ env.ANDROID_MODULE }}/build.gradle
 
     - name: Setup Keystore
       run: |
-        mkdir -p ${{ env.ANDROID_MODULE }}
         echo "${{ secrets.KEYSTORE_FILE }}" | base64 -d > ${{ env.ANDROID_MODULE }}/keystore.jks
         echo "KEYSTORE_PATH=${{ env.ANDROID_MODULE }}/keystore.jks" >> $GITHUB_ENV
 
@@ -59,7 +61,7 @@ jobs:
     - name: Create config directory
       run: |
         mkdir -p ${{ env.ANDROID_MODULE }}/src/main/assets/tangem-app-config
-        touch ${{ env.ANDROID_MODULE }}/src/main/assets/tangem-app-config/config_dev.json
+        echo '{}' > ${{ env.ANDROID_MODULE }}/src/main/assets/tangem-app-config/config_dev.json
 
     - name: Build APK
       run: |
@@ -74,9 +76,7 @@ jobs:
       with:
         name: tangem-release-${{ github.run_number }}
         path: ${{ env.ANDROID_MODULE }}/build/outputs/apk/release/*.apk
-        retention-days: 7
 
     - name: Cleanup
       run: |
         rm -f ${{ env.KEYSTORE_PATH }}
-        rm -f local.properties
