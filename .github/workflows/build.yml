@@ -22,8 +22,7 @@ jobs:
           https://github.com/Newcomer365/tangem-app-config.git \
           app/src/main/assets/tangem-app-config
         
-        # 验证.gitmodules文件
-        cat .gitmodules
+        
 
     - name: Init submodules
       run: |
