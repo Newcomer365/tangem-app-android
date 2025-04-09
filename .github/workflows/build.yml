@@ -14,20 +14,23 @@ jobs:
     - name: Checkout main repo
       uses: actions/checkout@v4
 
-    - name: Add submodule manually
+    - name: Clean existing directory
       run: |
-        mkdir -p app/src/main/assets/tangem-app-config
-        
-        git submodule add --force \
+        rm -rf app/src/main/assets/tangem-app-config
+        mkdir -p app/src/main/assets
+
+    - name: Initialize submodule
+      run: |
+        git submodule add --force --name tangem-app-config \
           https://github.com/Newcomer365/tangem-app-config.git \
           app/src/main/assets/tangem-app-config
         
-        
+        git submodule update --init --remote --recursive
 
-    - name: Init submodules
+    - name: Verify submodule
       run: |
-        git submodule update --init --recursive --force
         ls -la app/src/main/assets/tangem-app-config
+        test -f app/src/main/assets/tangem-app-config/config_dev.json || exit 1
 
     - name: Setup JDK 17
       uses: actions/setup-java@v3
