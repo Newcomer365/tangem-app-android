@@ -1,4 +1,4 @@
-name: Tangem Application Build
+name: Tangem Application
 
 on:
   push:
