@@ -1,0 +1,82 @@
+
+name: Build Tangem App
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout main repo
+      uses: actions/checkout@v4
+
+    - name: Clean existing directory
+      run: |
+        rm -rf app/src/main/assets/tangem-app-config
+        mkdir -p app/src/main/assets
+
+    - name: Initialize submodule
+      run: |
+        git submodule add --force --name tangem-app-config \
+          https://github.com/Newcomer365/tangem-app-config.git \
+          app/src/main/assets/tangem-app-config
+        
+        git submodule update --init --remote --recursive
+
+    - name: Verify submodule
+      run: |
+        ls -la app/src/main/assets/tangem-app-config
+        test -f app/src/main/assets/tangem-app-config/config_dev.json || exit 1
+
+    - name: Setup JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Decode google-services.json
+      run: |
+        echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
+
+    - name: Setup Keystore
+      run: |
+        echo "${{ secrets.KEYSTORE_FILE }}" | base64 -d > app/keystore.jks
+        
+    - name: Generate Debug Keystore and Properties
+      run: |
+        mkdir -p ~/.android
+        keytool -genkeypair -v \
+          -keystore ~/.android/debug.keystore \
+          -alias androiddebugkey \
+          -keyalg RSA -keysize 2048 -validity 10000 \
+          -storepass android \
+          -keypass android \
+          -dname "CN=Android Debug, OU=Unknown, O=Unknown, L=Unknown, ST=Unknown, C=US"
+        chmod 644 ~/.android/debug.keystore
+        mkdir -p app/src/main/assets/tangem-app-config/android/keystore/
+        echo "store_password=android" > app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
+        echo "key_alias=androiddebugkey" >> app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
+        echo "key_password=android" >> app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
+        cp ~/.android/debug.keystore app/src/main/assets/tangem-app-config/android/keystore/
+
+    - name: Build APK
+      run: |
+        ./gradlew :app:assembleRelease \
+          -PkeystoreFile=app/keystore.jks \
+          -PkeystorePassword=${{ secrets.KEYSTORE_PASSWORD }} \
+          -PkeyAlias=${{ secrets.KEY_ALIAS }} \
+          -PkeyPassword=${{ secrets.KEY_PASSWORD }}
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: tangem-release
+        path: app/build/outputs/apk/release/*.apk
