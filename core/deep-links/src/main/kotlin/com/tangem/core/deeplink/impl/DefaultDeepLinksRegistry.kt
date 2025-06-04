@@ -3,21 +3,22 @@ package com.tangem.core.deeplink.impl
 import android.content.Intent
 import android.net.Uri
 import androidx.core.net.toUri
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.ViewModel
+import com.tangem.core.deeplink.DEEPLINK_KEY
 import com.tangem.core.deeplink.DeepLink
 import com.tangem.core.deeplink.DeepLinksRegistry
-import com.tangem.core.deeplink.utils.DeepLinksLifecycleObserver
 import timber.log.Timber
 
 internal class DefaultDeepLinksRegistry : DeepLinksRegistry {
 
     private var registries: List<DeepLink> = emptyList()
-    private var lastIntent: Intent? = null
+    private var lastDeepLink: Uri? = null
 
     override fun launch(intent: Intent): Boolean {
-        lastIntent = intent
-        val received = intent.data ?: return false
+        // Try to get deeplink from data (direct deeplink flow)
+        // Otherwise, try to get from extras (notification deeplink flow)
+        val deepLinkExtras = intent.getStringExtra(DEEPLINK_KEY)?.toUri()
+        val received = intent.data ?: deepLinkExtras ?: return false
+        lastDeepLink = received
         var hasMatch = false
 
         Timber.i(
@@ -38,7 +39,7 @@ internal class DefaultDeepLinksRegistry : DeepLinksRegistry {
             logMatch(hasMatch, expected, received, params)
 
             deepLink.onReceive(params)
-            lastIntent = null // clear intent if it was handled
+            lastDeepLink = null // clear deeplink if it was handled
         }
 
         if (!hasMatch) {
@@ -103,44 +104,32 @@ internal class DefaultDeepLinksRegistry : DeepLinksRegistry {
         )
     }
 
-    override fun registerWithLifecycle(owner: LifecycleOwner, deepLinks: Collection<DeepLink>) {
-        val observer = DeepLinksLifecycleObserver(deepLinksRegistry = this, deepLinks)
-        owner.lifecycle.addObserver(observer)
-    }
-
-    override fun registerWithViewModel(viewModel: ViewModel, deepLinks: Collection<DeepLink>) {
-        viewModel.addCloseable {
-            unregister(deepLinks)
-        }
-
-        register(deepLinks)
-    }
-
-    override fun triggerDelayedDeeplink() {
-        if (lastIntent != null) {
-            val intent = lastIntent
-            val received = intent?.data ?: return
+    override fun triggerDelayedDeeplink(deepLinkClass: Class<out DeepLink>) {
+        val received = lastDeepLink
+        if (received != null) {
             var hasMatch = false
-            registries.forEach { deepLink ->
-                if (!deepLink.shouldHandleDelayed) return@forEach
-                val expected = deepLink.uri.toUri()
-                if (!isMatches(expected, received)) return@forEach
-                hasMatch = true
+            registries
+                .filterIsInstance(deepLinkClass)
+                .forEach { deepLink ->
+                    if (!deepLink.shouldHandleDelayed) return@forEach
+                    val expected = deepLink.uri.toUri()
+                    if (!isMatches(expected, received)) return@forEach
+                    hasMatch = true
 
-                val params = getParams(expected, received)
-                logMatch(hasMatch, expected, received, params)
-                deepLink.onReceive(params)
-            }
+                    val params = getParams(expected, received)
+                    logMatch(hasMatch, expected, received, params)
+                    deepLink.onReceive(params)
+                }
 
             if (!hasMatch) {
                 logMatch(hasMatch, null, received, null)
             }
-            lastIntent = null // clear intent in any case handle or not
+            lastDeepLink = null // clear deeplink in any case handle or not
         }
     }
 
     override fun cancelDelayedDeeplink() {
-        lastIntent = null
+        lastDeepLink = null
     }
 
     private fun logMatch(hasMatch: Boolean, expected: Uri?, received: Uri?, params: Map<String, String>?) {

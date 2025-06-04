@@ -6,7 +6,7 @@ import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import com.arkivanov.decompose.ExperimentalDecomposeApi
-import com.arkivanov.decompose.extensions.compose.jetpack.subscribeAsState
+import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.arkivanov.decompose.router.stack.ChildStack
 import com.arkivanov.decompose.router.stack.StackNavigation
 import com.arkivanov.decompose.router.stack.childStack
@@ -40,7 +40,7 @@ internal class DefaultMarketsEntryComponent @AssistedInject constructor(
         source = stackNavigation,
         serializer = Child.serializer(),
         initialConfiguration = Child.TokenList,
-        handleBackButton = true,
+        handleBackButton = false,
         childFactory = { configuration, factoryContext ->
             marketsEntryChildFactory.createChild(
                 child = configuration,

@@ -48,10 +48,8 @@ internal class Express(
 
     private fun createHeaders(isProd: Boolean) = buildMap {
         put(key = "api-key", value = ProviderSuspend { getApiKey(isProd) })
-        put(key = "user-id", value = ProviderSuspend(expressAuthProvider::getUserId))
         put(key = "session-id", value = ProviderSuspend(expressAuthProvider::getSessionId))
         putAll(from = RequestHeader.AppVersionPlatformHeaders(appVersionProvider).values)
-        put(key = "refcode", value = ProviderSuspend(expressAuthProvider::getRefCode))
     }
 
     private fun getApiKey(isProd: Boolean): String {
@@ -69,7 +67,6 @@ internal class Express(
         fun getInitialEnvironment(): ApiEnvironment {
             return when (BuildConfig.BUILD_TYPE) {
                 DEBUG_BUILD_TYPE,
-                DEBUG_PG_BUILD_TYPE,
                 -> ApiEnvironment.DEV
                 INTERNAL_BUILD_TYPE,
                 MOCKED_BUILD_TYPE,

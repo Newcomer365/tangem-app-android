@@ -2,8 +2,9 @@ package com.tangem.tap.routing.utils
 
 import com.tangem.common.routing.AppRoute
 import com.tangem.core.decompose.context.AppComponentContext
-import com.tangem.feature.qrscanning.QrScanningRouter
-import com.tangem.feature.referral.ReferralFragment
+import com.tangem.domain.qrscanning.models.SourceType
+import com.tangem.feature.qrscanning.QrScanningComponent
+import com.tangem.feature.referral.api.ReferralComponent
 import com.tangem.feature.stories.api.StoriesComponent
 import com.tangem.feature.walletsettings.component.WalletSettingsComponent
 import com.tangem.features.details.component.DetailsComponent
@@ -11,36 +12,32 @@ import com.tangem.features.disclaimer.api.components.DisclaimerComponent
 import com.tangem.features.managetokens.component.ManageTokensComponent
 import com.tangem.features.managetokens.component.ManageTokensSource
 import com.tangem.features.markets.details.MarketsTokenDetailsComponent
+import com.tangem.features.nft.component.NFTComponent
 import com.tangem.features.onboarding.v2.entry.OnboardingEntryComponent
 import com.tangem.features.onramp.component.*
-import com.tangem.features.pushnotifications.api.navigation.PushNotificationsRouter
-import com.tangem.features.send.api.navigation.SendRouter
+import com.tangem.features.pushnotifications.api.PushNotificationsComponent
+import com.tangem.features.send.api.SendComponent
+import com.tangem.features.send.v2.api.NFTSendComponent
+import com.tangem.features.send.v2.api.SendFeatureToggles
 import com.tangem.features.staking.api.StakingComponent
 import com.tangem.features.swap.SwapComponent
 import com.tangem.features.tester.api.TesterRouter
-import com.tangem.features.tokendetails.navigation.TokenDetailsRouter
-import com.tangem.features.wallet.navigation.WalletRouter
-import com.tangem.tap.features.details.ui.appcurrency.AppCurrencySelectorFragment
-import com.tangem.tap.features.details.ui.appsettings.AppSettingsFragment
-import com.tangem.tap.features.details.ui.cardsettings.CardSettingsFragment
-import com.tangem.tap.features.details.ui.cardsettings.coderecovery.AccessCodeRecoveryFragment
-import com.tangem.tap.features.details.ui.resetcard.ResetCardFragment
-import com.tangem.tap.features.details.ui.securitymode.SecurityModeFragment
-import com.tangem.tap.features.details.ui.walletconnect.WalletConnectFragment
-import com.tangem.tap.features.home.HomeFragment
-import com.tangem.tap.features.onboarding.products.note.OnboardingNoteFragment
-import com.tangem.tap.features.onboarding.products.otherCards.OnboardingOtherCardsFragment
-import com.tangem.tap.features.onboarding.products.twins.ui.OnboardingTwinsFragment
-import com.tangem.tap.features.onboarding.products.wallet.ui.OnboardingWalletFragment
-import com.tangem.tap.features.saveWallet.ui.SaveWalletBottomSheetFragment
+import com.tangem.features.tokendetails.TokenDetailsComponent
+import com.tangem.features.wallet.WalletEntryComponent
+import com.tangem.features.walletconnect.components.WalletConnectFeatureToggles
+import com.tangem.tap.features.details.ui.appcurrency.api.AppCurrencySelectorComponent
+import com.tangem.tap.features.details.ui.appsettings.api.AppSettingsComponent
+import com.tangem.tap.features.details.ui.cardsettings.api.CardSettingsComponent
+import com.tangem.tap.features.details.ui.cardsettings.coderecovery.api.AccessCodeRecoveryComponent
+import com.tangem.tap.features.details.ui.resetcard.api.ResetCardComponent
+import com.tangem.tap.features.details.ui.securitymode.api.SecurityModeComponent
+import com.tangem.tap.features.details.ui.walletconnect.api.WalletConnectComponent
+import com.tangem.tap.features.home.api.HomeComponent
 import com.tangem.tap.features.welcome.component.WelcomeComponent
-import com.tangem.tap.features.welcome.ui.WelcomeFragment
 import com.tangem.tap.routing.component.RoutingComponent.Child
-import com.tangem.tap.routing.toggle.RoutingFeatureToggles
-import com.tangem.utils.Provider
 import dagger.hilt.android.scopes.ActivityScoped
-import java.util.WeakHashMap
 import javax.inject.Inject
+import com.tangem.features.walletconnect.components.WalletConnectEntryComponent as RedesignedWalletConnectComponent
 
 @ActivityScoped
 @Suppress("LongParameterList", "LargeClass")
@@ -58,44 +55,47 @@ internal class ChildFactory @Inject constructor(
     private val onboardingEntryComponentFactory: OnboardingEntryComponent.Factory,
     private val welcomeComponentFactory: WelcomeComponent.Factory,
     private val storiesComponentFactory: StoriesComponent.Factory,
+    private val sendComponentFactory: SendComponent.Factory,
     private val stakingComponentFactory: StakingComponent.Factory,
     private val swapComponentFactory: SwapComponent.Factory,
-    private val sendRouter: SendRouter,
-    private val tokenDetailsRouter: TokenDetailsRouter,
-    private val walletRouter: WalletRouter,
-    private val qrScanningRouter: QrScanningRouter,
+    private val homeComponentFactory: HomeComponent.Factory,
+    private val tokenDetailsComponentFactory: TokenDetailsComponent.Factory,
+    private val walletConnectComponentFactory: WalletConnectComponent.Factory,
+    private val qrScanningComponentFactory: QrScanningComponent.Factory,
+    private val accessCodeRecoveryComponentFactory: AccessCodeRecoveryComponent.Factory,
+    private val cardSettingsComponentFactory: CardSettingsComponent.Factory,
+    private val appCurrencySelectorComponentFactory: AppCurrencySelectorComponent.Factory,
+    private val appSettingsComponentFactory: AppSettingsComponent.Factory,
+    private val securityModeComponentFactory: SecurityModeComponent.Factory,
+    private val resetCardComponentFactory: ResetCardComponent.Factory,
+    private val referralComponentFactory: ReferralComponent.Factory,
+    private val pushNotificationsComponentFactory: PushNotificationsComponent.Factory,
+    private val walletComponentFactory: WalletEntryComponent.Factory,
+    private val sendComponentFactoryV2: com.tangem.features.send.v2.api.SendComponent.Factory,
+    private val sendFeatureToggles: SendFeatureToggles,
+    private val redesignedWalletConnectComponentFactory: RedesignedWalletConnectComponent.Factory,
+    private val nftComponentFactory: NFTComponent.Factory,
+    private val nftSendComponentFactory: NFTSendComponent.Factory,
     private val testerRouter: TesterRouter,
-    private val pushNotificationRouter: PushNotificationsRouter,
-    private val routingFeatureToggles: RoutingFeatureToggles,
+    private val walletConnectFeatureToggles: WalletConnectFeatureToggles,
 ) {
 
-    fun createChild(route: AppRoute, contextFactory: (route: AppRoute) -> AppComponentContext): Child {
-        return if (routingFeatureToggles.isNavigationRefactoringEnabled) {
-            createChildNew(route, contextFactory)
-        } else {
-            createChildLegacy(route, contextFactory)
-        }
-    }
-
     @Suppress("LongMethod", "CyclomaticComplexMethod")
-    private fun createChildNew(route: AppRoute, contextFactory: (route: AppRoute) -> AppComponentContext): Child {
-        componentContexts[route] = contextFactory(route)
-
-        // region Child creation
+    fun createChild(route: AppRoute, context: AppComponentContext): Child {
         return when (route) {
             is AppRoute.Initial -> {
                 Child.Initial
             }
             is AppRoute.Details -> {
                 createComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
+                    context = context,
                     params = DetailsComponent.Params(route.userWalletId),
                     componentFactory = detailsComponentFactory,
                 )
             }
             is AppRoute.Disclaimer -> {
                 createComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
+                    context = context,
                     params = DisclaimerComponent.Params(route.isTosAccepted),
                     componentFactory = disclaimerComponentFactory,
                 )
@@ -108,14 +108,14 @@ internal class ChildFactory @Inject constructor(
                 }
 
                 createComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
+                    context = context,
                     params = ManageTokensComponent.Params(route.userWalletId, source),
                     componentFactory = manageTokensComponentFactory,
                 )
             }
             is AppRoute.Welcome -> {
                 createComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
+                    context = context,
                     params = WelcomeComponent.Params(
                         intent = route.intent,
                     ),
@@ -127,14 +127,14 @@ internal class ChildFactory @Inject constructor(
             }
             is AppRoute.WalletSettings -> {
                 createComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
+                    context = context,
                     params = WalletSettingsComponent.Params(route.userWalletId),
                     componentFactory = walletSettingsComponentFactory,
                 )
             }
             is AppRoute.MarketsTokenDetails -> {
                 createComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
+                    context = context,
                     params = MarketsTokenDetailsComponent.Params(
                         token = route.token,
                         appCurrency = route.appCurrency,
@@ -151,7 +151,7 @@ internal class ChildFactory @Inject constructor(
             }
             is AppRoute.Onramp -> {
                 createComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
+                    context = context,
                     params = OnrampComponent.Params(
                         userWalletId = route.userWalletId,
                         cryptoCurrency = route.currency,
@@ -162,41 +162,45 @@ internal class ChildFactory @Inject constructor(
             }
             is AppRoute.OnrampSuccess -> {
                 createComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
-                    params = OnrampSuccessComponent.Params(route.externalTxId),
+                    context = context,
+                    params = OnrampSuccessComponent.Params(route.txId),
                     componentFactory = onrampSuccessComponentFactory,
                 )
             }
             is AppRoute.BuyCrypto -> {
                 createComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
+                    context = context,
                     params = BuyCryptoComponent.Params(userWalletId = route.userWalletId),
                     componentFactory = buyCryptoComponentFactory,
                 )
             }
             is AppRoute.SellCrypto -> {
                 createComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
+                    context = context,
                     params = SellCryptoComponent.Params(userWalletId = route.userWalletId),
                     componentFactory = sellCryptoComponentFactory,
                 )
             }
             is AppRoute.SwapCrypto -> {
                 createComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
+                    context = context,
                     params = SwapSelectTokensComponent.Params(userWalletId = route.userWalletId),
                     componentFactory = swapSelectTokensComponentFactory,
                 )
             }
             is AppRoute.Onboarding -> {
                 createComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
+                    context = context,
                     params = OnboardingEntryComponent.Params(
                         scanResponse = route.scanResponse,
-                        startBackupFlow = route.startFromBackup,
-                        multiWalletMode = when (route.mode) {
-                            AppRoute.Onboarding.Mode.Onboarding -> OnboardingEntryComponent.MultiWalletMode.Onboarding
-                            AppRoute.Onboarding.Mode.AddBackup -> OnboardingEntryComponent.MultiWalletMode.AddBackup
+                        mode = when (route.mode) {
+                            AppRoute.Onboarding.Mode.Onboarding -> OnboardingEntryComponent.Mode.Onboarding
+                            AppRoute.Onboarding.Mode.AddBackupWallet1 -> OnboardingEntryComponent.Mode.AddBackupWallet1
+                            AppRoute.Onboarding.Mode.WelcomeOnlyTwin -> OnboardingEntryComponent.Mode.WelcomeOnlyTwin
+                            AppRoute.Onboarding.Mode.RecreateWalletTwin ->
+                                OnboardingEntryComponent.Mode.RecreateWalletTwin
+                            AppRoute.Onboarding.Mode.ContinueFinalize ->
+                                OnboardingEntryComponent.Mode.ContinueFinalize
                         },
                     ),
                     componentFactory = onboardingEntryComponentFactory,
@@ -204,7 +208,7 @@ internal class ChildFactory @Inject constructor(
             }
             is AppRoute.Stories -> {
                 createComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
+                    context = context,
                     params = StoriesComponent.Params(
                         storyId = route.storyId,
                         nextScreen = route.nextScreen,
@@ -213,9 +217,19 @@ internal class ChildFactory @Inject constructor(
                     componentFactory = storiesComponentFactory,
                 )
             }
+            is AppRoute.CurrencyDetails -> {
+                createComponentChild(
+                    context = context,
+                    params = TokenDetailsComponent.Params(
+                        userWalletId = route.userWalletId,
+                        currency = route.currency,
+                    ),
+                    componentFactory = tokenDetailsComponentFactory,
+                )
+            }
             is AppRoute.Staking -> {
                 createComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
+                    context = context,
                     params = StakingComponent.Params(
                         userWalletId = route.userWalletId,
                         cryptoCurrencyId = route.cryptoCurrencyId,
@@ -226,7 +240,7 @@ internal class ChildFactory @Inject constructor(
             }
             is AppRoute.Swap -> {
                 createComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
+                    context = context,
                     params = SwapComponent.Params(
                         currencyFrom = route.currencyFrom,
                         currencyTo = route.currencyTo,
@@ -237,258 +251,161 @@ internal class ChildFactory @Inject constructor(
                     componentFactory = swapComponentFactory,
                 )
             }
-            is AppRoute.AccessCodeRecovery,
-            is AppRoute.AppCurrencySelector,
-            is AppRoute.SaveWallet,
-            is AppRoute.Send,
-            is AppRoute.AppSettings,
-            is AppRoute.CardSettings,
-            is AppRoute.DetailsSecurity,
-            is AppRoute.Home,
-            is AppRoute.OnboardingNote,
-            is AppRoute.OnboardingOther,
-            is AppRoute.OnboardingTwins,
-            is AppRoute.OnboardingWallet,
-            is AppRoute.QrScanning,
-            is AppRoute.ReferralProgram,
-            is AppRoute.ResetToFactory,
-            is AppRoute.Wallet,
-            is AppRoute.WalletConnectSessions,
-            is AppRoute.CurrencyDetails,
-            is AppRoute.PushNotification,
-            -> error("Unsupported route: $route")
-        }
-        // endregion
-    }
-
-    @Suppress("LongMethod", "CyclomaticComplexMethod")
-    private fun createChildLegacy(route: AppRoute, contextFactory: (route: AppRoute) -> AppComponentContext): Child {
-        componentContexts[route] = contextFactory(route)
-
-        // region Child creation
-        return when (route) {
-            is AppRoute.Initial -> {
-                Child.Initial
+            is AppRoute.Send -> {
+                if (sendFeatureToggles.isSendV2Enabled) {
+                    createComponentChild(
+                        context = context,
+                        params = com.tangem.features.send.v2.api.SendComponent.Params(
+                            userWalletId = route.userWalletId,
+                            currency = route.currency,
+                            transactionId = route.transactionId,
+                            amount = route.amount,
+                            tag = route.tag,
+                            destinationAddress = route.destinationAddress,
+                        ),
+                        componentFactory = sendComponentFactoryV2,
+                    )
+                } else {
+                    createComponentChild(
+                        context = context,
+                        params = SendComponent.Params(
+                            userWalletId = route.userWalletId,
+                            currency = route.currency,
+                            transactionId = route.transactionId,
+                            amount = route.amount,
+                            tag = route.tag,
+                            destinationAddress = route.destinationAddress,
+                        ),
+                        componentFactory = sendComponentFactory,
+                    )
+                }
+            }
+            is AppRoute.Home -> {
+                createComponentChild(
+                    context = context,
+                    params = Unit,
+                    componentFactory = homeComponentFactory,
+                )
+            }
+            is AppRoute.WalletConnectSessions -> {
+                if (walletConnectFeatureToggles.isRedesignedWalletConnectEnabled) {
+                    createComponentChild(
+                        context = context,
+                        params = Unit,
+                        componentFactory = redesignedWalletConnectComponentFactory,
+                    )
+                } else {
+                    createComponentChild(
+                        context = context,
+                        params = Unit,
+                        componentFactory = walletConnectComponentFactory,
+                    )
+                }
+            }
+            is AppRoute.QrScanning -> {
+                val source = when (route.source) {
+                    is AppRoute.QrScanning.Source.Send -> SourceType.SEND
+                    is AppRoute.QrScanning.Source.WalletConnect -> SourceType.WALLET_CONNECT
+                }
+                createComponentChild(
+                    context = context,
+                    params = QrScanningComponent.Params(
+                        source = source,
+                        networkName = (route.source as? AppRoute.QrScanning.Source.Send)?.networkName,
+                    ),
+                    componentFactory = qrScanningComponentFactory,
+                )
             }
             is AppRoute.AccessCodeRecovery -> {
-                route.asFragmentChild(Provider { AccessCodeRecoveryFragment() })
-            }
-            is AppRoute.AppCurrencySelector -> {
-                route.asFragmentChild(Provider { AppCurrencySelectorFragment() })
-            }
-            is AppRoute.SaveWallet -> {
-                route.asFragmentChild(Provider { SaveWalletBottomSheetFragment() })
-            }
-            is AppRoute.Send -> {
-                route.asFragmentChild(Provider { sendRouter.getEntryFragment() })
-            }
-            is AppRoute.AppSettings -> {
-                route.asFragmentChild(Provider { AppSettingsFragment() })
+                createComponentChild(
+                    context = context,
+                    params = Unit,
+                    componentFactory = accessCodeRecoveryComponentFactory,
+                )
             }
             is AppRoute.CardSettings -> {
-                route.asFragmentChild(Provider { CardSettingsFragment() })
+                createComponentChild(
+                    context = context,
+                    params = CardSettingsComponent.Params(userWalletId = route.userWalletId),
+                    componentFactory = cardSettingsComponentFactory,
+                )
             }
-            is AppRoute.Details -> {
-                route.asComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
-                    params = DetailsComponent.Params(route.userWalletId),
-                    componentFactory = detailsComponentFactory,
+            is AppRoute.AppCurrencySelector -> {
+                createComponentChild(
+                    context = context,
+                    params = Unit,
+                    componentFactory = appCurrencySelectorComponentFactory,
+                )
+            }
+            is AppRoute.AppSettings -> {
+                createComponentChild(
+                    context = context,
+                    params = Unit,
+                    componentFactory = appSettingsComponentFactory,
                 )
             }
             is AppRoute.DetailsSecurity -> {
-                route.asFragmentChild(Provider { SecurityModeFragment() })
-            }
-            is AppRoute.Disclaimer -> {
-                route.asComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
-                    params = DisclaimerComponent.Params(route.isTosAccepted),
-                    componentFactory = disclaimerComponentFactory,
+                createComponentChild(
+                    context = context,
+                    params = SecurityModeComponent.Params(
+                        userWalletId = route.userWalletId,
+                    ),
+                    componentFactory = securityModeComponentFactory,
                 )
-            }
-            is AppRoute.Home -> {
-                route.asFragmentChild(Provider { HomeFragment() })
-            }
-            is AppRoute.ManageTokens -> {
-                val source = when (route.source) {
-                    AppRoute.ManageTokens.Source.SETTINGS -> ManageTokensSource.SETTINGS
-                    AppRoute.ManageTokens.Source.ONBOARDING -> ManageTokensSource.ONBOARDING
-                    AppRoute.ManageTokens.Source.STORIES -> ManageTokensSource.STORIES
-                }
-
-                route.asComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
-                    params = ManageTokensComponent.Params(route.userWalletId, source),
-                    componentFactory = manageTokensComponentFactory,
-                )
-            }
-            is AppRoute.OnboardingNote -> {
-                route.asFragmentChild(Provider { OnboardingNoteFragment() })
-            }
-            is AppRoute.OnboardingOther -> {
-                route.asFragmentChild(Provider { OnboardingOtherCardsFragment() })
-            }
-            is AppRoute.OnboardingTwins -> {
-                route.asFragmentChild(Provider { OnboardingTwinsFragment() })
-            }
-            is AppRoute.OnboardingWallet -> {
-                route.asFragmentChild(Provider { OnboardingWalletFragment() })
-            }
-            is AppRoute.QrScanning -> {
-                route.asFragmentChild(Provider { qrScanningRouter.getEntryFragment() })
-            }
-            is AppRoute.ReferralProgram -> {
-                route.asFragmentChild(Provider { ReferralFragment() })
             }
             is AppRoute.ResetToFactory -> {
-                route.asFragmentChild(Provider { ResetCardFragment() })
-            }
-            is AppRoute.Swap -> {
-                route.asComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
-                    params = SwapComponent.Params(
-                        currencyFrom = route.currencyFrom,
-                        currencyTo = route.currencyTo,
+                createComponentChild(
+                    context = context,
+                    params = ResetCardComponent.Params(
                         userWalletId = route.userWalletId,
-                        isInitialReverseOrder = route.isInitialReverseOrder,
-                        screenSource = route.screenSource,
+                        cardId = route.cardId,
+                        isActiveBackupStatus = route.isActiveBackupStatus,
+                        backupCardsCount = route.backupCardsCount,
                     ),
-                    componentFactory = swapComponentFactory,
+                    componentFactory = resetCardComponentFactory,
                 )
             }
-            is AppRoute.Wallet -> {
-                route.asFragmentChild(Provider { walletRouter.getEntryFragment() })
-            }
-            is AppRoute.WalletConnectSessions -> {
-                route.asFragmentChild(Provider { WalletConnectFragment() })
-            }
-            is AppRoute.CurrencyDetails -> {
-                route.asFragmentChild(Provider { tokenDetailsRouter.getEntryFragment() })
-            }
-            is AppRoute.Welcome -> {
-                route.asFragmentChild(Provider { WelcomeFragment() })
-            }
-            is AppRoute.TesterMenu -> {
-                Child.LegacyIntent(testerRouter.getEntryIntent())
-            }
-            is AppRoute.Staking -> {
-                route.asComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
-                    params = StakingComponent.Params(
-                        userWalletId = route.userWalletId,
-                        cryptoCurrencyId = route.cryptoCurrencyId,
-                        yieldId = route.yieldId,
-                    ),
-                    componentFactory = stakingComponentFactory,
+            is AppRoute.ReferralProgram -> {
+                createComponentChild(
+                    context = context,
+                    params = ReferralComponent.Params(route.userWalletId),
+                    componentFactory = referralComponentFactory,
                 )
             }
             is AppRoute.PushNotification -> {
-                route.asFragmentChild(Provider { pushNotificationRouter.entryFragment() })
-            }
-            is AppRoute.WalletSettings -> {
-                route.asComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
-                    params = WalletSettingsComponent.Params(route.userWalletId),
-                    componentFactory = walletSettingsComponentFactory,
+                createComponentChild(
+                    context = context,
+                    params = Unit,
+                    componentFactory = pushNotificationsComponentFactory,
                 )
             }
-            is AppRoute.MarketsTokenDetails -> {
-                route.asComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
-                    params = MarketsTokenDetailsComponent.Params(
-                        token = route.token,
-                        appCurrency = route.appCurrency,
-                        showPortfolio = route.showPortfolio,
-                        analyticsParams = route.analyticsParams?.let {
-                            MarketsTokenDetailsComponent.AnalyticsParams(
-                                blockchain = it.blockchain,
-                                source = it.source,
-                            )
-                        },
-                    ),
-                    componentFactory = marketsTokenDetailsComponentFactory,
+            is AppRoute.Wallet -> {
+                createComponentChild(
+                    context = context,
+                    params = Unit,
+                    componentFactory = walletComponentFactory,
                 )
             }
-            is AppRoute.Onramp -> {
-                route.asComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
-                    params = OnrampComponent.Params(
+            is AppRoute.NFT ->
+                createComponentChild(
+                    context = context,
+                    params = NFTComponent.Params(
                         userWalletId = route.userWalletId,
-                        cryptoCurrency = route.currency,
-                        source = route.source,
+                        walletName = route.walletName,
                     ),
-                    componentFactory = onrampComponentFactory,
+                    componentFactory = nftComponentFactory,
                 )
-            }
-            is AppRoute.OnrampSuccess -> {
-                route.asComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
-                    params = OnrampSuccessComponent.Params(route.externalTxId),
-                    componentFactory = onrampSuccessComponentFactory,
-                )
-            }
-            is AppRoute.BuyCrypto -> {
-                route.asComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
-                    params = BuyCryptoComponent.Params(userWalletId = route.userWalletId),
-                    componentFactory = buyCryptoComponentFactory,
-                )
-            }
-            is AppRoute.SellCrypto -> {
-                route.asComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
-                    params = SellCryptoComponent.Params(userWalletId = route.userWalletId),
-                    componentFactory = sellCryptoComponentFactory,
-                )
-            }
-            is AppRoute.SwapCrypto -> {
-                route.asComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
-                    params = SwapSelectTokensComponent.Params(userWalletId = route.userWalletId),
-                    componentFactory = swapSelectTokensComponentFactory,
-                )
-            }
-            is AppRoute.Onboarding -> {
-                route.asComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
-                    params = OnboardingEntryComponent.Params(
-                        scanResponse = route.scanResponse,
-                        startBackupFlow = route.startFromBackup,
-                        multiWalletMode = when (route.mode) {
-                            AppRoute.Onboarding.Mode.Onboarding -> OnboardingEntryComponent.MultiWalletMode.Onboarding
-                            AppRoute.Onboarding.Mode.AddBackup -> OnboardingEntryComponent.MultiWalletMode.AddBackup
-                        },
+            is AppRoute.NFTSend -> {
+                createComponentChild(
+                    context = context,
+                    params = NFTSendComponent.Params(
+                        userWalletId = route.userWalletId,
+                        nftAsset = route.nftAsset,
+                        nftCollectionName = route.nftCollectionName,
                     ),
-                    componentFactory = onboardingEntryComponentFactory,
-                )
-            }
-            is AppRoute.Stories -> {
-                route.asComponentChild(
-                    contextProvider = contextProvider(route, contextFactory),
-                    params = StoriesComponent.Params(
-                        storyId = route.storyId,
-                        nextScreen = route.nextScreen,
-                        screenSource = route.screenSource,
-                    ),
-                    componentFactory = storiesComponentFactory,
+                    componentFactory = nftSendComponentFactory,
                 )
             }
         }
-        // endregion
-    }
-
-    fun doOnDestroy() {
-        componentContexts.clear()
-    }
-
-    private fun contextProvider(
-        appRoute: AppRoute,
-        contextFactory: (route: AppRoute) -> AppComponentContext,
-    ): Provider<AppComponentContext> = Provider {
-        componentContexts.getOrPut(appRoute) { contextFactory(appRoute) }
-    }
-
-    private companion object {
-
-        val componentContexts = WeakHashMap<AppRoute, AppComponentContext>()
     }
 }

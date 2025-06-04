@@ -1,9 +1,10 @@
 package com.tangem.features.onramp.selectcountry.model
 
 import com.tangem.core.analytics.api.AnalyticsEventHandler
-import com.tangem.core.decompose.di.ComponentScoped
+import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
+import com.tangem.core.ui.components.fields.InputManager
 import com.tangem.core.ui.components.fields.entity.SearchBarUM
 import com.tangem.core.ui.extensions.resourceReference
 import com.tangem.domain.onramp.FetchOnrampCountriesUseCase
@@ -12,6 +13,7 @@ import com.tangem.domain.onramp.GetOnrampCountryUseCase
 import com.tangem.domain.onramp.OnrampSaveDefaultCountryUseCase
 import com.tangem.domain.onramp.analytics.OnrampAnalyticsEvent
 import com.tangem.domain.onramp.model.OnrampCountry
+import com.tangem.domain.wallets.usecase.GetWalletsUseCase
 import com.tangem.features.onramp.impl.R
 import com.tangem.features.onramp.selectcountry.SelectCountryComponent
 import com.tangem.features.onramp.selectcountry.entity.CountryItemState
@@ -20,7 +22,6 @@ import com.tangem.features.onramp.selectcountry.entity.CountryListUMController
 import com.tangem.features.onramp.selectcountry.entity.transformer.UpdateCountryItemsErrorTransformer
 import com.tangem.features.onramp.selectcountry.entity.transformer.UpdateCountryItemsLoadingTransformer
 import com.tangem.features.onramp.selectcountry.entity.transformer.UpdateCountryItemsTransformer
-import com.tangem.features.onramp.utils.InputManager
 import com.tangem.features.onramp.utils.UpdateSearchBarActiveStateTransformer
 import com.tangem.features.onramp.utils.UpdateSearchQueryTransformer
 import com.tangem.features.onramp.utils.sendOnrampErrorEvent
@@ -35,7 +36,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @Suppress("LongParameterList")
-@ComponentScoped
+@ModelScoped
 internal class OnrampSelectCountryModel @Inject constructor(
     override val dispatchers: CoroutineDispatcherProvider,
     private val analyticsEventHandler: AnalyticsEventHandler,
@@ -44,11 +45,15 @@ internal class OnrampSelectCountryModel @Inject constructor(
     private val saveDefaultCountryUseCase: OnrampSaveDefaultCountryUseCase,
     private val getOnrampCountryUseCase: GetOnrampCountryUseCase,
     private val fetchOnrampCountriesUseCase: FetchOnrampCountriesUseCase,
+    getWalletsUseCase: GetWalletsUseCase,
     paramsContainer: ParamsContainer,
 ) : Model() {
 
-    val state: StateFlow<CountryListUM> get() = controller.state
     private val params: SelectCountryComponent.Params = paramsContainer.require()
+    private val userWallet = getWalletsUseCase.invokeSync().first { it.walletId == params.userWalletId }
+
+    val state: StateFlow<CountryListUM> get() = controller.state
+
     private val controller = CountryListUMController(
         searchBarUM = createSearchBarUM(),
         loadingItems = loadingItems,
@@ -103,7 +108,7 @@ internal class OnrampSelectCountryModel @Inject constructor(
 
     private fun updateCountriesList() {
         modelScope.launch {
-            fetchOnrampCountriesUseCase().onLeft {
+            fetchOnrampCountriesUseCase(userWallet).onLeft {
                 controller.update(UpdateCountryItemsErrorTransformer(onRetry = ::onRetry))
             }
         }

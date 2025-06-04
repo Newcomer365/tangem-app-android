@@ -23,9 +23,13 @@ internal class PreviewWalletSettingsComponent : WalletSettingsComponent {
             isReferralAvailable = true,
             isLinkMoreCardsAvailable = true,
             isRenameWalletAvailable = false,
+            isNFTFeatureEnabled = true,
+            isNFTEnabled = true,
+            onCheckedNFTChange = {},
             renameWallet = {},
             forgetWallet = {},
             onLinkMoreCardsClick = {},
+            onReferralClick = {},
             isManageTokensAvailable = true,
         ),
     )

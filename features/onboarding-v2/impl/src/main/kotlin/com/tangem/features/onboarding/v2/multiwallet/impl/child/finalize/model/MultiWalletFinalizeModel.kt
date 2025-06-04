@@ -3,9 +3,10 @@ package com.tangem.features.onboarding.v2.multiwallet.impl.child.finalize.model
 import androidx.compose.runtime.Stable
 import com.tangem.common.CompletionResult
 import com.tangem.common.core.TangemSdkError
-import com.tangem.core.decompose.di.ComponentScoped
+import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
+import com.tangem.core.decompose.ui.UiMessageSender
 import com.tangem.domain.card.repository.CardRepository
 import com.tangem.domain.common.util.cardTypesResolver
 import com.tangem.domain.feedback.GetCardInfoUseCase
@@ -19,7 +20,7 @@ import com.tangem.domain.wallets.builder.UserWalletBuilder
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
 import com.tangem.domain.wallets.models.UserWallet
 import com.tangem.domain.wallets.repository.WalletsRepository
-import com.tangem.domain.wallets.usecase.GenerateWalletNameUseCase
+import com.tangem.features.onboarding.v2.common.ui.CantLeaveBackupDialog
 import com.tangem.features.onboarding.v2.impl.R
 import com.tangem.features.onboarding.v2.multiwallet.api.OnboardingMultiWalletComponent
 import com.tangem.features.onboarding.v2.multiwallet.impl.child.MultiWalletChildParams
@@ -39,7 +40,7 @@ import javax.inject.Inject
 
 @Suppress("LongParameterList")
 @Stable
-@ComponentScoped
+@ModelScoped
 internal class MultiWalletFinalizeModel @Inject constructor(
     paramsContainer: ParamsContainer,
     override val dispatchers: CoroutineDispatcherProvider,
@@ -47,11 +48,12 @@ internal class MultiWalletFinalizeModel @Inject constructor(
     private val tangemSdkManager: TangemSdkManager,
     private val getCardInfoUseCase: GetCardInfoUseCase,
     private val sendFeedbackEmailUseCase: SendFeedbackEmailUseCase,
-    private val generateWalletNameUseCase: GenerateWalletNameUseCase,
+    private val userWalletBuilderFactory: UserWalletBuilder.Factory,
     private val userWalletsListManager: UserWalletsListManager,
     private val cardRepository: CardRepository,
     private val onboardingRepository: OnboardingRepository,
     private val walletsRepository: WalletsRepository,
+    private val uiMessageSender: UiMessageSender,
 ) : Model() {
 
     private val params = paramsContainer.require<MultiWalletChildParams>()
@@ -61,35 +63,17 @@ internal class MultiWalletFinalizeModel @Inject constructor(
     private val backupCardIds = backupServiceHolder.backupService.get()?.backupCardIds.orEmpty()
 
     private var walletHasBackupError = false
+    private var hasRing = false
+
     val uiState = _uiState.asStateFlow()
     val onBackFlow = MutableSharedFlow<Unit>()
-
     val onEvent = MutableSharedFlow<MultiWalletFinalizeComponent.Event>()
 
     init {
-        // save scan response to preferences to be able
-        // to continue finalize process after app restart
         modelScope.launch {
-            onboardingRepository.saveUnfinishedFinalizeOnboarding(
-                scanResponse = multiWalletState.value.currentScanResponse,
-            )
-        }
-    }
-
-    fun onBack() {
-        if (uiState.value.scanPrimary) {
-            modelScope.launch { onBackFlow.emit(Unit) }
-        }
-    }
-
-    private fun getInitialState(): MultiWalletFinalizeUM {
-        val backupService = backupServiceHolder.backupService.get() ?: return MultiWalletFinalizeUM()
-        val initialStep = getInitialStep()
-
-        // sets proper artwork state for initial step
-        // (if we start from backup cards, we need to show proper artwork) (AND-9374)
-        modelScope.launch {
-            when (initialStep) {
+            // sets proper artwork state for initial step
+            // (if we start from backup cards, we need to show proper artwork) (AND-9374)
+            when (getInitialStep()) {
                 MultiWalletFinalizeUM.Step.Primary -> { /* state is already set */ }
                 MultiWalletFinalizeUM.Step.BackupDevice1 -> {
                     onEvent.emit(MultiWalletFinalizeComponent.Event.OneBackupCardAdded)
@@ -100,6 +84,19 @@ internal class MultiWalletFinalizeModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun onBack() {
+        if (uiState.value.scanPrimary) {
+            modelScope.launch { onBackFlow.emit(Unit) }
+        } else {
+            uiMessageSender.send(CantLeaveBackupDialog)
+        }
+    }
+
+    private fun getInitialState(): MultiWalletFinalizeUM {
+        val backupService = backupServiceHolder.backupService.get() ?: return MultiWalletFinalizeUM()
+        val initialStep = getInitialStep()
 
         val batchId = when (initialStep) {
             MultiWalletFinalizeUM.Step.Primary -> backupService.primaryCardBatchId
@@ -118,7 +115,7 @@ internal class MultiWalletFinalizeModel @Inject constructor(
             onScanClick = ::onLinkClick,
             scanPrimary = initialStep == MultiWalletFinalizeUM.Step.Primary,
             cardNumber = cardId?.lastMasked().orEmpty(),
-            step = getInitialStep(),
+            step = initialStep,
         )
     }
 
@@ -152,12 +149,20 @@ internal class MultiWalletFinalizeModel @Inject constructor(
         val primaryCardBatchId = backupService.primaryCardBatchId ?: return
         val isRing = isRing(primaryCardBatchId)
         val iconScanRes = if (isRing) R.drawable.img_hand_scan_ring else null
+        if (isRing) hasRing = true
 
         tangemSdkManager.changeProductType(isRing)
         backupService.proceedBackup(iconScanRes = iconScanRes) { result ->
             when (result) {
                 is CompletionResult.Success -> {
-                    modelScope.launch { onEvent.emit(MultiWalletFinalizeComponent.Event.OneBackupCardAdded) }
+                    modelScope.launch {
+                        onEvent.emit(MultiWalletFinalizeComponent.Event.OneBackupCardAdded)
+                        // save scan response to preferences to be able
+                        // to continue finalize process after app restart
+                        onboardingRepository.saveUnfinishedFinalizeOnboarding(
+                            scanResponse = multiWalletState.value.currentScanResponse,
+                        )
+                    }
                     _uiState.update { st ->
                         st.copy(
                             step = MultiWalletFinalizeUM.Step.BackupDevice1,
@@ -178,6 +183,7 @@ internal class MultiWalletFinalizeModel @Inject constructor(
         val backupCardBatchId = backupService.backupCardsBatchIds.getOrNull(cardIndex) ?: return
         val isRing = isRing(backupCardBatchId)
         val iconScanRes = if (isRing) R.drawable.img_hand_scan_ring else null
+        if (isRing) hasRing = true
 
         tangemSdkManager.changeProductType(isRing)
         backupService.proceedBackup(iconScanRes = iconScanRes) { result ->
@@ -218,11 +224,12 @@ internal class MultiWalletFinalizeModel @Inject constructor(
     private fun finishBackup() {
         modelScope.launch {
             val scanResponse = params.multiWalletState.value.currentScanResponse
-
             val userWalletCreated = createUserWallet(scanResponse)
 
             val userWallet = when (params.parentParams.mode) {
-                OnboardingMultiWalletComponent.Mode.Onboarding -> {
+                OnboardingMultiWalletComponent.Mode.Onboarding,
+                OnboardingMultiWalletComponent.Mode.ContinueFinalize,
+                -> {
                     userWalletsListManager.save(
                         userWallet = userWalletCreated.copy(
                             scanResponse = scanResponse.updateScanResponseAfterBackup(),
@@ -249,6 +256,10 @@ internal class MultiWalletFinalizeModel @Inject constructor(
                 }
             }
 
+            if (hasRing) {
+                walletsRepository.setHasWalletsWithRing(userWallet.walletId)
+            }
+
             // save user wallet for manage tokens screen
             params.multiWalletState.update {
                 it.copy(resultUserWallet = userWallet)
@@ -270,7 +281,7 @@ internal class MultiWalletFinalizeModel @Inject constructor(
 
     private suspend fun createUserWallet(scanResponse: ScanResponse): UserWallet {
         return requireNotNull(
-            value = UserWalletBuilder(scanResponse, generateWalletNameUseCase)
+            value = userWalletBuilderFactory.create(scanResponse = scanResponse)
                 .backupCardsIds(backupCardIds.toSet())
                 .hasBackupError(walletHasBackupError)
                 .build(),

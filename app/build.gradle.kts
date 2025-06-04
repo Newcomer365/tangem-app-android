@@ -1,5 +1,5 @@
-import java.util.Properties
 import com.tangem.plugin.configuration.configurations.extension.kaptForObfuscatingVariants
+import java.util.Properties
 
 plugins {
     alias(deps.plugins.android.application)
@@ -10,6 +10,7 @@ plugins {
     alias(deps.plugins.hilt.android)
     alias(deps.plugins.firebase.crashlytics)
     alias(deps.plugins.firebase.perf)
+    alias(deps.plugins.ksp)
     id("configuration")
 }
 
@@ -22,9 +23,15 @@ android {
         jniLibs {
             useLegacyPackaging = true
         }
-        resources.excludes.add("META-INF/DEPENDENCIES")
         resources.excludes.add("META-INF/LICENSE.md")
         resources.excludes.add("META-INF/NOTICE.md")
+        resources.excludes.add("META-INF/DISCLAIMER")
+        resources.excludes.add("META-INF/DEPENDENCIES")
+        resources.excludes.add("META-INF/FastDoubleParser-NOTICE")
+        resources.excludes.add("META-INF/FastDoubleParser-LICENSE")
+        resources.excludes.add("META-INF/io.netty.versions.properties")
+        resources.excludes.add("META-INF/INDEX.LIST")
+        resources.excludes.add("META-INF/versions/9/OSGI-INF/MANIFEST.MF")
     }
     androidResources {
         generateLocaleConfig = true
@@ -93,11 +100,17 @@ dependencies {
     implementation(projects.domain.qrScanning.models)
     implementation(projects.domain.staking)
     implementation(projects.domain.walletConnect)
+    implementation(projects.domain.walletConnect.models)
     implementation(projects.domain.markets)
     implementation(projects.domain.manageTokens)
+    implementation(projects.domain.nft)
+    implementation(projects.domain.nft.models)
     implementation(projects.domain.onramp)
     implementation(projects.domain.promo)
     implementation(projects.domain.promo.models)
+    implementation(projects.domain.networks)
+    implementation(projects.domain.quotes)
+    implementation(projects.domain.notifications)
 
     implementation(projects.common)
     implementation(projects.common.routing)
@@ -112,6 +125,7 @@ dependencies {
     implementation(projects.core.utils)
     implementation(projects.core.decompose)
     implementation(projects.core.deepLinks)
+    implementation(projects.core.error.ext)
     implementation(projects.libs.crypto)
     implementation(projects.libs.auth)
     implementation(projects.libs.blockchainSdk)
@@ -137,11 +151,15 @@ dependencies {
     implementation(projects.data.walletConnect)
     implementation(projects.data.markets)
     implementation(projects.data.manageTokens)
+    implementation(projects.data.nft)
     implementation(projects.data.onramp)
+    implementation(projects.data.networks)
+    implementation(projects.data.quotes)
+    implementation(projects.data.blockaid)
+    implementation(projects.data.notifications)
 
     /** Features */
-    implementation(projects.features.onboarding)
-    implementation(projects.features.referral.presentation)
+    implementation(projects.features.referral.impl)
     implementation(projects.features.referral.domain)
     implementation(projects.features.referral.data)
     implementation(projects.features.swap.api)
@@ -159,6 +177,8 @@ dependencies {
     implementation(projects.features.manageTokens.impl)
     implementation(projects.features.send.api)
     implementation(projects.features.send.impl)
+    implementation(projects.features.sendV2.api)
+    implementation(projects.features.sendV2.impl)
     implementation(projects.features.qrScanning.api)
     implementation(projects.features.qrScanning.impl)
     implementation(projects.features.staking.api)
@@ -179,6 +199,14 @@ dependencies {
     implementation(projects.features.onboardingV2.impl)
     implementation(projects.features.stories.api)
     implementation(projects.features.stories.impl)
+    implementation(projects.features.txhistory.api)
+    implementation(projects.features.txhistory.impl)
+    implementation(projects.features.biometry.api)
+    implementation(projects.features.biometry.impl)
+    implementation(projects.features.nft.api)
+    implementation(projects.features.nft.impl)
+    implementation(projects.features.walletconnect.api)
+    implementation(projects.features.walletconnect.impl)
 
     /** AndroidX libraries */
     implementation(deps.androidx.core.ktx)
@@ -192,10 +220,12 @@ dependencies {
     implementation(deps.androidx.paging.runtime)
     implementation(deps.androidx.swipeRefreshLayout)
     implementation(deps.androidx.fragment.compose)
+    implementation(deps.androidx.workmanager)
     implementation(deps.lifecycle.runtime.ktx)
     implementation(deps.lifecycle.common.java8)
     implementation(deps.lifecycle.viewModel.ktx)
     implementation(deps.lifecycle.compose)
+    implementation(deps.hilt.work)
 
     /** Compose libraries */
     implementation(deps.compose.constraintLayout)
@@ -234,6 +264,7 @@ dependencies {
     implementation(deps.hilt.android)
 
     kapt(deps.hilt.kapt)
+    kapt(deps.hilt.compilerx)
 
     /** Other libraries */
     implementation(deps.kotlin.immutable.collections)
@@ -246,6 +277,7 @@ dependencies {
     implementation(deps.reKotlin)
     implementation(deps.zxing.qrCore)
     implementation(deps.coil)
+    implementation(deps.coil.gif)
     implementation(deps.amplitude)
     implementation(deps.kotsonGson)
     implementation(deps.spongecastle.core)
@@ -263,10 +295,11 @@ dependencies {
     implementation(deps.moshi.adapters)
 
     implementation(deps.moshi.kotlin)
-    kaptForObfuscatingVariants(deps.moshi.kotlin.codegen)
+    ksp(deps.moshi.kotlin.codegen)
     kaptForObfuscatingVariants(deps.retrofit.response.type.keeper)
 
     /** Testing libraries */
+    testImplementation(projects.common.test)
     testImplementation(deps.test.coroutine)
     testImplementation(deps.test.junit)
     testImplementation(deps.test.mockk)
@@ -289,7 +322,6 @@ dependencies {
 
     /** Chucker */
     debugImplementation(deps.chucker)
-    debugPGImplementation(deps.chucker)
     mockedImplementation(deps.chuckerStub)
     externalImplementation(deps.chuckerStub)
     internalImplementation(deps.chuckerStub)

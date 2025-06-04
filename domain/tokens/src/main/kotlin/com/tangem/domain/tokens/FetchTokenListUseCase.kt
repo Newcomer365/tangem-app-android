@@ -6,6 +6,10 @@ import arrow.core.raise.catch
 import arrow.core.raise.either
 import arrow.core.raise.ensureNotNull
 import arrow.core.toNonEmptyListOrNull
+import com.tangem.domain.networks.multi.MultiNetworkStatusFetcher
+import com.tangem.domain.quotes.multi.MultiQuoteFetcher
+import com.tangem.domain.staking.fetcher.YieldBalanceFetcherParams
+import com.tangem.domain.staking.multi.MultiYieldBalanceFetcher
 import com.tangem.domain.staking.repositories.StakingRepository
 import com.tangem.domain.tokens.error.TokenListError
 import com.tangem.domain.tokens.model.CryptoCurrency
@@ -28,11 +32,16 @@ import kotlinx.coroutines.coroutineScope
  * @param stakingRepository The repository for retrieving staking-related data.
  */
 // TODO: Add tests
+@Suppress("LongParameterList")
 class FetchTokenListUseCase(
     private val currenciesRepository: CurrenciesRepository,
     private val networksRepository: NetworksRepository,
     private val quotesRepository: QuotesRepository,
     private val stakingRepository: StakingRepository,
+    private val multiNetworkStatusFetcher: MultiNetworkStatusFetcher,
+    private val multiQuoteFetcher: MultiQuoteFetcher,
+    private val multiYieldBalanceFetcher: MultiYieldBalanceFetcher,
+    private val tokensFeatureToggles: TokensFeatureToggles,
 ) {
 
     /**
@@ -104,21 +113,40 @@ class FetchTokenListUseCase(
         networks: Set<Network>,
         refresh: Boolean,
     ) {
-        catch(
-            block = { networksRepository.getNetworkStatusesSync(userWalletId, networks, refresh) },
-        ) {
-            raise(TokenListError.DataError(it))
+        if (tokensFeatureToggles.isNetworksLoadingRefactoringEnabled) {
+            if (refresh) {
+                multiNetworkStatusFetcher(
+                    params = MultiNetworkStatusFetcher.Params(userWalletId, networks),
+                )
+                    .mapLeft { TokenListError.DataError(it) }
+                    .bind()
+            }
+        } else {
+            catch(
+                block = { networksRepository.getNetworkStatusesSync(userWalletId, networks, refresh) },
+            ) {
+                raise(TokenListError.DataError(it))
+            }
         }
     }
 
     private suspend fun fetchQuotes(currenciesIds: Set<CryptoCurrency.ID>, refresh: Boolean) {
-        catch(
-            block = {
-                val rawIds = currenciesIds.mapNotNull { it.rawCurrencyId }.toSet()
-                quotesRepository.getQuotesSync(rawIds, refresh)
-            },
-        ) {
-            /* Ignore error */
+        if (tokensFeatureToggles.isQuotesLoadingRefactoringEnabled) {
+            multiQuoteFetcher(
+                params = MultiQuoteFetcher.Params(
+                    currenciesIds = currenciesIds.mapNotNull { it.rawCurrencyId }.toSet(),
+                    appCurrencyId = null,
+                ),
+            )
+        } else {
+            catch(
+                block = {
+                    val rawIds = currenciesIds.mapNotNull { it.rawCurrencyId }.toSet()
+                    quotesRepository.getQuotesSync(rawIds, refresh)
+                },
+            ) {
+                /* Ignore error */
+            }
         }
     }
 
@@ -127,10 +155,19 @@ class FetchTokenListUseCase(
         currencies: List<CryptoCurrency>,
         refresh: Boolean,
     ) {
-        catch(
-            block = { stakingRepository.fetchMultiYieldBalance(userWalletId, currencies, refresh) },
-            catch = { /* Ignore error */ },
-        )
+        if (tokensFeatureToggles.isStakingLoadingRefactoringEnabled) {
+            multiYieldBalanceFetcher(
+                params = YieldBalanceFetcherParams.Multi(
+                    userWalletId = userWalletId,
+                    currencyIdWithNetworkMap = currencies.associateTo(hashMapOf()) { it.id to it.network },
+                ),
+            )
+        } else {
+            catch(
+                block = { stakingRepository.fetchMultiYieldBalance(userWalletId, currencies, refresh) },
+                catch = { /* Ignore error */ },
+            )
+        }
     }
 
     /**

@@ -3,10 +3,10 @@ package com.tangem.features.onboarding.v2.multiwallet.impl.child.accesscode.mode
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.text.input.TextFieldValue
 import com.tangem.core.analytics.api.AnalyticsEventHandler
-import com.tangem.core.decompose.di.ComponentScoped
+import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
-import com.tangem.features.onboarding.v2.multiwallet.impl.analytics.OnboardingEvent
+import com.tangem.features.onboarding.v2.common.analytics.OnboardingEvent
 import com.tangem.features.onboarding.v2.multiwallet.impl.child.MultiWalletChildParams
 import com.tangem.features.onboarding.v2.multiwallet.impl.child.accesscode.ui.state.MultiWalletAccessCodeUM
 import com.tangem.features.onboarding.v2.multiwallet.impl.model.OnboardingMultiWalletState
@@ -22,7 +22,7 @@ import javax.inject.Inject
 private const val MINIMUM_ACCESS_CODE_LENGTH = 4
 
 @Stable
-@ComponentScoped
+@ModelScoped
 internal class MultiWalletAccessCodeModel @Inject constructor(
     paramsContainer: ParamsContainer,
     override val dispatchers: CoroutineDispatcherProvider,

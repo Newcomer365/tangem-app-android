@@ -1,9 +1,9 @@
 package com.tangem.features.staking.impl.presentation.state.previewdata
 
+import com.tangem.core.ui.components.containers.pullToRefresh.PullToRefreshConfig
 import com.tangem.core.ui.components.list.RoundedListWithDividersItemData
 import com.tangem.core.ui.extensions.TextReference
 import com.tangem.core.ui.extensions.stringReference
-import com.tangem.core.ui.components.containers.pullToRefresh.PullToRefreshConfig
 import com.tangem.domain.staking.model.stakekit.BalanceType
 import com.tangem.domain.staking.model.stakekit.RewardBlockType
 import com.tangem.domain.staking.model.stakekit.Yield
@@ -11,8 +11,8 @@ import com.tangem.features.staking.impl.R
 import com.tangem.features.staking.impl.presentation.state.BalanceState
 import com.tangem.features.staking.impl.presentation.state.InnerYieldBalanceState
 import com.tangem.features.staking.impl.presentation.state.StakingStates
+import com.tangem.features.staking.impl.presentation.state.YieldReward
 import kotlinx.collections.immutable.persistentListOf
-import org.joda.time.DateTime
 
 internal object InitialStakingStatePreview {
     val defaultState = StakingStates.InitialInfoState.Data(
@@ -64,9 +64,12 @@ internal object InitialStakingStatePreview {
 
     val stateWithYield = defaultState.copy(
         yieldBalance = InnerYieldBalanceState.Data(
-            rewardsFiat = "100 $",
-            rewardsCrypto = "100 SOL",
-            rewardBlockType = RewardBlockType.RewardUnavailable,
+            reward = YieldReward(
+                rewardsFiat = "100 $",
+                rewardsCrypto = "100 SOL",
+                rewardBlockType = RewardBlockType.RewardUnavailable,
+                rewardConstraints = null,
+            ),
             isActionable = true,
             balances = persistentListOf(
                 BalanceState(
@@ -96,7 +99,6 @@ internal object InitialStakingStatePreview {
                     type = BalanceType.STAKED,
                     subtitle = null,
                     isPending = false,
-                    date = DateTime.now(),
                 ),
             ),
         ),

@@ -1,7 +1,12 @@
 package com.tangem.tap.di.domain
 
 import com.tangem.domain.staking.*
-import com.tangem.domain.staking.repositories.*
+import com.tangem.domain.staking.repositories.StakingActionRepository
+import com.tangem.domain.staking.repositories.StakingErrorResolver
+import com.tangem.domain.staking.repositories.StakingRepository
+import com.tangem.domain.staking.repositories.StakingTransactionHashRepository
+import com.tangem.domain.staking.single.SingleYieldBalanceFetcher
+import com.tangem.domain.walletmanager.WalletManagersFacade
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -91,10 +96,12 @@ internal object StakingDomainModule {
     fun provideFetchStakingYieldBalanceUseCase(
         stakingRepository: StakingRepository,
         stakingErrorResolver: StakingErrorResolver,
+        singleYieldBalanceFetcher: SingleYieldBalanceFetcher,
     ): FetchStakingYieldBalanceUseCase {
         return FetchStakingYieldBalanceUseCase(
             stakingRepository = stakingRepository,
             stakingErrorResolver = stakingErrorResolver,
+            singleYieldBalanceFetcher = singleYieldBalanceFetcher,
         )
     }
 
@@ -208,5 +215,13 @@ internal object StakingDomainModule {
     @Singleton
     fun provideGetStakingIntegrationIdUseCase(stakingRepository: StakingRepository): GetStakingIntegrationIdUseCase {
         return GetStakingIntegrationIdUseCase(stakingRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCheckAccountInitializedUseCase(
+        walletManagersFacade: WalletManagersFacade,
+    ): CheckAccountInitializedUseCase {
+        return CheckAccountInitializedUseCase(walletManagersFacade)
     }
 }

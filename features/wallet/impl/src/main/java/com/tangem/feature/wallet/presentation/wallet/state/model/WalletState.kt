@@ -12,6 +12,7 @@ import com.tangem.feature.wallet.presentation.wallet.state.model.holder.TxHistor
 import com.tangem.feature.wallet.presentation.wallet.state.model.holder.WalletStateHolder
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.PersistentList
+import kotlinx.collections.immutable.persistentListOf
 
 internal const val NOT_INITIALIZED_WALLET_INDEX = -1
 
@@ -21,6 +22,7 @@ internal sealed interface WalletState : WalletStateHolder {
     sealed class MultiCurrency : WalletState {
 
         abstract val tokensListState: WalletTokensListState
+        abstract val nftState: WalletNFTItemUM
 
         data class Content(
             override val pullToRefreshConfig: PullToRefreshConfig,
@@ -29,6 +31,7 @@ internal sealed interface WalletState : WalletStateHolder {
             override val warnings: ImmutableList<WalletNotification>,
             override val bottomSheetConfig: TangemBottomSheetConfig?,
             override val tokensListState: WalletTokensListState,
+            override val nftState: WalletNFTItemUM,
         ) : MultiCurrency()
 
         data class Locked(
@@ -45,6 +48,7 @@ internal sealed interface WalletState : WalletStateHolder {
             ) {
 
             override val tokensListState = WalletTokensListState.ContentState.Locked
+            override val nftState: WalletNFTItemUM = WalletNFTItemUM.Hidden
         }
     }
 
@@ -95,7 +99,6 @@ internal sealed interface WalletState : WalletStateHolder {
             override val bottomSheetConfig: TangemBottomSheetConfig?,
             override val balancesAndLimitBlockState: BalancesAndLimitsBlockState,
             override val txHistoryState: TxHistoryState,
-            val depositButtonState: DepositButtonState,
         ) : Visa()
 
         data class Locked(
@@ -112,6 +115,28 @@ internal sealed interface WalletState : WalletStateHolder {
                 bottomSheetConfig = bottomSheetConfig,
                 onUnlockNotificationClick = onUnlockNotificationClick,
             ) {
+
+            override val balancesAndLimitBlockState: BalancesAndLimitsBlockState? = null
+        }
+
+        data class AccessTokenLocked(
+            override val walletCardState: WalletCardState,
+            override val buttons: PersistentList<WalletManageButton>,
+            override val bottomSheetConfig: TangemBottomSheetConfig?,
+            val onExploreClick: () -> Unit,
+            val onUnlockVisaAccessNotificationClick: () -> Unit,
+        ) : Visa(),
+            TxHistoryStateHolder by LockedTxHistoryStateHolder(onExploreClick),
+            WalletStateHolder by LockedWalletStateHolder(
+                walletCardState = walletCardState,
+                buttons = buttons,
+                bottomSheetConfig = bottomSheetConfig,
+                onUnlockNotificationClick = {},
+            ) {
+
+            override val warnings: ImmutableList<WalletNotification> = persistentListOf(
+                WalletNotification.UnlockVisaAccess(onUnlockClick = onUnlockVisaAccessNotificationClick),
+            )
 
             override val balancesAndLimitBlockState: BalancesAndLimitsBlockState? = null
         }

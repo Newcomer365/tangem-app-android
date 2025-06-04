@@ -1,38 +1,46 @@
 package com.tangem.features.onboarding.v2.multiwallet.impl.model
 
 import com.tangem.core.analytics.api.AnalyticsEventHandler
-import com.tangem.core.decompose.di.ComponentScoped
+import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
 import com.tangem.core.decompose.navigation.Router
-import com.tangem.datasource.local.preferences.AppPreferencesStore
-import com.tangem.datasource.local.preferences.PreferencesKeys
+import com.tangem.core.decompose.ui.UiMessageSender
+import com.tangem.core.ui.components.artwork.ArtworkUM
 import com.tangem.domain.models.scan.CardDTO
+import com.tangem.domain.models.scan.ProductType
+import com.tangem.domain.onboarding.repository.OnboardingRepository
 import com.tangem.domain.wallets.usecase.GetCardImageUseCase
 import com.tangem.features.onboarding.v2.multiwallet.api.OnboardingMultiWalletComponent
-import com.tangem.features.onboarding.v2.multiwallet.impl.analytics.OnboardingEvent
+import com.tangem.features.onboarding.v2.common.analytics.OnboardingEvent
+import com.tangem.features.onboarding.v2.common.ui.interruptBackupDialog
 import com.tangem.features.onboarding.v2.multiwallet.impl.child.MultiWalletChildParams
-import com.tangem.features.onboarding.v2.multiwallet.impl.common.ui.interruptBackupDialog
 import com.tangem.features.onboarding.v2.multiwallet.impl.model.OnboardingMultiWalletState.FinalizeStage
 import com.tangem.features.onboarding.v2.multiwallet.impl.ui.state.OnboardingMultiWalletUM
+import com.tangem.operations.attestation.ArtworkSize
 import com.tangem.operations.backup.BackupService
 import com.tangem.sdk.api.BackupServiceHolder
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-@ComponentScoped
+@Suppress("LongParameterList")
+@ModelScoped
 internal class OnboardingMultiWalletModel @Inject constructor(
     paramsContainer: ParamsContainer,
+    analyticsHandler: AnalyticsEventHandler,
     override val dispatchers: CoroutineDispatcherProvider,
     private val router: Router,
-    private val analyticsHandler: AnalyticsEventHandler,
     private val backupServiceHolder: BackupServiceHolder,
-    private val appPreferencesStore: AppPreferencesStore,
+    private val onboardingRepository: OnboardingRepository,
+    private val getCardImageUseCase: GetCardImageUseCase,
+    private val uiMessageSender: UiMessageSender,
 ) : Model() {
     private val params = paramsContainer.require<OnboardingMultiWalletComponent.Params>()
-    private val getCardImageUseCase = GetCardImageUseCase()
     private val _uiState = MutableStateFlow(OnboardingMultiWalletUM())
 
     val state = MutableStateFlow(
@@ -40,7 +48,7 @@ internal class OnboardingMultiWalletModel @Inject constructor(
             currentStep = getInitialStep(),
             currentScanResponse = params.scanResponse,
             accessCode = null,
-            isThreeCards = true,
+            isThreeCards = isThreeCardsInit(),
             resultUserWallet = null,
             startFromFinalize = getInitialStartFromFinalize(),
         ),
@@ -56,45 +64,46 @@ internal class OnboardingMultiWalletModel @Inject constructor(
     }
 
     fun onBack() {
-        _uiState.update { st ->
-            st.copy(
-                dialog = interruptBackupDialog(
-                    onConfirm = {
-                        removeFinalizeScanResponseState()
+        uiMessageSender.send(
+            interruptBackupDialog(
+                onConfirm = {
+                    modelScope.launch {
+                        onboardingRepository.clearUnfinishedFinalizeOnboarding()
                         router.pop()
-                    },
-                    dismiss = { _uiState.update { it.copy(dialog = null) } },
-                ),
-            )
-        }
-    }
-
-    private fun removeFinalizeScanResponseState() {
-        // discarding onboarding means we have to remove scan response from preferences
-        // to prevent showing finalize screen dialog on next app start
-        modelScope.launch {
-            appPreferencesStore.editData { mutablePreferences ->
-                mutablePreferences.remove(PreferencesKeys.ONBOARDING_FINALIZE_SCAN_RESPONSE_KEY)
-            }
-        }
+                    }
+                },
+            ),
+        )
     }
 
     private fun subscribeToBackups() {
         modelScope.launch {
             backups.collectLatest { backup ->
                 when {
-                    _uiState.value.artwork2Url == null && backup.card2 != null -> {
+                    _uiState.value.artwork2 == null && backup.card2 != null -> {
                         val artwork =
-                            getCardImageUseCase.invoke(backup.card2.cardId, backup.card2.cardPublicKey)
+                            getCardImageUseCase.invoke(
+                                cardId = backup.card2.cardId,
+                                cardPublicKey = backup.card2.cardPublicKey,
+                                size = ArtworkSize.LARGE,
+                                manufacturerName = backup.card2.manufacturer.name,
+                                firmwareVersion = backup.card2.firmwareVersion,
+                            )
                         _uiState.update {
-                            it.copy(artwork2Url = artwork)
+                            it.copy(artwork2 = ArtworkUM(artwork.verifiedArtwork, artwork.defaultUrl))
                         }
                     }
-                    _uiState.value.artwork3Url == null && backup.card3 != null -> {
+                    _uiState.value.artwork3 == null && backup.card3 != null -> {
                         val artwork =
-                            getCardImageUseCase.invoke(backup.card3.cardId, backup.card3.cardPublicKey)
+                            getCardImageUseCase.invoke(
+                                cardId = backup.card3.cardId,
+                                cardPublicKey = backup.card3.cardPublicKey,
+                                size = ArtworkSize.LARGE,
+                                manufacturerName = backup.card3.manufacturer.name,
+                                firmwareVersion = backup.card3.firmwareVersion,
+                            )
                         _uiState.update {
-                            it.copy(artwork3Url = artwork)
+                            it.copy(artwork3 = ArtworkUM(artwork.verifiedArtwork, artwork.defaultUrl))
                         }
                     }
                 }
@@ -105,19 +114,22 @@ internal class OnboardingMultiWalletModel @Inject constructor(
     private fun getInitialStep(): OnboardingMultiWalletState.Step {
         val scanResponse = params.scanResponse
         val card = scanResponse.card
-        val backupService = backupServiceHolder.backupService.get()!!
 
         return when {
-            // interrupted backup
-            backupService.hasIncompletedBackup -> OnboardingMultiWalletState.Step.Finalize
-
+            params.mode == OnboardingMultiWalletComponent.Mode.ContinueFinalize ->
+                OnboardingMultiWalletState.Step.Finalize
             // Add backup button
             // Wallet1 without backup and userwallet's scanResponse doesn't contain primary card.
             card.wallets.isNotEmpty() && card.backupStatus == CardDTO.BackupStatus.NoBackup &&
                 scanResponse.primaryCard == null -> OnboardingMultiWalletState.Step.ScanPrimary
 
-            card.wallets.isNotEmpty() && card.backupStatus == CardDTO.BackupStatus.NoBackup ->
-                OnboardingMultiWalletState.Step.AddBackupDevice
+            card.wallets.isNotEmpty() && card.backupStatus == CardDTO.BackupStatus.NoBackup -> {
+                if (scanResponse.productType == ProductType.Wallet) {
+                    OnboardingMultiWalletState.Step.ChooseBackupOption
+                } else {
+                    OnboardingMultiWalletState.Step.AddBackupDevice
+                }
+            }
             card.wallets.isNotEmpty() && card.backupStatus?.isActive == true ->
                 OnboardingMultiWalletState.Step.Finalize
             else ->
@@ -138,6 +150,18 @@ internal class OnboardingMultiWalletModel @Inject constructor(
         }
     }
 
+    private fun isThreeCardsInit(): Boolean {
+        val backupService = backupServiceHolder.backupService.get() ?: return true
+        return when (backupService.currentState) {
+            BackupService.State.FinalizingPrimaryCard,
+            is BackupService.State.FinalizingBackupCard,
+            -> {
+                backupService.addedBackupCardsCount > 1
+            }
+            else -> true
+        }
+    }
+
     private fun initScreenTitle() {
         val title = screenTitleByStep(getInitialStep())
         params.titleProvider.changeTitle(title)
@@ -146,12 +170,16 @@ internal class OnboardingMultiWalletModel @Inject constructor(
     private fun loadCardArtwork() {
         modelScope.launch {
             val artwork =
-                getCardImageUseCase.invoke(params.scanResponse.card.cardId, params.scanResponse.card.cardPublicKey)
+                getCardImageUseCase.invoke(
+                    cardId = params.scanResponse.card.cardId,
+                    cardPublicKey = params.scanResponse.card.cardPublicKey,
+                    size = ArtworkSize.LARGE,
+                    manufacturerName = params.scanResponse.card.manufacturer.name,
+                    firmwareVersion = params.scanResponse.card.firmwareVersion.toSdkFirmwareVersion(),
+                )
 
-            if (artwork != getCardImageUseCase.getDefaultFallbackUrl()) {
-                _uiState.update {
-                    it.copy(artwork1Url = artwork)
-                }
+            _uiState.update {
+                it.copy(artwork1 = ArtworkUM(artwork.verifiedArtwork, artwork.defaultUrl))
             }
         }
     }

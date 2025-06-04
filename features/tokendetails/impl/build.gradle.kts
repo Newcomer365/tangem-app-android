@@ -86,6 +86,7 @@ dependencies {
     implementation(projects.domain.onramp.models)
     implementation(projects.domain.promo)
     implementation(projects.domain.promo.models)
+    implementation(projects.domain.quotes)
 
     /** Temp dependency to swap domain */
     implementation(projects.features.swap.domain)
@@ -99,5 +100,6 @@ dependencies {
     implementation(projects.features.markets.api)
     implementation(projects.features.onramp.api)
     implementation(projects.features.swap.api)
+    implementation(projects.features.txhistory.api)
 
 }

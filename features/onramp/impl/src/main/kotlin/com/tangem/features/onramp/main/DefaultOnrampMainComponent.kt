@@ -5,7 +5,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.arkivanov.decompose.ComponentContext
-import com.arkivanov.decompose.extensions.compose.jetpack.subscribeAsState
+import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.arkivanov.decompose.router.slot.childSlot
 import com.arkivanov.decompose.router.slot.dismiss
 import com.tangem.core.decompose.context.AppComponentContext
@@ -54,6 +54,7 @@ internal class DefaultOnrampMainComponent @AssistedInject constructor(
         is OnrampMainBottomSheetConfig.ConfirmResidency -> confirmResidencyComponentFactory.create(
             context = childByContext(componentContext),
             params = ConfirmResidencyComponent.Params(
+                userWalletId = params.userWalletId,
                 cryptoCurrency = params.cryptoCurrency,
                 country = config.country,
                 onDismiss = {
@@ -65,6 +66,7 @@ internal class DefaultOnrampMainComponent @AssistedInject constructor(
         is OnrampMainBottomSheetConfig.CurrenciesList -> selectCurrencyComponentFactory.create(
             context = childByContext(componentContext),
             params = SelectCurrencyComponent.Params(
+                userWallet = model.userWallet,
                 cryptoCurrency = params.cryptoCurrency,
                 onDismiss = model.bottomSheetNavigation::dismiss,
             ),

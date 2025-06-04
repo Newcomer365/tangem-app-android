@@ -3,6 +3,7 @@ package com.tangem.features.onramp.swap.availablepairs.model
 import arrow.core.getOrElse
 import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
+import com.tangem.core.ui.components.fields.InputManager
 import com.tangem.core.ui.extensions.capitalize
 import com.tangem.core.ui.extensions.resourceReference
 import com.tangem.core.ui.extensions.wrappedList
@@ -18,6 +19,7 @@ import com.tangem.domain.tokens.GetTokenListUseCase
 import com.tangem.domain.tokens.model.CryptoCurrency
 import com.tangem.domain.tokens.model.CryptoCurrencyStatus
 import com.tangem.domain.tokens.model.TokenList
+import com.tangem.domain.wallets.usecase.GetWalletsUseCase
 import com.tangem.feature.swap.domain.GetAvailablePairsUseCase
 import com.tangem.feature.swap.domain.models.domain.LeastTokenInfo
 import com.tangem.feature.swap.domain.models.domain.SwapPairLeast
@@ -31,7 +33,6 @@ import com.tangem.features.onramp.tokenlist.entity.TokenListUMController
 import com.tangem.features.onramp.tokenlist.entity.TokenListUMTransformer
 import com.tangem.features.onramp.tokenlist.entity.transformer.SetNothingToFoundStateTransformer
 import com.tangem.features.onramp.tokenlist.entity.transformer.UpdateTokenItemsTransformer
-import com.tangem.features.onramp.utils.InputManager
 import com.tangem.features.onramp.utils.UpdateSearchBarActiveStateTransformer
 import com.tangem.features.onramp.utils.UpdateSearchBarCallbacksTransformer
 import com.tangem.features.onramp.utils.UpdateSearchQueryTransformer
@@ -52,18 +53,20 @@ internal class AvailableSwapPairsModel @Inject constructor(
     private val getSelectedAppCurrencyUseCase: GetSelectedAppCurrencyUseCase,
     private val getBalanceHidingSettingsUseCase: GetBalanceHidingSettingsUseCase,
     private val getAvailablePairsUseCase: GetAvailablePairsUseCase,
+    private val getWalletsUseCase: GetWalletsUseCase,
 ) : Model() {
 
     val state: StateFlow<TokenListUM> = tokenListUMController.state
 
     private var params: AvailableSwapPairsComponent.Params = paramsContainer.require()
+    private val userWallet = getWalletsUseCase.invokeSync().first { it.walletId == params.userWalletId }
 
     private val tokenListFlow = getTokenListUseCaseFlow()
 
     private val availablePairsByNetworkFlow = MutableStateFlow<Map<LeastTokenInfo, AvailablePairsState>>(emptyMap())
 
     init {
-        initializeSearchBardCallbacks()
+        initializeSearchBarCallbacks()
 
         subscribeOnUpdateState()
         subscribeOnAvailablePairsUpdates()
@@ -82,7 +85,7 @@ internal class AvailableSwapPairsModel @Inject constructor(
             .shareIn(scope = modelScope, started = SharingStarted.Eagerly, replay = 1)
     }
 
-    private fun initializeSearchBardCallbacks() {
+    private fun initializeSearchBarCallbacks() {
         tokenListUMController.update(
             transformer = UpdateSearchBarCallbacksTransformer(
                 onQueryChange = ::onSearchQueryChange,
@@ -212,6 +215,7 @@ internal class AvailableSwapPairsModel @Inject constructor(
             availablePairsByNetworkFlow.update(networkInfo = networkInfo, state = lceLoading())
 
             getAvailablePairsUseCase(
+                userWallet = userWallet,
                 initialCurrency = networkInfo,
                 currencies = statuses.map(CryptoCurrencyStatus::currency),
             )

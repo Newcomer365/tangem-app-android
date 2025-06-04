@@ -7,8 +7,7 @@ import com.tangem.feature.wallet.presentation.wallet.domain.WalletImageResolver
 import com.tangem.feature.wallet.presentation.wallet.state.model.*
 import com.tangem.feature.wallet.presentation.wallet.state.utils.WalletLoadingStateFactory
 import com.tangem.feature.wallet.presentation.wallet.state.utils.createStateByWalletType
-import com.tangem.feature.wallet.presentation.wallet.viewmodels.intents.WalletClickIntents
-import com.tangem.features.wallet.featuretoggles.WalletFeatureToggles
+import com.tangem.feature.wallet.child.wallet.model.intents.WalletClickIntents
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -18,20 +17,17 @@ internal class InitializeWalletsTransformer(
     private val wallets: List<UserWallet>,
     private val clickIntents: WalletClickIntents,
     private val walletImageResolver: WalletImageResolver,
-    private val walletFeatureToggles: WalletFeatureToggles,
 ) : WalletScreenStateTransformer {
 
     private val walletLoadingStateFactory by lazy {
         WalletLoadingStateFactory(
             clickIntents = clickIntents,
             walletImageResolver = walletImageResolver,
-            walletFeatureToggles = walletFeatureToggles,
         )
     }
 
     override fun transform(prevState: WalletScreenState): WalletScreenState {
         return prevState.copy(
-            onBackClick = clickIntents::onBackClick,
             topBarConfig = createTopBarConfig(),
             selectedWalletIndex = selectedWalletIndex,
             wallets = wallets
@@ -39,7 +35,9 @@ internal class InitializeWalletsTransformer(
                     if (userWallet.isLocked) {
                         createLockedState(userWallet)
                     } else {
-                        walletLoadingStateFactory.create(userWallet)
+                        walletLoadingStateFactory.create(
+                            userWallet = userWallet,
+                        )
                     }
                 }
                 .toImmutableList(),
@@ -91,14 +89,13 @@ internal class InitializeWalletsTransformer(
             title = name,
             additionalInfo = WalletAdditionalInfoFactory.resolve(wallet = this),
             imageResId = walletImageResolver.resolve(userWallet = this),
-            onRenameClick = clickIntents::onRenameBeforeConfirmationClick,
-            onDeleteClick = clickIntents::onDeleteBeforeConfirmationClick,
+            dropDownItems = persistentListOf(),
         )
     }
 
     private fun createMultiWalletEnabledButtons(userWallet: UserWallet): PersistentList<WalletManageButton> {
         val isSingleWalletWithToken = userWallet.scanResponse.cardTypesResolver.isSingleWalletWithToken()
-        if (!walletFeatureToggles.isMainActionButtonsEnabled || isSingleWalletWithToken) return persistentListOf()
+        if (isSingleWalletWithToken) return persistentListOf()
 
         return persistentListOf(
             WalletManageButton.Buy(enabled = false, dimContent = false, onClick = {}),

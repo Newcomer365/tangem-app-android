@@ -32,19 +32,6 @@ internal enum class BuildType(
         ),
     ),
 
-    DebugPG(
-        id = "debugPG",
-        appIdSuffix = "debug",
-        obfuscating = true,
-        configFields = listOf(
-            BuildConfigField.Environment(value = "dev"),
-            BuildConfigField.TestActionEnabled(isEnabled = true),
-            BuildConfigField.LogEnabled(isEnabled = true),
-            BuildConfigField.TesterMenuAvailability(isEnabled = true),
-            BuildConfigField.MockDataSource(isEnabled = false),
-        ),
-    ),
-
     /**
      * Build type for QA and business
      *

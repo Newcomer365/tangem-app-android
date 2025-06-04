@@ -1,20 +1,18 @@
 package com.tangem.features.send.impl.navigation
 
-import androidx.fragment.app.Fragment
 import com.tangem.common.routing.AppRoute
 import com.tangem.common.routing.AppRouter
+import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.navigation.url.UrlOpener
-import com.tangem.domain.qrscanning.models.SourceType
 import com.tangem.domain.tokens.model.CryptoCurrency
 import com.tangem.domain.wallets.models.UserWalletId
-import com.tangem.features.send.impl.presentation.SendFragment
+import javax.inject.Inject
 
-internal class DefaultSendRouter(
+@ModelScoped
+internal class DefaultSendRouter @Inject constructor(
     private val router: AppRouter,
     private val urlOpener: UrlOpener,
 ) : InnerSendRouter {
-
-    override fun getEntryFragment(): Fragment = SendFragment.create()
 
     override fun openUrl(url: String) {
         urlOpener.openUrl(url)
@@ -35,10 +33,7 @@ internal class DefaultSendRouter(
 
     override fun openQrCodeScanner(network: String) {
         router.push(
-            AppRoute.QrScanning(
-                source = SourceType.SEND,
-                networkName = network,
-            ),
+            AppRoute.QrScanning(source = AppRoute.QrScanning.Source.Send(network)),
         )
     }
 }

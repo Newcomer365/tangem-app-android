@@ -1,25 +1,27 @@
 package com.tangem.features.onboarding.v2.multiwallet.impl.child.backup.model
 
 import androidx.compose.runtime.Stable
-import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.tangem.common.CompletionResult
 import com.tangem.common.core.TangemSdkError
 import com.tangem.core.analytics.api.AnalyticsEventHandler
+import com.tangem.core.analytics.api.AnalyticsExceptionHandler
 import com.tangem.core.analytics.models.AnalyticsParam
+import com.tangem.core.analytics.models.ExceptionAnalyticsEvent
 import com.tangem.core.analytics.models.event.OnboardingAnalyticsEvent
-import com.tangem.core.decompose.di.ComponentScoped
+import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
 import com.tangem.core.decompose.ui.UiMessageSender
 import com.tangem.core.ui.extensions.resourceReference
 import com.tangem.core.ui.extensions.toWrappedList
 import com.tangem.core.ui.message.dialog.Dialogs
+import com.tangem.domain.card.repository.CardRepository
 import com.tangem.domain.card.repository.CardSdkConfigRepository
 import com.tangem.domain.feedback.SendFeedbackEmailUseCase
 import com.tangem.domain.feedback.models.FeedbackEmailType
 import com.tangem.domain.models.scan.ProductType
+import com.tangem.features.onboarding.v2.common.analytics.OnboardingEvent
 import com.tangem.features.onboarding.v2.impl.R
-import com.tangem.features.onboarding.v2.multiwallet.impl.analytics.OnboardingEvent
 import com.tangem.features.onboarding.v2.multiwallet.impl.child.MultiWalletChildParams
 import com.tangem.features.onboarding.v2.multiwallet.impl.child.backup.MultiWalletBackupComponent
 import com.tangem.features.onboarding.v2.multiwallet.impl.child.backup.ui.backupCardAttestationFailedDialog
@@ -38,7 +40,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @Stable
-@ComponentScoped
+@ModelScoped
 @Suppress("LongParameterList")
 class MultiWalletBackupModel @Inject constructor(
     paramsContainer: ParamsContainer,
@@ -47,8 +49,10 @@ class MultiWalletBackupModel @Inject constructor(
     private val cardSdkConfigRepository: CardSdkConfigRepository,
     private val tangemSdkManager: TangemSdkManager,
     private val analyticsEventHandler: AnalyticsEventHandler,
+    private val analyticsExceptionHandler: AnalyticsExceptionHandler,
     private val uiMessageSender: UiMessageSender,
     private val sendFeedbackEmailUseCase: SendFeedbackEmailUseCase,
+    private val cardRepository: CardRepository,
 ) : Model() {
 
     @Suppress("UnusedPrivateMember")
@@ -202,6 +206,8 @@ class MultiWalletBackupModel @Inject constructor(
                     val backupCardInfo = MultiWalletChildParams.Backup.BackupCardInfo(
                         cardId = result.data.cardId,
                         cardPublicKey = result.data.cardPublicKey,
+                        manufacturer = result.data.manufacturer,
+                        firmwareVersion = result.data.firmwareVersion,
                     )
                     params.backups.update {
                         it.copy(
@@ -239,7 +245,7 @@ class MultiWalletBackupModel @Inject constructor(
                                 )
                             }
                         }
-                        else -> FirebaseCrashlytics.getInstance().recordException(result.error)
+                        else -> analyticsExceptionHandler.sendException(ExceptionAnalyticsEvent(result.error))
                     }
                 }
             }
@@ -275,6 +281,8 @@ class MultiWalletBackupModel @Inject constructor(
                 cardId = cardId,
                 allowsRequestAccessCodeFromRepository = false,
             )
+
+            cardRepository.finishCardActivation(cardId)
         }
     }
 }

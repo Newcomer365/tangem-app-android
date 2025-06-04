@@ -9,10 +9,11 @@ import arrow.core.getOrElse
 import com.tangem.common.routing.AppRouter
 import com.tangem.common.ui.bottomsheet.permission.state.ApproveType
 import com.tangem.common.ui.bottomsheet.permission.state.GiveTxPermissionState.InProgress.getApproveTypeOrNull
+import com.tangem.core.analytics.api.AnalyticsErrorHandler
 import com.tangem.core.analytics.api.AnalyticsEventHandler
 import com.tangem.core.analytics.models.AnalyticsParam
 import com.tangem.core.analytics.models.Basic
-import com.tangem.core.decompose.di.ComponentScoped
+import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
 import com.tangem.core.navigation.url.UrlOpener
@@ -30,16 +31,19 @@ import com.tangem.domain.feedback.models.FeedbackEmailType
 import com.tangem.domain.promo.GetStoryContentUseCase
 import com.tangem.domain.promo.ShouldShowStoriesUseCase
 import com.tangem.domain.promo.models.StoryContentIds
+import com.tangem.domain.settings.usercountry.GetUserCountryUseCase
+import com.tangem.domain.settings.usercountry.models.UserCountry
+import com.tangem.domain.settings.usercountry.models.needApplyFCARestrictions
 import com.tangem.domain.tokens.*
 import com.tangem.domain.tokens.model.CryptoCurrency
 import com.tangem.domain.tokens.model.CryptoCurrencyStatus
 import com.tangem.domain.tokens.model.Network
+import com.tangem.domain.txhistory.usecase.GetExplorerTransactionUrlUseCase
 import com.tangem.domain.wallets.models.UserWallet
 import com.tangem.domain.wallets.models.UserWalletId
 import com.tangem.domain.wallets.usecase.GetUserWalletUseCase
 import com.tangem.feature.swap.analytics.StoriesEvents
 import com.tangem.feature.swap.analytics.SwapEvents
-import com.tangem.feature.swap.domain.BlockchainInteractor
 import com.tangem.feature.swap.domain.SwapInteractor
 import com.tangem.feature.swap.domain.models.ExpressDataError
 import com.tangem.feature.swap.domain.models.ExpressException
@@ -55,7 +59,6 @@ import com.tangem.feature.swap.router.SwapRouter
 import com.tangem.feature.swap.ui.StateBuilder
 import com.tangem.feature.swap.utils.formatToUIRepresentation
 import com.tangem.features.swap.SwapComponent
-import com.tangem.features.swap.SwapFeatureToggles
 import com.tangem.utils.Provider
 import com.tangem.utils.coroutines.*
 import com.tangem.utils.isNullOrZero
@@ -76,12 +79,12 @@ typealias SuccessLoadedSwapData = Map<SwapProvider, SwapState.QuotesLoadedState>
 
 @Suppress("LongParameterList", "LargeClass")
 @Stable
-@ComponentScoped
+@ModelScoped
 internal class SwapModel @Inject constructor(
     paramsContainer: ParamsContainer,
     override val dispatchers: CoroutineDispatcherProvider,
-    private val blockchainInteractor: BlockchainInteractor,
     private val analyticsEventHandler: AnalyticsEventHandler,
+    private val analyticsErrorEventHandler: AnalyticsErrorHandler,
     private val getSelectedAppCurrencyUseCase: GetSelectedAppCurrencyUseCase,
     private val getCryptoCurrencyStatusUseCase: GetCryptoCurrencyStatusSyncUseCase,
     private val updateDelayedCurrencyStatusUseCase: UpdateDelayedNetworkStatusUseCase,
@@ -92,9 +95,10 @@ internal class SwapModel @Inject constructor(
     private val saveBlockchainErrorUseCase: SaveBlockchainErrorUseCase,
     private val sendFeedbackEmailUseCase: SendFeedbackEmailUseCase,
     private val getMinimumTransactionAmountSyncUseCase: GetMinimumTransactionAmountSyncUseCase,
+    private val getExplorerTransactionUrlUseCase: GetExplorerTransactionUrlUseCase,
     private val shouldShowStoriesUseCase: ShouldShowStoriesUseCase,
     private val getStoryContentUseCase: GetStoryContentUseCase,
-    private val featureToggles: SwapFeatureToggles,
+    private val getUserCountryUseCase: GetUserCountryUseCase,
     getBalanceHidingSettingsUseCase: GetBalanceHidingSettingsUseCase,
     swapInteractorFactory: SwapInteractor.Factory,
     private val urlOpener: UrlOpener,
@@ -135,7 +139,7 @@ internal class SwapModel @Inject constructor(
         stateBuilder.createInitialLoadingState(
             initialCurrencyFrom = initialCurrencyFrom,
             initialCurrencyTo = initialCurrencyTo,
-            fromNetworkInfo = blockchainInteractor.getBlockchainInfo(initialCurrencyFrom.network.backendId),
+            fromNetworkInfo = initialCurrencyFrom.getNetworkInfo(),
         ),
     )
         private set
@@ -145,6 +149,7 @@ internal class SwapModel @Inject constructor(
     private val lastAmount = mutableStateOf(INITIAL_AMOUNT)
     private val lastReducedBalanceBy = mutableStateOf(BigDecimal.ZERO)
     private var swapRouter: SwapRouter = SwapRouter(router = router)
+    private var userCountry: UserCountry? = null
 
     private val isUserResolvableError: (SwapState) -> Boolean = {
         it is SwapState.SwapError &&
@@ -163,12 +168,13 @@ internal class SwapModel @Inject constructor(
         get() = swapRouter.currentScreen
 
     init {
+        userCountry = getUserCountryUseCase.invokeSync().getOrNull()
+            ?: UserCountry.Other(Locale.getDefault().country)
         modelScope.launch {
-            if (featureToggles.isPromoStoriesEnabled) {
-                initStories()
-                swapRouter.openScreen(SwapNavScreen.PromoStories)
-            }
+            initStories()
+            swapRouter.openScreen(SwapNavScreen.PromoStories)
         }
+
         modelScope.launch(dispatchers.io) {
             val fromStatus = getCryptoCurrencyStatusUseCase(userWalletId, initialCurrencyFrom.id).getOrNull()
             val toStatus = initialCurrencyTo?.let { getCryptoCurrencyStatusUseCase(userWalletId, it.id).getOrNull() }
@@ -263,9 +269,7 @@ internal class SwapModel @Inject constructor(
                     uiState = stateBuilder.createInitialLoadingState(
                         initialCurrencyFrom = initialCurrencyFrom,
                         initialCurrencyTo = initialCurrencyTo,
-                        fromNetworkInfo = blockchainInteractor.getBlockchainInfo(
-                            initialCurrencyFrom.network.backendId,
-                        ),
+                        fromNetworkInfo = initialCurrencyFrom.getNetworkInfo(),
                     )
                     initTokens(isReverseFromTo)
                 }
@@ -443,6 +447,7 @@ internal class SwapModel @Inject constructor(
                     isNeedBestRateBadge = dataState.lastLoadedSwapStates.consideredProvidersStates().size > 1,
                     selectedFeeType = dataState.selectedFee?.feeType ?: FeeType.NORMAL,
                     isReverseSwapPossible = isReverseSwapPossible(),
+                    needApplyFCARestrictions = userCountry.needApplyFCARestrictions(),
                 )
                 if (uiState.notifications.any { it is SwapNotificationUM.Error.UnableToCoverFeeWarning }) {
                     analyticsEventHandler.send(
@@ -483,7 +488,7 @@ internal class SwapModel @Inject constructor(
         val receiveToken = dataState.toCryptoCurrency?.currency?.let {
             "${it.network.backendId}:${it.symbol}"
         }
-        analyticsEventHandler.send(
+        analyticsErrorEventHandler.sendErrorEvent(
             SwapEvents.NoticeProviderError(
                 sendToken = "${initialCurrencyFrom.network.backendId}:${initialCurrencyFrom.symbol}",
                 receiveToken = receiveToken ?: "",
@@ -605,10 +610,14 @@ internal class SwapModel @Inject constructor(
                 when (it) {
                     is SwapTransactionState.TxSent -> {
                         sendSuccessSwapEvent(fromCurrency.currency, fee.feeType)
-                        val url = blockchainInteractor.getExplorerTransactionLink(
-                            networkId = fromCurrency.currency.network.backendId,
+                        val url = getExplorerTransactionUrlUseCase(
                             txHash = it.txHash,
-                        )
+                            networkId = fromCurrency.currency.network.id,
+                        ).getOrElse {
+                            Timber.i("tx hash explore not supported")
+                            ""
+                        }
+
                         updateWalletBalance()
                         uiState = stateBuilder.createSuccessState(
                             uiState = uiState,
@@ -1356,6 +1365,13 @@ internal class SwapModel @Inject constructor(
 
             sendFeedbackEmailUseCase(email)
         }
+    }
+
+    private fun CryptoCurrency.getNetworkInfo(): NetworkInfo {
+        return NetworkInfo(
+            name = this.network.name,
+            blockchainId = this.network.id.value,
+        )
     }
 
     private companion object {

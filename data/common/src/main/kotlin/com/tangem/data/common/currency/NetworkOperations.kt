@@ -299,6 +299,9 @@ private fun Blockchain.getSupportedTransactionExtras(): Network.TransactionExtra
         Blockchain.Bitrock, Blockchain.BitrockTestnet,
         Blockchain.Sonic, Blockchain.SonicTestnet,
         Blockchain.ApeChain, Blockchain.ApeChainTestnet,
+        Blockchain.Scroll, Blockchain.ScrollTestnet,
+        Blockchain.ZkLinkNova, Blockchain.ZkLinkNovaTestnet,
+        Blockchain.Pepecoin, Blockchain.PepecoinTestnet,
         -> Network.TransactionExtrasType.NONE
         // endregion
     }

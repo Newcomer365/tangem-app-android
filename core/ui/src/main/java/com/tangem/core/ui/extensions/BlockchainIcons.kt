@@ -90,6 +90,10 @@ fun getActiveIconRes(blockchainId: String): Int {
         "bitrock", "bitrock/test" -> R.drawable.img_bitrock_22
         "sonic", "sonic/test" -> R.drawable.img_sonic_22
         "apechain", "apechain/test" -> R.drawable.img_apecoin_22
+        "scroll", "scroll/test" -> R.drawable.ic_alert_24 // FIXME: add icon during full integration
+        "zklink", "zklink/test" -> R.drawable.img_zklink_22
+        "vanar-chain", "vanar-chain/test" -> R.drawable.img_vanar_22
+        "pepecoin", "pepecoin/test" -> R.drawable.img_pepecoin_22
         else -> R.drawable.ic_alert_24
     }
 }
@@ -178,6 +182,10 @@ fun getActiveIconResByCoinId(coinId: String): Int {
         "bitrock", "bitrock/test" -> R.drawable.img_bitrock_22
         "sonic", "sonic/test" -> R.drawable.img_sonic_22
         "apechain", "apechain/test" -> R.drawable.img_apecoin_22
+        "scroll", "scroll/test" -> R.drawable.ic_alert_24 // FIXME: add icon during full integration
+        "zklink", "zklink/test" -> R.drawable.img_zklink_22
+        "vanar-chain", "vanar-chain/test" -> R.drawable.img_vanar_22
+        "pepecoin-network", "pepecoin-network/test" -> R.drawable.img_pepecoin_22
         else -> R.drawable.ic_alert_24
     }
 }
@@ -269,6 +277,10 @@ fun getGreyedOutIconRes(blockchainId: String): Int {
         "bitrock", "bitrock/test" -> R.drawable.ic_bitrock_22
         "sonic", "sonic/test" -> R.drawable.ic_sonic_22
         "apechain", "apechain/test" -> R.drawable.ic_apecoin_22
+        "scroll", "scroll/test" -> R.drawable.ic_alert_24 // FIXME: add icon during full integration
+        "zklink", "zklink/test" -> R.drawable.ic_zklink_22
+        "vanar-chain", "vanar-chain/test" -> R.drawable.ic_vanar_22
+        "pepecoin", "pepecoin/test" -> R.drawable.ic_pepecoin_22
         else -> R.drawable.ic_alert_24
     }
 }

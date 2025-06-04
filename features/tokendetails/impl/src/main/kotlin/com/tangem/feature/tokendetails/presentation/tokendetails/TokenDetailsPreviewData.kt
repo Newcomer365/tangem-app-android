@@ -3,6 +3,7 @@ package com.tangem.feature.tokendetails.presentation.tokendetails
 import androidx.compose.ui.graphics.Color
 import androidx.paging.PagingData
 import com.tangem.core.ui.components.containers.pullToRefresh.PullToRefreshConfig
+import com.tangem.core.ui.components.dropdownmenu.TangemDropdownMenuItem
 import com.tangem.core.ui.components.marketprice.MarketPriceBlockState
 import com.tangem.core.ui.components.marketprice.PriceChangeState
 import com.tangem.core.ui.components.marketprice.PriceChangeType
@@ -27,7 +28,7 @@ internal object TokenDetailsPreviewData {
         onBackClick = {},
         tokenDetailsAppBarMenuConfig = TokenDetailsAppBarMenuConfig(
             persistentListOf(
-                TokenDetailsAppBarMenuConfig.MenuItem(
+                TangemDropdownMenuItem(
                     title = TextReference.Res(id = R.string.token_details_hide_token),
                     textColorProvider = { TangemTheme.colors.text.warning },
                     onClick = { },
@@ -143,10 +144,7 @@ internal object TokenDetailsPreviewData {
     val stakingLoadingBlock = StakingBlockUM.Loading(iconState)
 
     val stakingAvailableBlock = StakingBlockUM.StakeAvailable(
-        titleText = resourceReference(
-            id = R.string.token_details_staking_block_title,
-            formatArgs = wrappedList("3.27%"),
-        ),
+        titleText = resourceReference(id = R.string.token_details_staking_block_title),
         subtitleText = resourceReference(
             id = R.string.staking_notification_earn_rewards_text_period_day,
             formatArgs = wrappedList("Solana"),

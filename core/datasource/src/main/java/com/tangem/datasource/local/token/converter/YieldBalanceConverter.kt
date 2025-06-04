@@ -7,7 +7,7 @@ import com.tangem.domain.staking.model.stakekit.YieldBalance
 import com.tangem.domain.staking.model.stakekit.YieldBalanceItem
 import com.tangem.utils.converter.Converter
 
-internal class YieldBalanceConverter(
+class YieldBalanceConverter(
     private val source: StatusSource,
 ) : Converter<YieldBalanceWrapperDTO, YieldBalance> {
 
@@ -38,6 +38,8 @@ internal class YieldBalanceConverter(
                             pendingActions = PendingActionConverter
                                 .convertList(item.pendingActions)
                                 .sortedBy { it.passthrough },
+                            pendingActionsConstraints = PendingActionConstraintsConverter
+                                .convertList(item.pendingActionConstraints.orEmpty()),
                             isPending = false,
                         )
                     }

@@ -6,9 +6,19 @@ import arrow.core.raise.catch
 import arrow.core.raise.either
 import arrow.core.raise.recover
 import com.tangem.domain.core.utils.EitherFlow
+import com.tangem.domain.networks.multi.MultiNetworkStatusProducer
+import com.tangem.domain.networks.multi.MultiNetworkStatusSupplier
+import com.tangem.domain.networks.single.SingleNetworkStatusProducer
+import com.tangem.domain.networks.single.SingleNetworkStatusSupplier
+import com.tangem.domain.quotes.QuotesRepositoryV2
+import com.tangem.domain.quotes.single.SingleQuoteProducer
+import com.tangem.domain.quotes.single.SingleQuoteSupplier
 import com.tangem.domain.staking.model.stakekit.YieldBalance
 import com.tangem.domain.staking.model.stakekit.YieldBalanceList
 import com.tangem.domain.staking.repositories.StakingRepository
+import com.tangem.domain.staking.single.SingleYieldBalanceProducer
+import com.tangem.domain.staking.single.SingleYieldBalanceSupplier
+import com.tangem.domain.tokens.TokensFeatureToggles
 import com.tangem.domain.tokens.model.*
 import com.tangem.domain.tokens.operations.CurrenciesStatusesOperations.Error
 import com.tangem.domain.tokens.repository.CurrenciesRepository
@@ -17,7 +27,6 @@ import com.tangem.domain.tokens.repository.QuotesRepository
 import com.tangem.domain.tokens.utils.CurrencyStatusProxyCreator
 import com.tangem.domain.wallets.models.UserWalletId
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 
 /**
  * Base operations for working with currency status
@@ -29,12 +38,18 @@ import kotlinx.coroutines.launch
  *
  * @author Andrew Khokhlov on 22/02/2025
  */
-@Suppress("LargeClass")
+@Suppress("LargeClass", "LongParameterList")
 abstract class BaseCurrencyStatusOperations(
     private val currenciesRepository: CurrenciesRepository,
     private val quotesRepository: QuotesRepository,
+    private val quotesRepositoryV2: QuotesRepositoryV2,
     private val networksRepository: NetworksRepository,
     private val stakingRepository: StakingRepository,
+    private val multiNetworkStatusSupplier: MultiNetworkStatusSupplier,
+    private val singleNetworkStatusSupplier: SingleNetworkStatusSupplier,
+    private val singleQuoteSupplier: SingleQuoteSupplier,
+    private val singleYieldBalanceSupplier: SingleYieldBalanceSupplier,
+    private val tokensFeatureToggles: TokensFeatureToggles,
 ) {
 
     protected val currencyStatusProxyCreator = CurrencyStatusProxyCreator(stakingRepository)
@@ -76,6 +91,7 @@ abstract class BaseCurrencyStatusOperations(
         userWalletId: UserWalletId,
         currency: CryptoCurrency,
         includeQuotes: Boolean = true,
+        subscribeOnYieldBalance: Boolean = true,
     ): Flow<Either<Error, CryptoCurrencyStatus>> {
         val rawCurrencyId = currency.id.rawCurrencyId
 
@@ -102,16 +118,7 @@ abstract class BaseCurrencyStatusOperations(
 
         val yieldBalanceFlow = getYieldBalance(userWalletId = userWalletId, cryptoCurrency = currency)
 
-        return channelFlow {
-            launch {
-                fetchComponents(
-                    userWalletId = userWalletId,
-                    networks = nonEmptySetOf(currency.network),
-                    currenciesIds = nonEmptySetOf(currency.id),
-                    currencies = nonEmptyListOf(currency),
-                )
-            }
-
+        return if (subscribeOnYieldBalance) {
             combine(quoteFlow, statusFlow, yieldBalanceFlow) { maybeQuote, maybeNetworkStatus, maybeYieldBalance ->
                 currencyStatusProxyCreator.createCurrencyStatus(
                     currency = currency,
@@ -120,8 +127,15 @@ abstract class BaseCurrencyStatusOperations(
                     maybeYieldBalance = maybeYieldBalance,
                 )
             }
-                .onEach(::send)
-                .launchIn(this)
+        } else {
+            combine(quoteFlow, statusFlow) { maybeQuote, maybeNetworkStatus ->
+                currencyStatusProxyCreator.createCurrencyStatus(
+                    currency = currency,
+                    maybeQuote = maybeQuote,
+                    maybeNetworkStatus = maybeNetworkStatus,
+                    maybeYieldBalance = null,
+                )
+            }
         }
     }
 
@@ -177,14 +191,36 @@ abstract class BaseCurrencyStatusOperations(
                     } else {
                         currenciesRepository.getMultiCurrencyWalletCurrency(userWalletId, cryptoCurrencyId)
                     }
-                    val quote = cryptoCurrencyId.rawCurrencyId?.let { quotesRepository.getQuoteSync(it) }?.right()
+
+                    val quote = cryptoCurrencyId.rawCurrencyId?.let { rawId ->
+                        if (tokensFeatureToggles.isQuotesLoadingRefactoringEnabled) {
+                            singleQuoteSupplier(params = SingleQuoteProducer.Params(rawCurrencyId = rawId))
+                                .firstOrNull()
+                        } else {
+                            quotesRepository.getQuoteSync(rawId)
+                        }
+                    }
+                        ?.right()
                         ?: Error.EmptyQuotes.left()
-                    val networkStatuses =
+
+                    val networkStatuses = if (tokensFeatureToggles.isNetworksLoadingRefactoringEnabled) {
+                        singleNetworkStatusSupplier(
+                            params = SingleNetworkStatusProducer.Params(
+                                userWalletId = userWalletId,
+                                network = currency.network,
+                            ),
+                        )
+                            .firstOrNull()
+                            .right()
+                    } else {
                         networksRepository.getNetworkStatusesSync(
                             userWalletId = userWalletId,
                             networks = setOf(currency.network),
                             refresh = false,
-                        ).firstOrNull { it.network == currency.network }.right()
+                        )
+                            .firstOrNull { it.network == currency.network }
+                            .right()
+                    }
 
                     val yieldBalances = getYieldBalanceSync(userWalletId, currency)
 
@@ -218,7 +254,13 @@ abstract class BaseCurrencyStatusOperations(
             recover = { return flowOf(it.left()) },
         )
 
-        return getCurrencyStatusFlow(userWalletId, currency, includeQuotes)
+        return getCurrencyStatusFlow(
+            userWalletId = userWalletId,
+            currency = currency,
+            includeQuotes = includeQuotes,
+            // If toggle is off, then subscribe on yield balance. If toggle is on, then don't
+            subscribeOnYieldBalance = !tokensFeatureToggles.isStakingLoadingRefactoringEnabled,
+        )
     }
 
     suspend fun getCurrenciesStatusesSync(userWalletId: UserWalletId): Either<Error, List<CryptoCurrencyStatus>> {
@@ -230,9 +272,23 @@ abstract class BaseCurrencyStatusOperations(
                             ?: return emptyList<CryptoCurrencyStatus>().right()
                     val (networks, currenciesIds) = getIds(nonEmptyCurrencies)
                     val rawIds = currenciesIds.mapNotNull { it.rawCurrencyId }.toSet()
-                    val quotes = quotesRepository.getQuotesSync(rawIds, false).right()
-                    val networkStatuses =
+
+                    val quotes = if (tokensFeatureToggles.isQuotesLoadingRefactoringEnabled) {
+                        quotesRepositoryV2.getMultiQuoteSyncOrNull(currenciesIds = rawIds)?.right()
+                    } else {
+                        quotesRepository.getQuotesSync(rawIds, false).right()
+                    }
+
+                    val networkStatuses = if (tokensFeatureToggles.isNetworksLoadingRefactoringEnabled) {
+                        multiNetworkStatusSupplier(
+                            params = MultiNetworkStatusProducer.Params(userWalletId = userWalletId),
+                        )
+                            .firstOrNull()
+                            .orEmpty()
+                            .right()
+                    } else {
                         networksRepository.getNetworkStatusesSync(userWalletId, networks, false).right()
+                    }
                     val yieldBalances = getYieldBalancesSync(userWalletId, nonEmptyCurrencies)
 
                     return currencyStatusProxyCreator.createCurrenciesStatuses(
@@ -252,21 +308,44 @@ abstract class BaseCurrencyStatusOperations(
             block = { currenciesRepository.getSingleCurrencyWalletPrimaryCurrency(userWalletId) },
             catch = { raise(Error.DataError(it)) },
         )
-        val quotes = catch(
-            block = {
-                currency.id.rawCurrencyId?.let { quotesRepository.getQuoteSync(it) }
-                    ?.right() ?: Error.EmptyQuotes.left()
-            },
-            catch = { Error.DataError(it).left() },
-        )
-        val networkStatus = catch(
-            block = {
-                networksRepository.getNetworkStatusesSync(userWalletId, setOf(currency.network))
-                    .firstOrNull { it.network == currency.network }
-                    .right()
-            },
-            catch = { Error.DataError(it).left() },
-        )
+
+        val quotes = if (tokensFeatureToggles.isQuotesLoadingRefactoringEnabled) {
+            currency.id.rawCurrencyId?.let {
+                singleQuoteSupplier(params = SingleQuoteProducer.Params(rawCurrencyId = it))
+                    .firstOrNull()
+            }
+                ?.right()
+                ?: Error.EmptyQuotes.left()
+        } else {
+            catch(
+                block = {
+                    currency.id.rawCurrencyId?.let { quotesRepository.getQuoteSync(it) }
+                        ?.right() ?: Error.EmptyQuotes.left()
+                },
+                catch = { Error.DataError(it).left() },
+            )
+        }
+
+        val networkStatus = if (tokensFeatureToggles.isNetworksLoadingRefactoringEnabled) {
+            singleNetworkStatusSupplier(
+                params = SingleNetworkStatusProducer.Params(
+                    userWalletId = userWalletId,
+                    network = currency.network,
+                ),
+            )
+                .firstOrNull()
+                .right()
+        } else {
+            catch(
+                block = {
+                    networksRepository.getNetworkStatusesSync(userWalletId, setOf(currency.network))
+                        .firstOrNull { it.network == currency.network }
+                        .right()
+                },
+                catch = { Error.DataError(it).left() },
+            )
+        }
+
         val yieldBalances = getYieldBalanceSync(userWalletId, currency)
 
         return currencyStatusProxyCreator.createCurrencyStatus(
@@ -301,10 +380,18 @@ abstract class BaseCurrencyStatusOperations(
         userWalletId: UserWalletId,
         cryptoCurrency: CryptoCurrency,
     ): EitherFlow<Error, YieldBalance> {
-        return stakingRepository.getSingleYieldBalanceFlow(
-            userWalletId = userWalletId,
-            cryptoCurrency = cryptoCurrency,
-        ).map<YieldBalance, Either<Error, YieldBalance>> { it.right() }
+        return if (tokensFeatureToggles.isStakingLoadingRefactoringEnabled) {
+            singleYieldBalanceSupplier(
+                params = SingleYieldBalanceProducer.Params(
+                    userWalletId = userWalletId,
+                    currencyId = cryptoCurrency.id,
+                    network = cryptoCurrency.network,
+                ),
+            )
+        } else {
+            stakingRepository.getSingleYieldBalanceFlow(userWalletId = userWalletId, cryptoCurrency = cryptoCurrency)
+        }
+            .map<YieldBalance, Either<Error, YieldBalance>> { it.right() }
             .catch { emit(Error.DataError(it).left()) }
             .onEmpty { emit(Error.EmptyYieldBalances.left()) }
     }
@@ -338,10 +425,18 @@ abstract class BaseCurrencyStatusOperations(
     ): Either<Error.EmptyYieldBalances, YieldBalanceList> {
         return catch(
             block = {
-                stakingRepository.getMultiYieldBalanceSync(
-                    userWalletId,
-                    cryptoCurrencies,
-                ).right()
+                if (tokensFeatureToggles.isStakingLoadingRefactoringEnabled) {
+                    stakingRepository.getMultiYieldBalanceSync(
+                        userWalletId = userWalletId,
+                        cryptoCurrencies = cryptoCurrencies,
+                    )
+                } else {
+                    stakingRepository.getMultiYieldBalanceSyncLegacy(
+                        userWalletId = userWalletId,
+                        cryptoCurrencies = cryptoCurrencies,
+                    )
+                }
+                    .right()
             },
             catch = {
                 Error.EmptyYieldBalances.left()
@@ -355,10 +450,12 @@ abstract class BaseCurrencyStatusOperations(
     ): Either<Error.EmptyYieldBalances, YieldBalance> {
         return catch(
             block = {
-                stakingRepository.getSingleYieldBalanceSync(
-                    userWalletId,
-                    cryptoCurrency,
-                ).right()
+                if (tokensFeatureToggles.isStakingLoadingRefactoringEnabled) {
+                    stakingRepository.getSingleYieldBalanceSync(userWalletId, cryptoCurrency)
+                } else {
+                    stakingRepository.getSingleYieldBalanceSyncLegacy(userWalletId, cryptoCurrency)
+                }
+                    .right()
             },
             catch = {
                 Error.EmptyYieldBalances.left()

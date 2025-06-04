@@ -10,8 +10,7 @@ sealed class WalletScreenAnalyticsEvent {
     sealed class Basic(
         event: String,
         params: Map<String, String> = mapOf(),
-        error: Throwable? = null,
-    ) : AnalyticsEvent(category = "Basic", event = event, params = params, error = error) {
+    ) : AnalyticsEvent(category = "Basic", event = event, params = params) {
 
         class WalletToppedUp(userWalletId: UserWalletId, walletType: AnalyticsParam.WalletType) :
             Basic(
@@ -138,5 +137,11 @@ sealed class WalletScreenAnalyticsEvent {
         data object NoticeSeedPhraseSupportButtonUsed : MainScreen(event = "Button - Support Used")
 
         data object NoticeSeedPhraseSupportButtonDeclined : MainScreen(event = "Button - Support Declined")
+
+        // region Referral Promo
+        data object ReferralPromo : MainScreen(event = "Referral Banner")
+        data object ReferralPromoButtonParticipate : MainScreen(event = "Button - Referral Participate")
+        data object ReferralPromoButtonDismiss : MainScreen(event = "Button - Referral Dismiss")
+        //endregion
     }
 }

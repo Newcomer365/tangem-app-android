@@ -4,9 +4,15 @@ import androidx.compose.runtime.Stable
 import androidx.compose.ui.text.input.TextFieldValue
 import com.tangem.common.CompletionResult
 import com.tangem.common.extensions.toHexString
-import com.tangem.core.decompose.di.ComponentScoped
+import com.tangem.core.analytics.api.AnalyticsEventHandler
+import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
+import com.tangem.core.decompose.ui.UiMessageSender
+import com.tangem.core.error.ext.universalError
+import com.tangem.core.ui.utils.showErrorDialog
+import com.tangem.domain.visa.error.VisaAPIError
+import com.tangem.domain.visa.error.VisaAuthorizationAPIError
 import com.tangem.domain.visa.model.VisaCardActivationStatus
 import com.tangem.domain.visa.model.VisaCardId
 import com.tangem.domain.visa.model.VisaCustomerWalletDataToSignRequest
@@ -14,6 +20,8 @@ import com.tangem.domain.visa.repository.VisaActivationRepository
 import com.tangem.domain.visa.repository.VisaAuthRepository
 import com.tangem.features.onboarding.v2.visa.impl.child.accesscode.OnboardingVisaAccessCodeComponent
 import com.tangem.features.onboarding.v2.visa.impl.child.accesscode.ui.state.OnboardingVisaAccessCodeUM
+import com.tangem.features.onboarding.v2.visa.impl.child.welcome.model.analytics.OnboardingVisaAnalyticsEvent
+import com.tangem.features.onboarding.v2.visa.impl.child.welcome.model.analytics.VisaAnalyticsEvent
 import com.tangem.features.onboarding.v2.visa.impl.common.ActivationReadyEvent
 import com.tangem.sdk.api.TangemSdkManager
 import com.tangem.sdk.api.visa.VisaCardActivationTaskMode
@@ -25,8 +33,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+@Suppress("LongParameterList")
 @Stable
-@ComponentScoped
+@ModelScoped
 internal class OnboardingVisaAccessCodeModel @Inject constructor(
     paramsContainer: ParamsContainer,
     visaActivationRepositoryFactory: VisaActivationRepository.Factory,
@@ -34,6 +43,8 @@ internal class OnboardingVisaAccessCodeModel @Inject constructor(
     @Suppress("UnusedPrivateMember")
     private val tangemSdkManager: TangemSdkManager,
     private val visaAuthRepository: VisaAuthRepository,
+    private val uiMessageSender: UiMessageSender,
+    private val analyticsEventsHandler: AnalyticsEventHandler,
 ) : Model() {
 
     private val params: OnboardingVisaAccessCodeComponent.Config = paramsContainer.require()
@@ -43,15 +54,22 @@ internal class OnboardingVisaAccessCodeModel @Inject constructor(
             cardPublicKey = params.scanResponse.card.cardPublicKey.toHexString(),
         ),
     )
-    private val activationStatus =
-        params.scanResponse.visaCardActivationStatus as? VisaCardActivationStatus.NotStartedActivation
-            ?: error("Visa activation status is not set or incorrect for this step")
+
+    private val activationInput = when (val status = params.scanResponse.visaCardActivationStatus) {
+        is VisaCardActivationStatus.NotStartedActivation -> status.activationInput
+        is VisaCardActivationStatus.ActivationStarted -> status.activationInput
+        else -> error("Visa activation status is not set or incorrect for this step")
+    }
 
     private val _uiState = MutableStateFlow(getInitialState())
 
     val uiState = _uiState.asStateFlow()
     val onBack = MutableSharedFlow<Unit>()
     val onDone = MutableSharedFlow<ActivationReadyEvent>()
+
+    init {
+        analyticsEventsHandler.send(OnboardingVisaAnalyticsEvent.SettingAccessCodeStarted)
+    }
 
     fun onBack() {
         if (uiState.value.buttonLoading) return
@@ -76,6 +94,7 @@ internal class OnboardingVisaAccessCodeModel @Inject constructor(
         _uiState.update {
             it.copy(
                 accessCodeFirst = textFieldValue,
+                accessCodeSecond = TextFieldValue(),
                 atLeastMinCharsError = false,
             )
         }
@@ -93,11 +112,14 @@ internal class OnboardingVisaAccessCodeModel @Inject constructor(
     private fun onContinue() {
         when (uiState.value.step) {
             OnboardingVisaAccessCodeUM.Step.Enter -> {
+                analyticsEventsHandler.send(OnboardingVisaAnalyticsEvent.AccessCodeEntered)
                 if (checkAccessCodeMinChars().not()) return
                 _uiState.update { it.copy(step = OnboardingVisaAccessCodeUM.Step.ReEnter) }
+                analyticsEventsHandler.send(OnboardingVisaAnalyticsEvent.AccessCodeReenterScreen)
             }
             OnboardingVisaAccessCodeUM.Step.ReEnter -> {
                 if (checkAccessCodesMatch().not()) return
+                analyticsEventsHandler.send(OnboardingVisaAnalyticsEvent.OnboardingVisa)
                 startActivationProcess(accessCode = uiState.value.accessCodeFirst.text)
             }
         }
@@ -133,12 +155,12 @@ internal class OnboardingVisaAccessCodeModel @Inject constructor(
         modelScope.launch {
             val challengeToSign = runCatching {
                 visaAuthRepository.getCardAuthChallenge(
-                    cardId = activationStatus.activationInput.cardId,
-                    cardPublicKey = activationStatus.activationInput.cardPublicKey,
+                    cardId = activationInput.cardId,
+                    cardPublicKey = activationInput.cardPublicKey,
                 )
             }.getOrElse {
                 loading(false)
-                // TODO show alert
+                uiMessageSender.showErrorDialog(VisaAuthorizationAPIError)
                 return@launch
             }
 
@@ -147,29 +169,39 @@ internal class OnboardingVisaAccessCodeModel @Inject constructor(
                     accessCode = accessCode,
                     authorizationChallenge = challengeToSign,
                 ),
-                activationInput = activationStatus.activationInput,
-            ) as? CompletionResult.Success ?: run {
-                loading(false)
-                // TODO show alert
-                return@launch
+                activationInput = activationInput,
+            )
+
+            val resultData = when (result) {
+                is CompletionResult.Failure -> {
+                    loading(false)
+                    uiMessageSender.showErrorDialog(result.error.universalError)
+                    analyticsEventsHandler.send(
+                        VisaAnalyticsEvent.ErrorOnboarding(result.error.universalError),
+                    )
+                    return@launch
+                }
+                is CompletionResult.Success -> result.data
             }
 
             runCatching {
-                visaActivationRepository.activateCard(result.data.signedActivationData)
+                visaActivationRepository.activateCard(resultData.signedActivationData)
             }.onFailure {
                 loading(false)
-                // TODO show alert
+                uiMessageSender.showErrorDialog(VisaAPIError)
                 return@launch
             }
 
-            val targetAddress = result.data.signedActivationData.dataToSign.request.customerWalletAddress
+            val targetAddress =
+                result.data.signedActivationData.dataToSign.request.activationOrderInfo.customerWalletAddress
 
             modelScope.launch {
                 onDone.emit(
                     ActivationReadyEvent(
                         customerWalletDataToSignRequest = VisaCustomerWalletDataToSignRequest(
-                            orderId = result.data.signedActivationData.dataToSign.request.orderId,
-                            cardWalletAddress = result.data.signedActivationData.cardWalletAddress,
+                            orderId = result.data.signedActivationData.dataToSign.request.activationOrderInfo.orderId,
+                            cardWalletAddress = result.data.signedActivationData.dataToSign.request.cardWalletAddress,
+                            customerWalletAddress = targetAddress,
                         ),
                         newScanResponse = params.scanResponse.copy(
                             card = result.data.newCardDTO,

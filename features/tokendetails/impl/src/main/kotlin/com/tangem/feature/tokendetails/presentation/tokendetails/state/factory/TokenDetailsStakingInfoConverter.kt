@@ -7,20 +7,20 @@ import com.tangem.core.ui.extensions.wrappedList
 import com.tangem.core.ui.format.bigdecimal.crypto
 import com.tangem.core.ui.format.bigdecimal.fiat
 import com.tangem.core.ui.format.bigdecimal.format
-import com.tangem.core.ui.format.bigdecimal.percent
 import com.tangem.domain.appcurrency.model.AppCurrency
 import com.tangem.domain.staking.model.StakingAvailability
 import com.tangem.domain.staking.model.StakingEntryInfo
 import com.tangem.domain.staking.model.stakekit.RewardBlockType
 import com.tangem.domain.staking.model.stakekit.YieldBalance
+import com.tangem.domain.staking.utils.getRewardStakingBalance
+import com.tangem.domain.staking.utils.getTotalStakingBalance
 import com.tangem.domain.tokens.model.CryptoCurrencyStatus
+import com.tangem.feature.tokendetails.presentation.tokendetails.model.TokenDetailsClickIntents
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.IconState
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.StakingBlockUM
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.TokenDetailsState
-import com.tangem.feature.tokendetails.presentation.tokendetails.viewmodels.TokenDetailsClickIntents
 import com.tangem.features.tokendetails.impl.R
-import com.tangem.lib.crypto.BlockchainUtils.isBSC
-import com.tangem.lib.crypto.BlockchainUtils.isSolana
+import com.tangem.lib.crypto.BlockchainUtils.isStakingRewardUnavailable
 import com.tangem.utils.Provider
 import com.tangem.utils.converter.Converter
 import com.tangem.utils.isNullOrZero
@@ -55,7 +55,7 @@ internal class TokenDetailsStakingInfoConverter(
     private fun getStakingInfoBlock(status: CryptoCurrencyStatus, state: TokenDetailsState): StakingBlockUM? {
         val yieldBalance = status.value.yieldBalance as? YieldBalance.Data
 
-        val stakingCryptoAmount = yieldBalance?.getTotalStakingBalance()
+        val stakingCryptoAmount = yieldBalance?.getTotalStakingBalance(status.currency.network.id.value)
         val pendingBalances = yieldBalance?.balance?.items ?: emptyList()
 
         val iconState = state.tokenInfoBlockState.iconState
@@ -100,12 +100,8 @@ internal class TokenDetailsStakingInfoConverter(
         iconState: IconState,
         isEnabled: Boolean,
     ): StakingBlockUM.StakeAvailable {
-        val apr = stakingEntryInfo.apr.format { percent() }
         return StakingBlockUM.StakeAvailable(
-            titleText = resourceReference(
-                id = R.string.token_details_staking_block_title,
-                formatArgs = wrappedList(apr),
-            ),
+            titleText = resourceReference(id = R.string.token_details_staking_block_title),
             subtitleText = resourceReference(
                 id = R.string.staking_notification_earn_rewards_text,
                 formatArgs = wrappedList(stakingEntryInfo.tokenSymbol),
@@ -149,13 +145,17 @@ internal class TokenDetailsStakingInfoConverter(
     private fun getRewardText(status: CryptoCurrencyStatus, stakingRewardAmount: BigDecimal?): TextReference {
         val blockchainId = status.currency.network.id.value
         val rewardBlockType = when {
-            isSolana(blockchainId) || isBSC(blockchainId) -> RewardBlockType.RewardUnavailable
+            isStakingRewardUnavailable(blockchainId) -> RewardBlockType.RewardUnavailable
             stakingRewardAmount.isNullOrZero() -> RewardBlockType.NoRewards
             else -> RewardBlockType.Rewards
         }
 
         return when (rewardBlockType) {
-            RewardBlockType.Rewards -> resourceReference(
+            RewardBlockType.NoRewards -> resourceReference(R.string.staking_details_no_rewards_to_claim)
+            RewardBlockType.RewardUnavailable -> TextReference.EMPTY
+            RewardBlockType.RewardsRequirementsError,
+            RewardBlockType.Rewards,
+            -> resourceReference(
                 R.string.staking_details_rewards_to_claim,
                 wrappedList(
                     stakingRewardAmount.format {
@@ -166,8 +166,6 @@ internal class TokenDetailsStakingInfoConverter(
                     },
                 ),
             )
-            RewardBlockType.NoRewards -> resourceReference(R.string.staking_details_no_rewards_to_claim)
-            RewardBlockType.RewardUnavailable -> TextReference.EMPTY
         }
     }
 }

@@ -29,13 +29,13 @@ import com.tangem.feature.swap.domain.models.domain.IncludeFeeInAmount
 import com.tangem.feature.swap.domain.models.domain.NetworkInfo
 import com.tangem.feature.swap.domain.models.domain.SwapProvider
 import com.tangem.feature.swap.domain.models.ui.*
+import com.tangem.feature.swap.model.SwapNotificationsFactory
+import com.tangem.feature.swap.model.SwapProcessDataState
 import com.tangem.feature.swap.models.*
 import com.tangem.feature.swap.models.states.*
 import com.tangem.feature.swap.models.states.events.SwapEvent
 import com.tangem.feature.swap.presentation.R
-import com.tangem.feature.swap.model.SwapNotificationsFactory
 import com.tangem.feature.swap.utils.formatToUIRepresentation
-import com.tangem.feature.swap.model.SwapProcessDataState
 import com.tangem.utils.Provider
 import com.tangem.utils.StringsSigns.DASH_SIGN
 import com.tangem.utils.StringsSigns.PERCENT
@@ -253,6 +253,7 @@ internal class StateBuilder(
         isNeedBestRateBadge: Boolean,
         selectedFeeType: FeeType,
         isReverseSwapPossible: Boolean,
+        needApplyFCARestrictions: Boolean,
     ): SwapStateHolder {
         if (uiStateHolder.sendCardData !is SwapCardState.SwapCardData) return uiStateHolder
         if (uiStateHolder.receiveCardData !is SwapCardState.SwapCardData) return uiStateHolder
@@ -346,6 +347,7 @@ internal class StateBuilder(
                 ChangeCardsButtonState.DISABLED
             },
             providerState = swapProvider.convertToContentClickableProviderState(
+                needApplyFCARestrictions = needApplyFCARestrictions,
                 isBestRate = bestRatedProviderId == swapProvider.providerId,
                 fromTokenInfo = quoteModel.fromTokenInfo,
                 toTokenInfo = quoteModel.toTokenInfo,
@@ -748,6 +750,9 @@ internal class StateBuilder(
 
     fun loadingPermissionState(uiState: SwapStateHolder): SwapStateHolder {
         return uiState.copy(
+            swapButton = uiState.swapButton.copy(
+                enabled = false,
+            ),
             permissionState = GiveTxPermissionState.InProgress,
             notifications = notificationsFactory.getApprovalInProgressStateNotification(uiState.notifications),
         )
@@ -859,7 +864,7 @@ internal class StateBuilder(
                         add(
                             resourceReference(
                                 id = R.string.swapping_alert_dex_description_with_slippage,
-                                formatArgs = wrappedList(token, slippage),
+                                formatArgs = wrappedList(slippage),
                             ),
                         )
                     } else {
@@ -1138,6 +1143,7 @@ internal class StateBuilder(
 
     @Suppress("LongParameterList")
     private fun SwapProvider.convertToContentClickableProviderState(
+        needApplyFCARestrictions: Boolean,
         isBestRate: Boolean,
         fromTokenInfo: TokenSwapInfo,
         toTokenInfo: TokenSwapInfo,
@@ -1158,7 +1164,7 @@ internal class StateBuilder(
         // val rateString = "1 $fromCurrencySymbol ≈ $rate $toCurrencySymbol"
         val badge = if (isRecommended) {
             ProviderState.AdditionalBadge.Recommended
-        } else if (isNeedBestRateBadge && isBestRate) {
+        } else if (isNeedBestRateBadge && isBestRate && !needApplyFCARestrictions) {
             ProviderState.AdditionalBadge.BestTrade
         } else {
             ProviderState.AdditionalBadge.Empty

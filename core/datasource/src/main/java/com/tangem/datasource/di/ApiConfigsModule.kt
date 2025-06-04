@@ -2,9 +2,6 @@ package com.tangem.datasource.di
 
 import com.tangem.datasource.api.common.AuthProvider
 import com.tangem.datasource.api.common.config.*
-import com.tangem.datasource.api.common.config.Express
-import com.tangem.datasource.api.common.config.StakeKit
-import com.tangem.datasource.api.common.config.TangemTech
 import com.tangem.datasource.local.config.environment.EnvironmentConfigStorage
 import com.tangem.lib.auth.ExpressAuthProvider
 import com.tangem.lib.auth.StakeKitAuthProvider
@@ -42,10 +39,15 @@ internal object ApiConfigsModule {
 
     @Provides
     @IntoSet
-    fun provideTangemAuthVisaConfig(appVersionProvider: AppVersionProvider): ApiConfig =
-        TangemVisaAuth(appVersionProvider)
+    fun provideTangemVisaConfig(appVersionProvider: AppVersionProvider): ApiConfig = TangemVisa(appVersionProvider)
 
     @Provides
     @IntoSet
-    fun provideTangemVisaConfig(appVersionProvider: AppVersionProvider): ApiConfig = TangemVisa(appVersionProvider)
+    fun provideBlockAidConfig(environmentConfigStorage: EnvironmentConfigStorage): ApiConfig {
+        return BlockAid(environmentConfigStorage)
+    }
+
+    @Provides
+    @IntoSet
+    fun provideAttestationConfig(): ApiConfig = Attestation()
 }

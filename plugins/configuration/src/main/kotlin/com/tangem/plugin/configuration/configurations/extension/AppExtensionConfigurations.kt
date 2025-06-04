@@ -75,14 +75,8 @@ private fun AndroidBuildType.configureBuildVariant(appExtension: AppExtension, b
         BuildType.Debug -> {
             isDebuggable = true
         }
-        BuildType.DebugPG -> {
-            // build is not debuggable to let R8 make optimizations
-            // otherwise, only shrinking will be applied
-            matchingFallbacks.add(BuildType.Debug.id)
-            signingConfig = appExtension.signingConfigs.getByName(BuildType.Debug.id)
-        }
         BuildType.Internal,
-        BuildType.External,
+        BuildType.External
         -> {
             initWith(appExtension.buildTypes.getByName(BuildType.Release.id))
             matchingFallbacks.add(BuildType.Release.id)

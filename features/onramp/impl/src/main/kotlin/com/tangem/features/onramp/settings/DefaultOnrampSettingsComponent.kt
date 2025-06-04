@@ -6,7 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.arkivanov.decompose.ComponentContext
-import com.arkivanov.decompose.extensions.compose.jetpack.subscribeAsState
+import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.arkivanov.decompose.router.slot.childSlot
 import com.arkivanov.decompose.router.slot.dismiss
 import com.tangem.core.decompose.context.AppComponentContext
@@ -52,7 +52,8 @@ internal class DefaultOnrampSettingsComponent @AssistedInject constructor(
         OnrampSettingsConfig.SelectCountry -> selectCountryComponentFactory.create(
             context = childByContext(componentContext),
             params = SelectCountryComponent.Params(
-                params.cryptoCurrency,
+                userWalletId = params.userWalletId,
+                cryptoCurrency = params.cryptoCurrency,
                 onDismiss = { model.bottomSheetNavigation.dismiss() },
             ),
         )

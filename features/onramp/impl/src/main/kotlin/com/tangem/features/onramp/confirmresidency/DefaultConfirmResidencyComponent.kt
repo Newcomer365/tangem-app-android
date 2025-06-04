@@ -5,7 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.arkivanov.decompose.ComponentContext
-import com.arkivanov.decompose.extensions.compose.jetpack.subscribeAsState
+import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.arkivanov.decompose.router.slot.childSlot
 import com.arkivanov.decompose.router.slot.dismiss
 import com.tangem.core.decompose.context.AppComponentContext
@@ -69,6 +69,7 @@ internal class DefaultConfirmResidencyComponent @AssistedInject constructor(
         is ConfirmResidencyBottomSheetConfig.SelectCountry -> selectCountryComponentFactory.create(
             context = childByContext(componentContext),
             params = SelectCountryComponent.Params(
+                userWalletId = params.userWalletId,
                 cryptoCurrency = params.cryptoCurrency,
                 onDismiss = { isCountrySelected ->
                     // Dismiss country select sheet

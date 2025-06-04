@@ -87,6 +87,8 @@ fun TangemTheme(
         DefaultHapticManager(view = view, vibratorHapticManager = vibratorHapticManager)
     }
 
+    val rootBackgroundColor = rememberedColors.background.secondary
+
     MaterialTheme(
         colors = materialThemeColors(colors = themeColors, isDark = isDark),
     ) {
@@ -105,6 +107,7 @@ fun TangemTheme(
             CompositionLocalProvider(
                 LocalTangemShimmer provides TangemShimmer,
                 LocalMainBottomSheetColor provides remember { mutableStateOf(Color.Unspecified) },
+                LocalRootBackgroundColor provides remember(rootBackgroundColor) { mutableStateOf(rootBackgroundColor) },
                 LocalTextSelectionColors provides TangemTextSelectionColors,
             ) {
                 ProvideTextStyle(
@@ -305,6 +308,10 @@ val LocalTangemShimmer = staticCompositionLocalOf<Shimmer> {
 }
 
 val LocalMainBottomSheetColor = staticCompositionLocalOf<MutableState<Color>> {
+    error("No MainBottomSheetColor provided")
+}
+
+val LocalRootBackgroundColor = staticCompositionLocalOf<MutableState<Color>> {
     error("No MainBottomSheetColor provided")
 }
 

@@ -2,6 +2,9 @@ package com.tangem.tap.di.domain
 
 import com.tangem.domain.card.repository.CardSdkConfigRepository
 import com.tangem.domain.demo.DemoConfig
+import com.tangem.domain.networks.single.SingleNetworkStatusFetcher
+import com.tangem.domain.networks.single.SingleNetworkStatusSupplier
+import com.tangem.domain.tokens.TokensFeatureToggles
 import com.tangem.domain.tokens.repository.CurrenciesRepository
 import com.tangem.domain.tokens.repository.NetworksRepository
 import com.tangem.domain.transaction.FeeRepository
@@ -29,16 +32,26 @@ internal object TransactionDomainModule {
 
     @Provides
     @Singleton
+    fun provideGetEthSpecificFeeUseCase(walletManagersFacade: WalletManagersFacade): GetEthSpecificFeeUseCase {
+        return GetEthSpecificFeeUseCase(walletManagersFacade = walletManagersFacade)
+    }
+
+    @Provides
+    @Singleton
     fun provideSendTransactionUseCase(
         cardSdkConfigRepository: CardSdkConfigRepository,
         transactionRepository: TransactionRepository,
         walletManagersFacade: WalletManagersFacade,
+        singleNetworkStatusFetcher: SingleNetworkStatusFetcher,
+        tokensFeatureToggles: TokensFeatureToggles,
     ): SendTransactionUseCase {
         return SendTransactionUseCase(
             demoConfig = DemoConfig(),
             cardSdkConfigRepository = cardSdkConfigRepository,
             transactionRepository = transactionRepository,
             walletManagersFacade = walletManagersFacade,
+            singleNetworkStatusFetcher = singleNetworkStatusFetcher,
+            tokensFeatureToggles = tokensFeatureToggles,
         )
     }
 
@@ -49,12 +62,16 @@ internal object TransactionDomainModule {
         walletManagersFacade: WalletManagersFacade,
         currenciesRepository: CurrenciesRepository,
         networksRepository: NetworksRepository,
+        singleNetworkStatusSupplier: SingleNetworkStatusSupplier,
+        tokensFeatureToggles: TokensFeatureToggles,
     ): AssociateAssetUseCase {
         return AssociateAssetUseCase(
             cardSdkConfigRepository = cardSdkConfigRepository,
             walletManagersFacade = walletManagersFacade,
             currenciesRepository = currenciesRepository,
             networksRepository = networksRepository,
+            singleNetworkStatusSupplier = singleNetworkStatusSupplier,
+            tokensFeatureToggles = tokensFeatureToggles,
         )
     }
 
@@ -135,5 +152,39 @@ internal object TransactionDomainModule {
     @Singleton
     fun provideGetAllowanceUseCase(transactionRepository: TransactionRepository): GetAllowanceUseCase {
         return GetAllowanceUseCase(transactionRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCreateTransferTransactionUseCase(
+        transactionRepository: TransactionRepository,
+    ): CreateTransferTransactionUseCase {
+        return CreateTransferTransactionUseCase(transactionRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun providePrepareForSendUseCase(
+        transactionRepository: TransactionRepository,
+        cardSdkConfigRepository: CardSdkConfigRepository,
+    ): PrepareForSendUseCase {
+        return PrepareForSendUseCase(transactionRepository, cardSdkConfigRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSignUseCase(
+        walletManagersFacade: WalletManagersFacade,
+        cardSdkConfigRepository: CardSdkConfigRepository,
+    ): SignUseCase {
+        return SignUseCase(cardSdkConfigRepository, walletManagersFacade)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCreateNFTTransferTransactionUseCase(
+        transactionRepository: TransactionRepository,
+    ): CreateNFTTransferTransactionUseCase {
+        return CreateNFTTransferTransactionUseCase(transactionRepository)
     }
 }

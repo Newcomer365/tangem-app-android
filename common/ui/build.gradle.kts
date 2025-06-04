@@ -27,12 +27,15 @@ dependencies {
     /** Project - Common */
     implementation(projects.core.ui)
     implementation(projects.core.utils)
+    implementation(projects.core.res)
+    implementation(projects.libs.crypto)
 
     /** Project - Domain */
     implementation(projects.domain.appCurrency.models)
     implementation(projects.domain.models)
     implementation(projects.domain.legacy)
     implementation(projects.domain.staking.models)
+    implementation(projects.domain.staking)
     implementation(projects.domain.tokens.models)
     implementation(projects.domain.transaction.models)
     implementation(projects.domain.wallets.models)

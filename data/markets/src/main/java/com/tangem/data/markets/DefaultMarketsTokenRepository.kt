@@ -27,7 +27,9 @@ import com.tangem.domain.wallets.models.UserWalletId
 import com.tangem.pagination.*
 import com.tangem.pagination.fetcher.LimitOffsetBatchFetcher
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
+import java.math.BigDecimal
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
@@ -41,6 +43,7 @@ internal class DefaultMarketsTokenRepository(
     private val excludedBlockchains: ExcludedBlockchains,
     private val cacheRegistry: CacheRegistry,
     private val tokenExchangesStore: RuntimeStateStore<List<TokenMarketExchangesResponse.Exchange>>,
+    private val maxApyStore: RuntimeStateStore<BigDecimal?>,
 ) : MarketsTokenRepository {
 
     private val tokenMarketInfoConverter: TokenMarketInfoConverter = TokenMarketInfoConverter(excludedBlockchains)
@@ -88,8 +91,12 @@ internal class DefaultMarketsTokenRepository(
 
                 val last = res.tokens.size < request.limit
 
+                val tokenMarketListWithMaxApy = TokenMarketListConverter.convert(res)
+
+                maxApyStore.store(tokenMarketListWithMaxApy.maxApy)
+
                 return BatchFetchResult.Success(
-                    data = TokenMarketListConverter.convert(res),
+                    data = tokenMarketListWithMaxApy.tokens,
                     last = last,
                     empty = res.tokens.isEmpty(),
                 )
@@ -106,7 +113,7 @@ internal class DefaultMarketsTokenRepository(
             tangemTechApi = tangemTechApi,
             marketsApi = marketsApi,
             analyticsEventHandler = analyticsEventHandler,
-            onApiError = {
+            onApiResponseError = {
                 analyticsEventHandler.send(createListErrorEvent(it).toEvent())
             },
         )
@@ -275,6 +282,10 @@ internal class DefaultMarketsTokenRepository(
         }
     }
 
+    override suspend fun getMaxApy(): Flow<BigDecimal?> {
+        return maxApyStore.get()
+    }
+
     inline fun <T> catchListErrorAndSendEvent(block: () -> T): T {
         return catchErrorAndSendEvent(block, ::createListErrorEvent)
     }
@@ -335,7 +346,7 @@ internal class DefaultMarketsTokenRepository(
     ): T {
         return when (error) {
             is ApiResponseError.HttpException -> {
-                createEvent(MarketsDataAnalyticsEvent.Type.Http, error.code.code, error.message.orEmpty())
+                createEvent(MarketsDataAnalyticsEvent.Type.Http, error.code.numericCode, error.message.orEmpty())
             }
             is ApiResponseError.TimeoutException -> {
                 createEvent(MarketsDataAnalyticsEvent.Type.Timeout, null, error.message.orEmpty())

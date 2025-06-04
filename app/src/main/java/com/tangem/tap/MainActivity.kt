@@ -12,7 +12,6 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode
@@ -20,18 +19,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.ViewCompositionStrategy
-import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import arrow.core.getOrElse
-import by.kirich1409.viewbindingdelegate.viewBinding
-import com.arkivanov.decompose.value.observe
-import com.arkivanov.essenty.lifecycle.asEssentyLifecycle
-import com.google.android.material.snackbar.BaseTransientBottomBar
-import com.google.android.material.snackbar.Snackbar
 import com.tangem.common.routing.AppRoute
 import com.tangem.common.routing.entity.SerializableIntent
 import com.tangem.core.analytics.api.AnalyticsEventHandler
@@ -40,12 +32,7 @@ import com.tangem.core.decompose.di.RootAppComponentContext
 import com.tangem.core.deeplink.DeepLinksRegistry
 import com.tangem.core.navigation.email.EmailSender
 import com.tangem.core.ui.UiDependencies
-import com.tangem.core.ui.extensions.TextReference
-import com.tangem.core.ui.extensions.resolveReference
-import com.tangem.core.ui.message.EventMessageEffect
-import com.tangem.core.ui.message.SnackbarMessage
-import com.tangem.core.ui.res.TangemColorPalette
-import com.tangem.core.ui.res.TangemTheme
+import com.tangem.data.balancehiding.DefaultDeviceFlipDetector
 import com.tangem.data.card.sdk.CardSdkOwner
 import com.tangem.domain.apptheme.model.AppThemeMode
 import com.tangem.domain.card.ScanCardUseCase
@@ -59,43 +46,29 @@ import com.tangem.domain.staking.SendUnsubmittedHashesUseCase
 import com.tangem.domain.tokens.GetPolkadotCheckHasImmortalUseCase
 import com.tangem.domain.tokens.GetPolkadotCheckHasResetUseCase
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
-import com.tangem.feature.qrscanning.QrScanningRouter
 import com.tangem.feature.wallet.presentation.wallet.analytics.WalletScreenAnalyticsEvent
-import com.tangem.features.onboarding.v2.OnboardingV2FeatureToggles
-import com.tangem.features.pushnotifications.api.navigation.PushNotificationsRouter
 import com.tangem.features.pushnotifications.api.utils.PUSH_PERMISSION
-import com.tangem.features.send.api.navigation.SendRouter
-import com.tangem.features.tokendetails.navigation.TokenDetailsRouter
-import com.tangem.features.wallet.navigation.WalletRouter
 import com.tangem.google.GoogleServicesHelper
 import com.tangem.operations.backup.BackupService
 import com.tangem.sdk.api.BackupServiceHolder
 import com.tangem.sdk.api.TangemSdkManager
-import com.tangem.sdk.extensions.init
 import com.tangem.tap.common.ActivityResultCallbackHolder
 import com.tangem.tap.common.DialogManager
 import com.tangem.tap.common.OnActivityResultCallback
-import com.tangem.tap.common.SnackbarHandler
 import com.tangem.tap.common.apptheme.MutableAppThemeModeHolder
 import com.tangem.tap.common.extensions.dispatchNavigationAction
-import com.tangem.tap.common.extensions.showFragmentAllowingStateLoss
-import com.tangem.tap.common.redux.NotificationsHandler
 import com.tangem.tap.domain.walletconnect2.domain.WalletConnectInteractor
 import com.tangem.tap.features.intentHandler.IntentProcessor
 import com.tangem.tap.features.intentHandler.handlers.BackgroundScanIntentHandler
 import com.tangem.tap.features.intentHandler.handlers.OnPushClickedIntentHandler
 import com.tangem.tap.features.intentHandler.handlers.WalletConnectLinkIntentHandler
 import com.tangem.tap.features.main.MainViewModel
-import com.tangem.tap.features.onboarding.products.wallet.redux.BackupAction
 import com.tangem.tap.proxy.AppStateHolder
 import com.tangem.tap.proxy.redux.DaggerGraphAction
 import com.tangem.tap.routing.component.RoutingComponent
 import com.tangem.tap.routing.configurator.AppRouterConfig
-import com.tangem.tap.routing.toggle.RoutingFeatureToggles
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import com.tangem.utils.coroutines.FeatureCoroutineExceptionHandler
-import com.tangem.wallet.R
-import com.tangem.wallet.databinding.ActivityMainBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -108,19 +81,18 @@ lateinit var tangemSdkManager: TangemSdkManager
 lateinit var backupService: BackupService
 internal var lockUserWalletsTimer: LockUserWalletsTimer? = null
     private set
-var notificationsHandler: NotificationsHandler? = null
 
 private val coroutineContext: CoroutineContext
-    get() = Job() + Dispatchers.IO + FeatureCoroutineExceptionHandler.create("scope")
+    get() = SupervisorJob() + Dispatchers.IO + FeatureCoroutineExceptionHandler.create("scope")
 val scope = CoroutineScope(coroutineContext)
 
 private val mainCoroutineContext: CoroutineContext
-    get() = Job() + Dispatchers.Main + FeatureCoroutineExceptionHandler.create("mainScope")
+    get() = SupervisorJob() + Dispatchers.Main + FeatureCoroutineExceptionHandler.create("mainScope")
 val mainScope = CoroutineScope(mainCoroutineContext)
 
 @Suppress("LargeClass")
 @AndroidEntryPoint
-class MainActivity : AppCompatActivity(), SnackbarHandler, ActivityResultCallbackHolder {
+class MainActivity : AppCompatActivity(), ActivityResultCallbackHolder {
 
     @Inject
     lateinit var appStateHolder: AppStateHolder
@@ -139,19 +111,7 @@ class MainActivity : AppCompatActivity(), SnackbarHandler, ActivityResultCallbac
     lateinit var scanCardUseCase: ScanCardUseCase
 
     @Inject
-    lateinit var walletRouter: WalletRouter
-
-    @Inject
-    lateinit var tokenDetailsRouter: TokenDetailsRouter
-
-    @Inject
     lateinit var walletConnectInteractor: WalletConnectInteractor
-
-    @Inject
-    lateinit var sendRouter: SendRouter
-
-    @Inject
-    lateinit var qrScanningRouter: QrScanningRouter
 
     @Inject
     lateinit var deepLinksRegistry: DeepLinksRegistry
@@ -188,9 +148,6 @@ class MainActivity : AppCompatActivity(), SnackbarHandler, ActivityResultCallbac
     internal lateinit var routingComponentFactory: RoutingComponent.Factory
 
     @Inject
-    lateinit var pushNotificationsRouter: PushNotificationsRouter
-
-    @Inject
     lateinit var cardRepository: CardRepository
 
     @Inject
@@ -198,9 +155,6 @@ class MainActivity : AppCompatActivity(), SnackbarHandler, ActivityResultCallbac
 
     @Inject
     lateinit var backupServiceHolder: BackupServiceHolder
-
-    @Inject
-    lateinit var onboardingV2FeatureToggles: OnboardingV2FeatureToggles
 
     @Inject
     lateinit var setGoogleServicesAvailabilityUseCase: SetGoogleServicesAvailabilityUseCase
@@ -212,10 +166,10 @@ class MainActivity : AppCompatActivity(), SnackbarHandler, ActivityResultCallbac
     lateinit var dispatchers: CoroutineDispatcherProvider
 
     @Inject
-    internal lateinit var routingFeatureToggles: RoutingFeatureToggles
+    internal lateinit var uiDependencies: UiDependencies
 
     @Inject
-    internal lateinit var uiDependencies: UiDependencies
+    internal lateinit var defaultDeviceFlipDetector: DefaultDeviceFlipDetector
 
     internal val viewModel: MainViewModel by viewModels()
 
@@ -224,9 +178,7 @@ class MainActivity : AppCompatActivity(), SnackbarHandler, ActivityResultCallbac
     // TODO: fixme: inject through DI
     private val intentProcessor: IntentProcessor = IntentProcessor()
 
-    private var snackbar: Snackbar? = null
     private val dialogManager = DialogManager()
-    private val binding: ActivityMainBinding by viewBinding(ActivityMainBinding::bind)
 
     private val onActivityResultCallbacks = mutableListOf<OnActivityResultCallback>()
 
@@ -263,13 +215,7 @@ class MainActivity : AppCompatActivity(), SnackbarHandler, ActivityResultCallbac
         installActivityDependencies()
         observeAppThemeModeUpdates()
 
-        if (routingFeatureToggles.isNavigationRefactoringEnabled) {
-            setRootContent()
-        } else {
-            setContentView(R.layout.activity_main)
-            installRouting()
-            installEventMessageEffect()
-        }
+        setRootContent()
 
         initContent()
 
@@ -283,47 +229,10 @@ class MainActivity : AppCompatActivity(), SnackbarHandler, ActivityResultCallbac
         }
 
         lifecycle.addObserver(WindowObscurationObserver)
-    }
-
-    private fun installEventMessageEffect() {
-        binding.composeView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-        binding.composeView.setContent {
-            TangemTheme(
-                activity = this,
-                uiDependencies = uiDependencies,
-                overrideSystemBarColors = false,
-            ) {
-                EventMessageEffect(
-                    onShowSnackbar = { message, _ ->
-                        showSnackbar(
-                            text = message.message.resolveReference(resources),
-                            length = when (message.duration) {
-                                SnackbarMessage.Duration.Short -> Snackbar.LENGTH_SHORT
-                                SnackbarMessage.Duration.Long -> Snackbar.LENGTH_LONG
-                                SnackbarMessage.Duration.Indefinite -> Snackbar.LENGTH_INDEFINITE
-                            },
-                            buttonTitle = message.actionLabel?.resolveReference(resources),
-                            action = message.action,
-                            onDismiss = message.onDismissRequest,
-                        )
-                    },
-                )
-            }
-        }
+        lifecycle.addObserver(defaultDeviceFlipDetector)
     }
 
     private fun setRootContent() {
-        val routingComponent = routingComponentFactory.create(
-            context = rootComponentContext,
-            initialStack = null,
-        )
-
-        setContent {
-            routingComponent.Content(Modifier.fillMaxSize())
-        }
-    }
-
-    private fun installRouting() {
         // for now activity is singleTop and after going to ChromeCustomTab it calls onCreate but onDestroy
         // doesn't calls. It lead to issue that decompose nav stack is not saved in bundle and to restore it
         // we try to init component with previous stack
@@ -332,29 +241,8 @@ class MainActivity : AppCompatActivity(), SnackbarHandler, ActivityResultCallbac
             initialStack = appRouterConfig.stack,
         )
 
-        appRouterConfig.routerScope = mainScope
-        appRouterConfig.componentRouter = routingComponent.router
-        appRouterConfig.snackbarHandler = this
-
-        routingComponent.stack.observe(lifecycle.asEssentyLifecycle()) { childStack ->
-            val stack = childStack.backStack
-                .plus(childStack.active)
-                .map { it.configuration }
-
-            if (stack == appRouterConfig.stack) return@observe
-
-            appRouterConfig.stack = stack
-
-            when (val child = childStack.active.instance) {
-                is RoutingComponent.Child.Initial -> Unit
-                is RoutingComponent.Child.LegacyFragment -> {
-                    supportFragmentManager.showFragmentAllowingStateLoss(child.name, child.fragmentProvider)
-                }
-                is RoutingComponent.Child.LegacyIntent -> {
-                    startActivity(child.intent)
-                }
-                is RoutingComponent.Child.ComposableComponent -> error("Unsupported child: $child")
-            }
+        setContent {
+            routingComponent.Content(Modifier.fillMaxSize())
         }
     }
 
@@ -362,15 +250,11 @@ class MainActivity : AppCompatActivity(), SnackbarHandler, ActivityResultCallbac
         cardSdkOwner.register(activity = this)
         tangemSdkManager = injectedTangemSdkManager
 
-        if (onboardingV2FeatureToggles.isOnboardingV2Enabled) {
-            backupServiceHolder.createAndSetService(cardSdkConfigRepository.sdk, this)
-            backupService = backupServiceHolder.backupService.get()!! // will be deleted eventually
-        } else {
-            backupService = BackupService.init(cardSdkConfigRepository.sdk, this)
-        }
+        backupServiceHolder.createAndSetService(cardSdkConfigRepository.sdk, this)
+        backupService = backupServiceHolder.backupService.get()!! // will be deleted eventually
 
         lockUserWalletsTimer = LockUserWalletsTimer(
-            owner = this,
+            context = this,
             settingsRepository = settingsRepository,
             userWalletsListManager = userWalletsListManager,
             coroutineScope = mainScope,
@@ -437,17 +321,10 @@ class MainActivity : AppCompatActivity(), SnackbarHandler, ActivityResultCallbac
 
     override fun onResume() {
         super.onResume()
-
-        if (!routingFeatureToggles.isNavigationRefactoringEnabled) {
-            // TODO: RESEARCH! NotificationsHandler is created in onResume and destroyed in onStop
-            notificationsHandler = NotificationsHandler(binding.fragmentContainer)
-        }
-
         navigateToInitialScreenIfNeeded(intent)
     }
 
     override fun onStop() {
-        notificationsHandler = null
         dialogManager.onStop()
         super.onStop()
     }
@@ -480,29 +357,6 @@ class MainActivity : AppCompatActivity(), SnackbarHandler, ActivityResultCallbac
         MutableAppThemeModeHolder.isDarkThemeActive = isDarkTheme()
     }
 
-    override fun onConfigurationChanged(newConfig: Configuration) {
-        super.onConfigurationChanged(newConfig)
-
-        /*
-         * We need to manually change the background color of the activity when the UI mode changes to prevent
-         * flickering when navigating between fragments.
-         *
-         * This is necessary because the activity is not recreated when the configuration changes, because
-         * `android:configChanges="uiMode"` is set in the manifest.
-         * */
-        updateAppBackground()
-    }
-
-    private fun updateAppBackground() {
-        val backgroundColor = if (isDarkTheme()) {
-            TangemColorPalette.Dark6
-        } else {
-            TangemColorPalette.White
-        }
-
-        findViewById<CoordinatorLayout>(R.id.fragment_container).setBackgroundColor(backgroundColor.toArgb())
-    }
-
     private fun isDarkTheme(): Boolean {
         return when (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) {
             Configuration.UI_MODE_NIGHT_YES -> true
@@ -522,29 +376,6 @@ class MainActivity : AppCompatActivity(), SnackbarHandler, ActivityResultCallbac
         if (intent != null) {
             deepLinksRegistry.launch(intent)
         }
-    }
-
-    override fun showSnackbar(@StringRes text: Int, length: Int, @StringRes buttonTitle: Int?, action: (() -> Unit)?) {
-        showSnackbar(
-            getString(text),
-            length,
-            buttonTitle?.let(::getString),
-            action = { action?.invoke() },
-        )
-    }
-
-    override fun showSnackbar(text: TextReference, length: Int, buttonTitle: TextReference?, action: (() -> Unit)?) {
-        showSnackbar(
-            text = text.resolveReference(resources),
-            length = length,
-            buttonTitle = buttonTitle?.resolveReference(resources),
-            action = { action?.invoke() },
-        )
-    }
-
-    override fun dismissSnackbar() {
-        snackbar?.dismiss()
-        snackbar = null
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -572,40 +403,6 @@ class MainActivity : AppCompatActivity(), SnackbarHandler, ActivityResultCallbac
         val result = WindowObscurationObserver.dispatchTouchEvent(event, analyticsEventsHandler)
 
         return if (result) super.dispatchTouchEvent(event) else false
-    }
-
-    private fun showSnackbar(
-        text: String,
-        length: Int,
-        buttonTitle: String?,
-        action: (() -> Unit)? = null,
-        onDismiss: () -> Unit = {},
-    ) {
-        if (snackbar != null) return
-
-        snackbar = Snackbar.make(binding.fragmentContainer, text, length).apply {
-            val textColor = getColor(R.color.text_primary_2)
-
-            setBackgroundTint(getColor(R.color.button_primary))
-            setActionTextColor(textColor)
-            setTextColor(textColor)
-
-            if (buttonTitle != null && action != null) {
-                setAction(buttonTitle, { action() })
-            }
-
-            addCallback(
-                object : BaseTransientBottomBar.BaseCallback<Snackbar>() {
-                    override fun onDismissed(transientBottomBar: Snackbar?, event: Int) {
-                        onDismiss()
-                        snackbar = null
-                        removeCallback(this)
-                    }
-                },
-            )
-        }
-
-        snackbar?.show()
     }
 
     private fun navigateToInitialScreenIfNeeded(intentWhichStartedActivity: Intent?) {
@@ -658,7 +455,7 @@ class MainActivity : AppCompatActivity(), SnackbarHandler, ActivityResultCallbac
             }
         }
 
-        store.dispatch(BackupAction.CheckForUnfinishedBackup)
+        viewModel.checkForUnfinishedBackup()
     }
 
     private fun observePolkadotAccountHealthCheck() {

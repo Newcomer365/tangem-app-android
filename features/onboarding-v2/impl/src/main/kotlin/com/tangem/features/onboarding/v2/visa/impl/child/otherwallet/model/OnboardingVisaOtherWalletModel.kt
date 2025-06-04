@@ -2,7 +2,8 @@ package com.tangem.features.onboarding.v2.visa.impl.child.otherwallet.model
 
 import androidx.compose.runtime.Stable
 import com.tangem.common.extensions.toHexString
-import com.tangem.core.decompose.di.ComponentScoped
+import com.tangem.core.analytics.api.AnalyticsEventHandler
+import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
 import com.tangem.core.navigation.share.ShareManager
@@ -13,6 +14,7 @@ import com.tangem.domain.visa.model.VisaCardId
 import com.tangem.domain.visa.repository.VisaActivationRepository
 import com.tangem.features.onboarding.v2.visa.impl.child.otherwallet.OnboardingVisaOtherWalletComponent
 import com.tangem.features.onboarding.v2.visa.impl.child.otherwallet.ui.state.OnboardingVisaOtherWalletUM
+import com.tangem.features.onboarding.v2.visa.impl.child.welcome.model.analytics.OnboardingVisaAnalyticsEvent
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -22,13 +24,14 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @Stable
-@ComponentScoped
+@ModelScoped
 internal class OnboardingVisaOtherWalletModel @Inject constructor(
     paramsContainer: ParamsContainer,
     visaActivationRepositoryFactory: VisaActivationRepository.Factory,
     override val dispatchers: CoroutineDispatcherProvider,
     private val urlOpener: UrlOpener,
     private val shareManager: ShareManager,
+    private val analyticsEventHandler: AnalyticsEventHandler,
 ) : Model() {
 
     private val config = paramsContainer.require<OnboardingVisaOtherWalletComponent.Config>()
@@ -44,18 +47,19 @@ internal class OnboardingVisaOtherWalletModel @Inject constructor(
     val onDone = MutableSharedFlow<VisaActivationOrderInfo>()
 
     init {
+        analyticsEventHandler.send(OnboardingVisaAnalyticsEvent.GoToWebsiteOpened)
         modelScope.launch {
             while (true) {
                 val result = runCatching {
-                    visaActivationRepository.getActivationRemoteStateLongPoll()
+                    visaActivationRepository.getActivationRemoteState()
                 }.getOrNull()
 
-                if (result is VisaActivationRemoteState.WaitingPinCode) {
+                if (result is VisaActivationRemoteState.AwaitingPinCode) {
                     onDone.emit(result.activationOrderInfo)
                     break
                 }
 
-                delay(timeMillis = 1000)
+                delay(timeMillis = 2000)
             }
         }
     }
@@ -68,10 +72,12 @@ internal class OnboardingVisaOtherWalletModel @Inject constructor(
     }
 
     private fun onShareClicked() {
-        shareManager.shareText("https://tangem.com/")
+        analyticsEventHandler.send(OnboardingVisaAnalyticsEvent.ButtonShareLink)
+        shareManager.shareText("https://tangem.com/") // TODO
     }
 
     private fun onOpenInBrowserClicked() {
-        urlOpener.openUrl("https://tangem.com/")
+        analyticsEventHandler.send(OnboardingVisaAnalyticsEvent.ButtonBrowser)
+        urlOpener.openUrl("https://tangem.com/") // TODO
     }
 }

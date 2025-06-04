@@ -1,6 +1,7 @@
 package com.tangem.tap.domain.tasks.visa
 
 import arrow.core.getOrElse
+import com.tangem.blockchain.common.UnmarshalHelper
 import com.tangem.common.CompletionResult
 import com.tangem.common.card.Card
 import com.tangem.common.card.CardWallet
@@ -10,7 +11,9 @@ import com.tangem.common.core.CardSessionRunnable
 import com.tangem.common.core.CompletionCallback
 import com.tangem.common.core.TangemSdkError
 import com.tangem.common.extensions.hexToBytes
+import com.tangem.common.extensions.toDecompressedPublicKey
 import com.tangem.common.extensions.toHexString
+import com.tangem.core.error.ext.tangemError
 import com.tangem.crypto.hdWallet.DerivationPath
 import com.tangem.crypto.hdWallet.bip32.ExtendedPublicKey
 import com.tangem.domain.common.util.derivationStyleProvider
@@ -18,7 +21,7 @@ import com.tangem.domain.common.visa.VisaUtilities
 import com.tangem.domain.common.visa.VisaWalletPublicKeyUtility
 import com.tangem.domain.common.visa.VisaWalletPublicKeyUtility.findKeyWithoutDerivation
 import com.tangem.domain.models.scan.CardDTO
-import com.tangem.domain.visa.model.VisaActivationError
+import com.tangem.domain.visa.error.VisaActivationError
 import com.tangem.domain.visa.model.VisaDataForApprove
 import com.tangem.domain.visa.model.VisaSignedDataByCustomerWallet
 import com.tangem.domain.visa.model.sign
@@ -37,6 +40,7 @@ class VisaCustomerWalletApproveTask(
         }
 
         if (VisaUtilities.isVisaCard(card.firmwareVersion.doubleValue, card.batchId)) {
+            // TODO TVF-21
             callback(CompletionResult.Failure(TangemSdkError.Underlying("Can't use Visa card for approve")))
             return
         }
@@ -44,7 +48,7 @@ class VisaCustomerWalletApproveTask(
         if (visaDataForApprove.customerWalletCardId != null && card.cardId != visaDataForApprove.customerWalletCardId) {
             callback(
                 CompletionResult.Failure(
-                    TangemSdkError.Underlying("Use tangem wallet specified during visa registration"),
+                    TangemSdkError.Underlying("Use tangem wallet specified during visa registration"), // TODO TVF-21
                 ),
             )
             return
@@ -74,16 +78,12 @@ class VisaCustomerWalletApproveTask(
         }
 
         val derivationPath = VisaUtilities.visaDefaultDerivationPath(derivationStyle) ?: run {
-            callback(
-                CompletionResult.Failure(
-                    TangemSdkError.Underlying("Failed to generate derivation path with provided derivation style"),
-                ),
-            )
+            callback(CompletionResult.Failure(VisaActivationError.FailedToCreateAddress.tangemError))
             return
         }
 
         val wallet = card.wallets.firstOrNull { it.curve == EllipticCurve.Secp256k1 } ?: run {
-            callback(CompletionResult.Failure(TangemSdkError.Underlying(VisaActivationError.MissingWallet.message)))
+            callback(CompletionResult.Failure(VisaActivationError.MissingWallet.tangemError))
             return
         }
 
@@ -123,7 +123,7 @@ class VisaCustomerWalletApproveTask(
         )
 
         validationResult.onLeft {
-            callback(CompletionResult.Failure(TangemSdkError.Underlying(it.message)))
+            callback(CompletionResult.Failure(it.tangemError))
             return
         }
 
@@ -131,6 +131,7 @@ class VisaCustomerWalletApproveTask(
             targetWalletPublicKey = wallet.publicKey,
             derivationPath = derivationPath,
             session = session,
+            extendedPublicKey = extendedPublicKey,
             callback = callback,
         )
     }
@@ -144,13 +145,14 @@ class VisaCustomerWalletApproveTask(
             targetAddress = visaDataForApprove.targetAddress,
             card = CardDTO(card),
         ).getOrElse {
-            callback(CompletionResult.Failure(TangemSdkError.Underlying(it.message)))
+            callback(CompletionResult.Failure(it.tangemError))
             return
         }
 
         signApproveData(
             targetWalletPublicKey = publicKey,
             derivationPath = null,
+            extendedPublicKey = null,
             session = session,
             callback = callback,
         )
@@ -159,11 +161,14 @@ class VisaCustomerWalletApproveTask(
     private fun signApproveData(
         targetWalletPublicKey: ByteArray,
         derivationPath: DerivationPath?,
+        extendedPublicKey: ExtendedPublicKey?,
         session: CardSession,
         callback: CompletionCallback<VisaSignedDataByCustomerWallet>,
     ) {
+        val hashToSign = visaDataForApprove.dataToSign.hashToSign.hexToBytes()
+
         val signTask = SignHashCommand(
-            hash = visaDataForApprove.dataToSign.hashToSign.hexToBytes(),
+            hash = hashToSign,
             walletPublicKey = targetWalletPublicKey,
             derivationPath = derivationPath,
         )
@@ -171,11 +176,18 @@ class VisaCustomerWalletApproveTask(
         signTask.run(session) { result ->
             when (result) {
                 is CompletionResult.Success -> {
+                    val rsvSignature = UnmarshalHelper.unmarshalSignatureExtended(
+                        signature = result.data.signature,
+                        hash = hashToSign,
+                        publicKey = extendedPublicKey?.publicKey?.toDecompressedPublicKey()
+                            ?: targetWalletPublicKey.toDecompressedPublicKey(),
+                    ).asRSVLegacyEVM().toHexString().lowercase()
+
                     scanCard(
                         session = session,
                         callback = callback,
                         signedData = visaDataForApprove.dataToSign.sign(
-                            signature = result.data.signature.toHexString(),
+                            signature = rsvSignature,
                             customerWalletAddress = visaDataForApprove.targetAddress,
                         ),
                     )

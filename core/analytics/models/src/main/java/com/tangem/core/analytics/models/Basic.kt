@@ -3,8 +3,7 @@ package com.tangem.core.analytics.models
 sealed class Basic(
     event: String,
     params: Map<String, String> = mapOf(),
-    error: Throwable? = null,
-) : AnalyticsEvent("Basic", event, params, error) {
+) : AnalyticsEvent("Basic", event, params) {
 
     class CardWasScanned(
         source: AnalyticsParam.ScreensSources,
@@ -73,15 +72,31 @@ sealed class Basic(
         }
     }
 
-    class ScanError(error: Throwable) : Basic(
-        event = "Scan",
-        error = error,
-    )
-
     class ButtonSupport(source: AnalyticsParam.ScreensSources) : Basic(
         event = "Request Support",
         params = mapOf(
             AnalyticsParam.SOURCE to source.value,
         ),
     )
+
+    class BiometryFailed(
+        source: AnalyticsParam.ScreensSources,
+        reason: BiometricFailReason,
+    ) : Basic(
+        event = "Biometry Failed",
+        params = mapOf(
+            AnalyticsParam.SOURCE to source.value,
+            "Reason" to reason.value,
+        ),
+    ) {
+        sealed class BiometricFailReason(val value: String) {
+            data object AuthenticationLockout : BiometricFailReason("BiometricsAuthenticationLockout")
+            data object AuthenticationLockoutPermanent : BiometricFailReason("BiometricsAuthenticationLockoutPermanent")
+            data object BiometricsAuthenticationDisabled : BiometricFailReason("BiometricsAuthenticationDisabled")
+            data object AllKeysInvalidated : BiometricFailReason("AllKeysInvalidated")
+            data object AuthenticationCancelled : BiometricFailReason("AuthenticationCancelled")
+            data object AuthenticationAlreadyInProgress : BiometricFailReason("AuthenticationAlreadyInProgress")
+            data class Other(val reason: String) : BiometricFailReason(reason)
+        }
+    }
 }

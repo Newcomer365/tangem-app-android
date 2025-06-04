@@ -14,11 +14,14 @@ class MockVisaActivationRepository @AssistedInject constructor(
 ) : VisaActivationRepository {
 
     override suspend fun getActivationRemoteState(): VisaActivationRemoteState {
-        return VisaActivationRemoteState.PaymentAccountDeploying
-    }
-
-    override suspend fun getActivationRemoteStateLongPoll(): VisaActivationRemoteState {
-        return VisaActivationRemoteState.PaymentAccountDeploying
+        return VisaActivationRemoteState.CardWalletSignatureRequired(
+            activationOrderInfo = VisaActivationOrderInfo(
+                orderId = "orderId",
+                customerId = "customerId",
+                customerWalletAddress = "customerWalletAddress",
+                cardWalletAddress = null,
+            ),
+        )
     }
 
     override suspend fun getCardWalletAcceptanceData(
@@ -44,6 +47,10 @@ class MockVisaActivationRepository @AssistedInject constructor(
     override suspend fun approveByCustomerWallet(signedData: VisaSignedDataByCustomerWallet) {}
 
     override suspend fun sendPinCode(pinCode: VisaEncryptedPinCode) {}
+
+    override suspend fun getPinCodeRsaEncryptionPublicKey(): String {
+        return CryptoUtils.generateRandomBytes(length = 32).toHexString()
+    }
 
     @AssistedFactory
     interface Factory : VisaActivationRepository.Factory {

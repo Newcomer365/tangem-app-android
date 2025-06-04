@@ -5,9 +5,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.arkivanov.decompose.ComponentContext
-import com.arkivanov.decompose.extensions.compose.jetpack.stack.Children
-import com.arkivanov.decompose.extensions.compose.jetpack.stack.animation.stackAnimation
-import com.arkivanov.decompose.extensions.compose.jetpack.subscribeAsState
+import com.arkivanov.decompose.extensions.compose.stack.Children
+import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
+import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.arkivanov.decompose.router.stack.StackNavigation
 import com.arkivanov.decompose.router.stack.childStack
 import com.arkivanov.decompose.router.stack.pop
@@ -61,8 +61,9 @@ internal class DefaultOnrampComponent @AssistedInject constructor(
             OnrampChild.Settings -> settingsComponentFactory.create(
                 context = childByContext(componentContext),
                 params = OnrampSettingsComponent.Params(
-                    params.cryptoCurrency,
-                    navigation::pop,
+                    userWalletId = params.userWalletId,
+                    cryptoCurrency = params.cryptoCurrency,
+                    onBack = navigation::pop,
                 ),
             )
             OnrampChild.Main -> onrampMainComponentFactory.create(

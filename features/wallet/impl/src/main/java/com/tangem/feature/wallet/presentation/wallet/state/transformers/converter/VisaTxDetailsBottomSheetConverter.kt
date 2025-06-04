@@ -8,7 +8,7 @@ import com.tangem.core.ui.utils.DateTimeFormatters
 import com.tangem.domain.visa.model.VisaCurrency
 import com.tangem.domain.visa.model.VisaTxDetails
 import com.tangem.feature.wallet.presentation.wallet.state.model.VisaTxDetailsBottomSheetConfig
-import com.tangem.feature.wallet.presentation.wallet.viewmodels.intents.VisaWalletIntents
+import com.tangem.feature.wallet.child.wallet.model.intents.VisaWalletIntents
 import com.tangem.utils.converter.Converter
 import kotlinx.collections.immutable.toImmutableList
 import org.joda.time.DateTimeZone
@@ -24,6 +24,7 @@ internal class VisaTxDetailsBottomSheetConverter(
         return VisaTxDetailsBottomSheetConfig(
             transaction = createTransaction(value),
             requests = value.requests.map(::createRequest).toImmutableList(),
+            onDisputeClick = { clickIntents.onDisputeClick(value) },
         )
     }
 
@@ -33,7 +34,6 @@ internal class VisaTxDetailsBottomSheetConverter(
             type = details.type.capitalize(),
             status = details.status.capitalize(),
             blockchainAmount = formatNetworkAmount(details.blockchainAmount),
-            blockchainFee = formatNetworkAmount(details.blockchainFee),
             transactionAmount = formatFiatAmount(details.transactionAmount, details.fiatCurrency),
             transactionCurrencyCode = details.transactionCurrencyCode.toString(),
             merchantName = details.merchantName?.capitalize() ?: UNKNOWN,
@@ -52,7 +52,6 @@ internal class VisaTxDetailsBottomSheetConverter(
             type = request.requestType.capitalize(),
             status = request.requestStatus.capitalize(),
             blockchainAmount = formatNetworkAmount(request.blockchainAmount),
-            blockchainFee = formatNetworkAmount(request.blockchainFee),
             transactionAmount = formatFiatAmount(request.transactionAmount, request.fiatCurrency),
             currencyCode = request.billingCurrencyCode.toString(),
             errorCode = request.errorCode,

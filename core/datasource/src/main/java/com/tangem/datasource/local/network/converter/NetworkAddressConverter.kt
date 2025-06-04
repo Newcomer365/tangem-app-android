@@ -10,7 +10,7 @@ import timber.log.Timber
  *
  * @author Andrew Khokhlov on 17/02/2025
  */
-internal class NetworkAddressConverter(
+class NetworkAddressConverter(
     private val selectedAddress: String,
 ) : TwoWayConverter<Set<NetworkStatusDM.Address>, NetworkAddress> {
 

@@ -1,10 +1,11 @@
 package com.tangem.feature.tokendetails.presentation.tokendetails.state.factory
 
 import com.tangem.core.ui.format.bigdecimal.crypto
+import com.tangem.core.ui.format.bigdecimal.fiat
 import com.tangem.core.ui.format.bigdecimal.format
-import com.tangem.core.ui.utils.BigDecimalFormatter
 import com.tangem.domain.appcurrency.model.AppCurrency
 import com.tangem.domain.staking.model.stakekit.YieldBalance
+import com.tangem.domain.staking.utils.getTotalWithRewardsStakingBalance
 import com.tangem.domain.tokens.model.CryptoCurrencyStatus
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.*
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.utils.getBalance
@@ -29,9 +30,10 @@ internal class TokenDetailsBalanceSelectStateConverter(
             }
 
             val yieldBalance = cryptoCurrencyStatus.value.yieldBalance as? YieldBalance.Data
-            val stakingCryptoAmount = yieldBalance?.getTotalWithRewardsStakingBalance()
+            val stakingCryptoAmount = yieldBalance?.getTotalWithRewardsStakingBalance(
+                cryptoCurrencyStatus.currency.network.id.value,
+            )
             val stakingFiatAmount = stakingCryptoAmount?.let { cryptoCurrencyStatus.value.fiatRate?.multiply(it) }
-
             copy(
                 tokenBalanceBlockState = if (tokenBalanceBlockState is TokenDetailsBalanceBlockState.Content) {
                     tokenBalanceBlockState.copy(
@@ -61,14 +63,14 @@ internal class TokenDetailsBalanceSelectStateConverter(
         selectedBalanceType: BalanceType,
         appCurrency: AppCurrency,
     ): String {
-        val fiatAmount = status.fiatAmount ?: return BigDecimalFormatter.EMPTY_BALANCE_SIGN
-        val totalAmount = fiatAmount.getBalance(selectedBalanceType, stakingFiatAmount)
+        val fiatAmount = status.fiatAmount?.getBalance(selectedBalanceType, stakingFiatAmount)
 
-        return BigDecimalFormatter.formatFiatAmount(
-            fiatAmount = totalAmount,
-            fiatCurrencyCode = appCurrency.code,
-            fiatCurrencySymbol = appCurrency.symbol,
-        )
+        return fiatAmount.format {
+            fiat(
+                fiatCurrencyCode = appCurrency.code,
+                fiatCurrencySymbol = appCurrency.symbol,
+            )
+        }
     }
 
     private fun formatCryptoAmount(
@@ -76,9 +78,8 @@ internal class TokenDetailsBalanceSelectStateConverter(
         stakingCryptoAmount: BigDecimal?,
         selectedBalanceType: BalanceType,
     ): String {
-        val amount = status.value.amount ?: return BigDecimalFormatter.EMPTY_BALANCE_SIGN
-        val totalAmount = amount.getBalance(selectedBalanceType, stakingCryptoAmount)
+        val amount = status.value.amount?.getBalance(selectedBalanceType, stakingCryptoAmount)
 
-        return totalAmount.format { crypto(status.currency) }
+        return amount.format { crypto(status.currency) }
     }
 }

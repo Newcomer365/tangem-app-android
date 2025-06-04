@@ -4,7 +4,7 @@ import androidx.compose.runtime.Stable
 import com.tangem.common.CompletionResult
 import com.tangem.common.core.TangemSdkError
 import com.tangem.core.analytics.api.AnalyticsEventHandler
-import com.tangem.core.decompose.di.ComponentScoped
+import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
 import com.tangem.core.ui.extensions.resourceReference
@@ -15,10 +15,9 @@ import com.tangem.domain.feedback.models.FeedbackEmailType
 import com.tangem.domain.models.scan.ScanResponse
 import com.tangem.domain.wallets.builder.UserWalletBuilder
 import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.domain.wallets.usecase.GenerateWalletNameUseCase
 import com.tangem.domain.wallets.usecase.SaveWalletUseCase
+import com.tangem.features.onboarding.v2.common.analytics.OnboardingEvent
 import com.tangem.features.onboarding.v2.impl.R
-import com.tangem.features.onboarding.v2.multiwallet.impl.analytics.OnboardingEvent
 import com.tangem.features.onboarding.v2.multiwallet.impl.child.MultiWalletChildParams
 import com.tangem.features.onboarding.v2.multiwallet.impl.child.createwallet.ui.state.MultiWalletCreateWalletUM
 import com.tangem.features.onboarding.v2.multiwallet.impl.common.ui.resetCardDialog
@@ -34,7 +33,7 @@ import javax.inject.Inject
 
 @Suppress("LongParameterList")
 @Stable
-@ComponentScoped
+@ModelScoped
 internal class MultiWalletCreateWalletModel @Inject constructor(
     paramsContainer: ParamsContainer,
     override val dispatchers: CoroutineDispatcherProvider,
@@ -43,7 +42,7 @@ internal class MultiWalletCreateWalletModel @Inject constructor(
     private val getCardInfoUseCase: GetCardInfoUseCase,
     private val cardRepository: CardRepository,
     private val analyticsHandler: AnalyticsEventHandler,
-    private val generateWalletNameUseCase: GenerateWalletNameUseCase,
+    private val userWalletBuilderFactory: UserWalletBuilder.Factory,
     private val saveWalletUseCase: SaveWalletUseCase,
 ) : Model() {
 
@@ -146,7 +145,7 @@ internal class MultiWalletCreateWalletModel @Inject constructor(
 
     private suspend fun createUserWallet(scanResponse: ScanResponse): UserWallet {
         return requireNotNull(
-            value = UserWalletBuilder(scanResponse, generateWalletNameUseCase).build(),
+            value = userWalletBuilderFactory.create(scanResponse = scanResponse).build(),
             lazyMessage = { "User wallet not created" },
         )
     }

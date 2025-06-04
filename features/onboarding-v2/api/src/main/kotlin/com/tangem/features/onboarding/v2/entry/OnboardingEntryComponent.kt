@@ -8,13 +8,15 @@ interface OnboardingEntryComponent : ComposableContentComponent {
 
     data class Params(
         val scanResponse: ScanResponse,
-        val startBackupFlow: Boolean,
-        val multiWalletMode: MultiWalletMode,
+        val mode: Mode,
     )
 
-    enum class MultiWalletMode {
+    enum class Mode {
         Onboarding,
-        AddBackup,
+        AddBackupWallet1,
+        WelcomeOnlyTwin,
+        RecreateWalletTwin,
+        ContinueFinalize,
     }
 
     interface Factory : ComponentFactory<Params, OnboardingEntryComponent>

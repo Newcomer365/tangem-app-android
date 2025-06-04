@@ -16,6 +16,8 @@ dependencies {
     /* Project - API */
     implementation(projects.features.walletSettings.api)
     implementation(projects.features.manageTokens.api)
+    implementation(projects.features.nft.api)
+    implementation(projects.features.onboardingV2.api)
 
     /* Project - Core */
     implementation(projects.core.decompose)
@@ -31,6 +33,7 @@ dependencies {
     implementation(projects.domain.models)
     implementation(projects.domain.wallets)
     implementation(projects.domain.wallets.models)
+    implementation(projects.domain.demo)
 
     /* AndroidX */
     implementation(deps.androidx.fragment.ktx)

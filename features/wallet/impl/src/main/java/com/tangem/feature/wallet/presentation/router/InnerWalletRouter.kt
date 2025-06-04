@@ -1,14 +1,14 @@
 package com.tangem.feature.wallet.presentation.router
 
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import com.arkivanov.decompose.router.slot.SlotNavigation
-import com.tangem.core.decompose.context.AppComponentContext
 import com.tangem.domain.models.scan.ScanResponse
 import com.tangem.domain.tokens.model.CryptoCurrencyStatus
+import com.tangem.domain.wallets.models.UserWallet
 import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.feature.wallet.navigation.WalletRoute
 import com.tangem.feature.wallet.presentation.wallet.state.model.WalletDialogConfig
-import com.tangem.features.wallet.navigation.WalletRouter
+import kotlinx.coroutines.flow.SharedFlow
 
 /**
  * Interface of inner wallet feature router
@@ -19,22 +19,11 @@ import com.tangem.features.wallet.navigation.WalletRouter
  * @author Andrew Khokhlov on 31/05/2023
  */
 @Stable
-internal interface InnerWalletRouter : WalletRouter {
+internal interface InnerWalletRouter {
 
     val dialogNavigation: SlotNavigation<WalletDialogConfig>
 
-    fun initializeResources(appComponentContext: AppComponentContext)
-
-    /**
-     * Initialize router
-     *
-     * @param onFinish finish activity callback
-     */
-    @Composable
-    fun Initialize(onFinish: () -> Unit)
-
-    /** Pop back stack */
-    fun popBackStack()
+    val navigateToFlow: SharedFlow<WalletRoute>
 
     /** Open organize tokens screen */
     fun openOrganizeTokensScreen(userWalletId: UserWalletId)
@@ -45,9 +34,6 @@ internal interface InnerWalletRouter : WalletRouter {
     /** Open onboarding screen */
     fun openOnboardingScreen(scanResponse: ScanResponse, continueBackup: Boolean = false)
 
-    /** Open onramp success screen for [externalTxId] */
-    fun openOnrampSuccessScreen(externalTxId: String)
-
     /** Open transaction history website by [url] */
     fun openUrl(url: String)
 
@@ -57,9 +43,6 @@ internal interface InnerWalletRouter : WalletRouter {
     /** Open stories screen */
     fun openStoriesScreen()
 
-    /** Open save user wallet screen */
-    fun openSaveUserWalletScreen()
-
     /** Is wallet last screen */
     fun isWalletLastScreen(): Boolean
 
@@ -68,4 +51,7 @@ internal interface InnerWalletRouter : WalletRouter {
 
     /** Open scan failed dialog */
     fun openScanFailedDialog(onTryAgain: () -> Unit)
+
+    /** Open NFT collections screen */
+    fun openNFT(userWallet: UserWallet)
 }

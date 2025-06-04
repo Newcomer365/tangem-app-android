@@ -5,6 +5,8 @@ import com.tangem.domain.appcurrency.GetSelectedAppCurrencyUseCase
 import com.tangem.domain.promo.GetStoryContentUseCase
 import com.tangem.domain.tokens.RunPolkadotAccountHealthCheckUseCase
 import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.wallets.usecase.ShouldSaveUserWalletsUseCase
+import com.tangem.feature.wallet.child.wallet.model.intents.WalletClickIntents
 import com.tangem.feature.wallet.presentation.wallet.analytics.utils.TokenListAnalyticsSender
 import com.tangem.feature.wallet.presentation.wallet.analytics.utils.WalletWarningsAnalyticsSender
 import com.tangem.feature.wallet.presentation.wallet.analytics.utils.WalletWarningsSingleEventSender
@@ -12,12 +14,7 @@ import com.tangem.feature.wallet.presentation.wallet.domain.GetMultiWalletWarnin
 import com.tangem.feature.wallet.presentation.wallet.domain.MultiWalletTokenListStore
 import com.tangem.feature.wallet.presentation.wallet.domain.WalletWithFundsChecker
 import com.tangem.feature.wallet.presentation.wallet.state.WalletStateController
-import com.tangem.feature.wallet.presentation.wallet.subscribers.MultiWalletActionButtonsSubscriber
-import com.tangem.feature.wallet.presentation.wallet.subscribers.MultiWalletWarningsSubscriber
-import com.tangem.feature.wallet.presentation.wallet.subscribers.SingleWalletWithTokenListSubscriber
-import com.tangem.feature.wallet.presentation.wallet.subscribers.WalletSubscriber
-import com.tangem.feature.wallet.presentation.wallet.viewmodels.intents.WalletClickIntents
-import com.tangem.features.swap.SwapFeatureToggles
+import com.tangem.feature.wallet.presentation.wallet.subscribers.*
 
 @Suppress("LongParameterList")
 internal class SingleWalletWithTokenContentLoader(
@@ -32,8 +29,8 @@ internal class SingleWalletWithTokenContentLoader(
     private val tokenListStore: MultiWalletTokenListStore,
     private val getSelectedAppCurrencyUseCase: GetSelectedAppCurrencyUseCase,
     private val runPolkadotAccountHealthCheckUseCase: RunPolkadotAccountHealthCheckUseCase,
+    private val shouldSaveUserWalletsUseCase: ShouldSaveUserWalletsUseCase,
     private val getStoryContentUseCase: GetStoryContentUseCase,
-    private val swapFeatureToggles: SwapFeatureToggles,
     private val deepLinksRegistry: DeepLinksRegistry,
 ) : WalletContentLoader(id = userWallet.walletId) {
 
@@ -58,13 +55,16 @@ internal class SingleWalletWithTokenContentLoader(
                 walletWarningsAnalyticsSender = walletWarningsAnalyticsSender,
                 walletWarningsSingleEventSender = walletWarningsSingleEventSender,
             ).let(::add)
-            if (swapFeatureToggles.isPromoStoriesEnabled) {
-                MultiWalletActionButtonsSubscriber(
-                    userWallet = userWallet,
-                    stateHolder = stateHolder,
-                    getStoryContentUseCase = getStoryContentUseCase,
-                ).let(::add)
-            }
+            MultiWalletActionButtonsSubscriber(
+                userWallet = userWallet,
+                stateHolder = stateHolder,
+                getStoryContentUseCase = getStoryContentUseCase,
+            ).let(::add)
+            WalletDropDownItemsSubscriber(
+                stateHolder = stateHolder,
+                shouldSaveUserWalletsUseCase = shouldSaveUserWalletsUseCase,
+                clickIntents = clickIntents,
+            ).let(::add)
         }
     }
 }

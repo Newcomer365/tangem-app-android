@@ -1,10 +1,13 @@
 package com.tangem.feature.wallet.presentation.wallet.domain
 
+import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.domain.common.CardTypesResolver
 import com.tangem.domain.common.util.cardTypesResolver
 import com.tangem.domain.core.lce.Lce
 import com.tangem.domain.demo.IsDemoCardUseCase
 import com.tangem.domain.models.StatusSource
+import com.tangem.domain.promo.ShouldShowPromoWalletUseCase
+import com.tangem.domain.promo.models.PromoId
 import com.tangem.domain.settings.IsReadyToShowRateAppUseCase
 import com.tangem.domain.tokens.error.TokenListError
 import com.tangem.domain.tokens.model.CryptoCurrency
@@ -15,9 +18,8 @@ import com.tangem.domain.wallets.models.SeedPhraseNotificationsStatus
 import com.tangem.domain.wallets.models.UserWallet
 import com.tangem.domain.wallets.usecase.IsNeedToBackupUseCase
 import com.tangem.domain.wallets.usecase.SeedPhraseNotificationUseCase
+import com.tangem.feature.wallet.child.wallet.model.intents.WalletClickIntents
 import com.tangem.feature.wallet.presentation.wallet.state.model.WalletNotification
-import com.tangem.feature.wallet.presentation.wallet.viewmodels.intents.WalletClickIntents
-import dagger.hilt.android.scopes.ViewModelScoped
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.Flow
@@ -26,7 +28,7 @@ import javax.inject.Inject
 import kotlin.collections.count
 
 @Suppress("LongParameterList")
-@ViewModelScoped
+@ModelScoped
 internal class GetMultiWalletWarningsFactory @Inject constructor(
     private val tokenListStore: MultiWalletTokenListStore,
     private val isDemoCardUseCase: IsDemoCardUseCase,
@@ -34,6 +36,7 @@ internal class GetMultiWalletWarningsFactory @Inject constructor(
     private val isNeedToBackupUseCase: IsNeedToBackupUseCase,
     private val backupValidator: BackupValidator,
     private val seedPhraseNotificationUseCase: SeedPhraseNotificationUseCase,
+    private val shouldShowPromoWalletUseCase: ShouldShowPromoWalletUseCase,
 ) {
 
     @Suppress("MagicNumber", "MaximumLineLength")
@@ -45,11 +48,14 @@ internal class GetMultiWalletWarningsFactory @Inject constructor(
             flow2 = isReadyToShowRateAppUseCase(),
             flow3 = isNeedToBackupUseCase(userWallet.walletId),
             flow4 = seedPhraseNotificationUseCase(userWalletId = userWallet.walletId),
-        ) { maybeTokenList, isReadyToShowRating, isNeedToBackup, seedPhraseIssueStatus ->
+            flow5 = shouldShowPromoWalletUseCase(userWalletId = userWallet.walletId, promoId = PromoId.Referral),
+        ) { maybeTokenList, isReadyToShowRating, isNeedToBackup, seedPhraseIssueStatus, shouldShowReferralPromo ->
             buildList {
                 addUsedOutdatedDataNotification(maybeTokenList)
 
                 addCriticalNotifications(userWallet, seedPhraseIssueStatus, clickIntents)
+
+                addReferralPromoNotification(cardTypesResolver, clickIntents, shouldShowReferralPromo)
 
                 addInformationalNotifications(cardTypesResolver, maybeTokenList, clickIntents)
 
@@ -179,12 +185,26 @@ internal class GetMultiWalletWarningsFactory @Inject constructor(
     }
 
     private fun Lce<TokenListError, TokenList>.getMissingAddressCurrencies(): List<CryptoCurrency> {
-        val tokenList = getOrNull(isPartialContentAccepted = false) ?: return emptyList()
+        val tokenList = getOrNull(isPartialContentAccepted = true) ?: return emptyList()
 
         return tokenList
             .flattenCurrencies()
             .filter { it.value is CryptoCurrencyStatus.MissedDerivation }
             .map(CryptoCurrencyStatus::currency)
+    }
+
+    private fun MutableList<WalletNotification>.addReferralPromoNotification(
+        cardTypesResolver: CardTypesResolver,
+        clickIntents: WalletClickIntents,
+        shouldShowPromo: Boolean,
+    ) {
+        addIf(
+            element = WalletNotification.ReferralPromo(
+                onCloseClick = { clickIntents.onClosePromoClick(promoId = PromoId.Referral) },
+                onClick = { clickIntents.onPromoClick(promoId = PromoId.Referral) },
+            ),
+            condition = shouldShowPromo && cardTypesResolver.isTangemWallet(),
+        )
     }
 
     private fun MutableList<WalletNotification>.addWarningNotifications(

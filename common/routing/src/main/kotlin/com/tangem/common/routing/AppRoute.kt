@@ -8,8 +8,8 @@ import com.tangem.core.decompose.navigation.Route
 import com.tangem.domain.appcurrency.model.AppCurrency
 import com.tangem.domain.markets.TokenMarketParams
 import com.tangem.domain.models.scan.ScanResponse
+import com.tangem.domain.nft.models.NFTAsset
 import com.tangem.domain.onramp.model.OnrampSource
-import com.tangem.domain.qrscanning.models.SourceType
 import com.tangem.domain.tokens.model.CryptoCurrency
 import com.tangem.domain.wallets.models.UserWalletId
 import kotlinx.serialization.Serializable
@@ -41,42 +41,13 @@ sealed class AppRoute(val path: String) : Route {
     ) : AppRoute(path = "/disclaimer${if (isTosAccepted) "/tos_accepted" else ""}")
 
     @Serializable
-    data object OnboardingNote : AppRoute(path = "/onboarding/note")
-
-    @Serializable
-    data class OnboardingWallet(
-        val canSkipBackup: Boolean = true,
-    ) : AppRoute(path = "/onboarding/wallet${if (canSkipBackup) "/skippable" else ""}"), RouteBundleParams {
-
-        override fun getBundle(): Bundle = bundle(serializer())
-
-        companion object {
-            const val CAN_SKIP_BACKUP_KEY = "canSkipBackup"
-        }
-    }
-
-    @Serializable
-    data object OnboardingTwins : AppRoute(path = "/onboarding/twins")
-
-    @Serializable
-    data object OnboardingOther : AppRoute(path = "/onboarding/other")
-
-    @Serializable
     data object Wallet : AppRoute(path = "/wallet")
 
     @Serializable
     data class CurrencyDetails(
         val userWalletId: UserWalletId,
         val currency: CryptoCurrency,
-    ) : AppRoute(path = "/currency_details/${userWalletId.stringValue}/${currency.id.value}"), RouteBundleParams {
-
-        override fun getBundle(): Bundle = bundle(serializer())
-
-        companion object {
-            const val USER_WALLET_ID_KEY = "userWalletId"
-            const val CRYPTO_CURRENCY_KEY = "currency"
-        }
-    }
+    ) : AppRoute(path = "/currency_details/${userWalletId.stringValue}/${currency.id.value}")
 
     @Serializable
     data class Send(
@@ -92,20 +63,7 @@ sealed class AppRoute(val path: String) : Route {
             "&$amount" +
             "&$tag" +
             "&$destinationAddress",
-    ),
-        RouteBundleParams {
-
-        override fun getBundle(): Bundle = bundle(serializer())
-
-        companion object {
-            const val USER_WALLET_ID_KEY = "userWalletId"
-            const val CRYPTO_CURRENCY_KEY = "currency"
-            const val TRANSACTION_ID_KEY = "transactionId"
-            const val AMOUNT_KEY = "amount"
-            const val TAG_KEY = "tag"
-            const val DESTINATION_ADDRESS_KEY = "destinationAddress"
-        }
-    }
+    )
 
     @Serializable
     data class Details(
@@ -115,22 +73,12 @@ sealed class AppRoute(val path: String) : Route {
     @Serializable
     data class DetailsSecurity(
         val userWalletId: UserWalletId,
-    ) : AppRoute(path = "/details/security"), RouteBundleParams {
-
-        override fun getBundle(): Bundle = bundle(serializer())
-    }
+    ) : AppRoute(path = "/details/security")
 
     @Serializable
     data class CardSettings(
         val userWalletId: UserWalletId,
-    ) : AppRoute(path = "/card_settings/${userWalletId.stringValue}"), RouteBundleParams {
-
-        override fun getBundle(): Bundle = bundle(serializer())
-
-        companion object {
-            const val USER_WALLET_ID_KEY = "userWalletId"
-        }
-    }
+    ) : AppRoute(path = "/card_settings/${userWalletId.stringValue}")
 
     @Serializable
     data object AppSettings : AppRoute(path = "/app_settings")
@@ -155,31 +103,16 @@ sealed class AppRoute(val path: String) : Route {
             "/$cardId" +
             "/$isActiveBackupStatus" +
             "/$backupCardsCount",
-    ),
-        RouteBundleParams {
-
-        override fun getBundle(): Bundle = bundle(serializer())
-
-        companion object {
-            const val USER_WALLET_ID = "userWalletId"
-            const val CARD_ID = "cardId"
-            const val IS_ACTIVE_BACKUP_STATUS = "isActiveBackupStatus"
-            const val BACKUP_CARDS_COUNT = "backupCardsCount"
-        }
-    }
+    )
 
     @Serializable
-    data object AccessCodeRecovery : AppRoute(path = "/access_code_recovery"), RouteBundleParams {
-
-        override fun getBundle(): Bundle = bundle(serializer())
-    }
+    data object AccessCodeRecovery : AppRoute(path = "/access_code_recovery")
 
     @Serializable
     data class ManageTokens(
         val source: Source,
         val userWalletId: UserWalletId? = null,
-    ) : AppRoute(path = "${source.name.lowercase()}/manage_tokens/$userWalletId"), RouteBundleParams {
-        override fun getBundle(): Bundle = bundle(serializer())
+    ) : AppRoute(path = "${source.name.lowercase()}/manage_tokens/$userWalletId") {
 
         enum class Source {
             STORIES,
@@ -192,30 +125,26 @@ sealed class AppRoute(val path: String) : Route {
     data object WalletConnectSessions : AppRoute(path = "/wallet_connect_sessions")
 
     @Serializable
-    data class QrScanning(
-        val source: SourceType,
-        val networkName: String? = null,
-    ) : AppRoute(path = "/$source/qr_scanning${if (networkName != null) "/$networkName" else ""}"), RouteBundleParams {
+    data class QrScanning(val source: Source) : AppRoute(path = "/$source/qr_scanning${source.path}") {
 
-        override fun getBundle(): Bundle = bundle(serializer())
+        @Serializable
+        sealed class Source {
+            val path: String
+                get() = when (this) {
+                    is Send -> "/$networkName"
+                    WalletConnect -> ""
+                }
 
-        companion object {
-            const val SOURCE_KEY = "source"
-            const val NETWORK_KEY = "networkName"
+            data class Send(val networkName: String) : Source()
+
+            data object WalletConnect : Source()
         }
     }
 
     @Serializable
     data class ReferralProgram(
         val userWalletId: UserWalletId,
-    ) : AppRoute(path = "/referral_program"), RouteBundleParams {
-
-        override fun getBundle(): Bundle = bundle(serializer())
-
-        companion object {
-            const val USER_WALLET_ID_KEY = "userWalletId"
-        }
-    }
+    ) : AppRoute(path = "/referral_program")
 
     @Serializable
     data class Swap(
@@ -230,24 +159,10 @@ sealed class AppRoute(val path: String) : Route {
             "/${currencyTo?.id?.value}" +
             "/${userWalletId.stringValue}" +
             "/$isInitialReverseOrder",
-    ),
-        RouteBundleParams {
-
-        override fun getBundle(): Bundle = bundle(serializer())
-
-        companion object {
-            const val CURRENCY_FROM_KEY = "currencyFrom"
-            const val CURRENCY_TO_KEY = "currencyTo"
-            const val USER_WALLET_ID_KEY = "userWalletId"
-            const val IS_INITIAL_REVERSE_ORDER = "isInitialReverseOrder"
-        }
-    }
+    )
 
     @Serializable
     data object TesterMenu : AppRoute(path = "/tester_menu")
-
-    @Serializable
-    data object SaveWallet : AppRoute(path = "/save_wallet")
 
     @Serializable
     data object AppCurrencySelector : AppRoute(path = "/app_currency_selector")
@@ -293,8 +208,8 @@ sealed class AppRoute(val path: String) : Route {
 
     @Serializable
     data class OnrampSuccess(
-        val externalTxId: String,
-    ) : AppRoute(path = "/onramp/success/$externalTxId"), RouteBundleParams {
+        val txId: String,
+    ) : AppRoute(path = "/onramp/success/$txId"), RouteBundleParams {
         override fun getBundle(): Bundle = bundle(serializer())
     }
 
@@ -316,19 +231,20 @@ sealed class AppRoute(val path: String) : Route {
     /**
      * Onboarding V2
      * @property scanResponse scan response, determines onboarding route by the product type
-     * @property startFromBackup (MultiWallet param, doesn't affect other types) start onboarding from backup
      * @property mode (MultiWallet param, doesn't affect other types) onboarding mode
      */
     @Serializable
     data class Onboarding(
         val scanResponse: ScanResponse,
-        val startFromBackup: Boolean = false,
         val mode: Mode = Mode.Onboarding,
-    ) : AppRoute(path = "/onboarding_v2${if (startFromBackup) "/backup" else ""}") {
+    ) : AppRoute(path = "/onboarding_v2/${mode.name}") {
 
         enum class Mode {
             Onboarding, // general Mode
-            AddBackup, // continue backup process for existing wallet 1
+            AddBackupWallet1, // continue backup process for existing wallet 1
+            WelcomeOnlyTwin, // show welcome screen and then navigate to wallet for twins
+            RecreateWalletTwin, // reset twins
+            ContinueFinalize, // continue finalize process (unfinished backup dialog)
         }
     }
 
@@ -337,7 +253,18 @@ sealed class AppRoute(val path: String) : Route {
         val storyId: String,
         val nextScreen: AppRoute,
         val screenSource: String,
-    ) : AppRoute(path = "/stories$storyId"), RouteBundleParams {
-        override fun getBundle(): Bundle = bundle(serializer())
-    }
+    ) : AppRoute(path = "/stories$storyId")
+
+    @Serializable
+    data class NFT(
+        val userWalletId: UserWalletId,
+        val walletName: String,
+    ) : AppRoute(path = "/nft/${userWalletId.stringValue}")
+
+    @Serializable
+    data class NFTSend(
+        val userWalletId: UserWalletId,
+        val nftAsset: NFTAsset,
+        val nftCollectionName: String,
+    ) : AppRoute(path = "/send/nft/${userWalletId.stringValue}/$nftCollectionName/${nftAsset.id}")
 }

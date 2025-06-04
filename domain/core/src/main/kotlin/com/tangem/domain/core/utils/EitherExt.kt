@@ -1,8 +1,13 @@
 package com.tangem.domain.core.utils
 
 import arrow.core.Either
+import arrow.core.raise.Raise
+import arrow.core.raise.either
 import com.tangem.domain.core.lce.Lce
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
+import kotlin.experimental.ExperimentalTypeInference
 
 /**
  * [Flow] of [Either]
@@ -33,5 +38,27 @@ inline fun <reified E : Any, reified T : Any> Either<E, T>.toLce(isStillLoading:
                 Lce.Content(value)
             }
         }
+    }
+}
+
+@JvmName("tryCatchWithDispatch")
+suspend inline fun <R> Either.Companion.catchOn(
+    dispatcher: CoroutineDispatcher,
+    crossinline function: suspend () -> R,
+): Either<Throwable, R> {
+    return withContext(
+        context = dispatcher,
+        block = { catch { function() } },
+    )
+}
+
+@JvmName("eitherWithDispatch")
+@OptIn(ExperimentalTypeInference::class)
+suspend inline fun <Error, A> eitherOn(
+    dispatcher: CoroutineDispatcher,
+    @BuilderInference noinline block: suspend Raise<Error>.() -> A,
+): Either<Error, A> {
+    return withContext(dispatcher) {
+        either { block() }
     }
 }

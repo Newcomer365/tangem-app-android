@@ -1,8 +1,9 @@
 package com.tangem.tap.routing
 
-import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.tangem.common.routing.AppRoute
 import com.tangem.common.routing.AppRouter
+import com.tangem.core.analytics.api.AnalyticsExceptionHandler
+import com.tangem.core.analytics.models.ExceptionAnalyticsEvent
 import com.tangem.core.decompose.navigation.Router
 import com.tangem.tap.routing.configurator.AppRouterConfig
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
@@ -15,6 +16,7 @@ import kotlin.reflect.KClass
 internal class ProxyAppRouter(
     private val config: AppRouterConfig,
     private val dispatchers: CoroutineDispatcherProvider,
+    private val analyticsExceptionHandler: AnalyticsExceptionHandler,
 ) : AppRouter {
 
     private val routerScope: CoroutineScope
@@ -40,7 +42,11 @@ internal class ProxyAppRouter(
 
     override fun replaceAll(vararg routes: AppRoute, onComplete: (isSuccess: Boolean) -> Unit) {
         safeNavigate(onComplete, message = "Replace all routes with $routes") {
-            innerRouter.replaceAll(*routes, onComplete = onComplete)
+            runCatching {
+                innerRouter.replaceAll(*routes, onComplete = onComplete)
+            }.getOrElse {
+                Timber.tag("ASDASD").e(it)
+            }
         }
     }
 
@@ -76,7 +82,8 @@ internal class ProxyAppRouter(
 
     override fun defaultCompletionHandler(isSuccess: Boolean, errorMessage: String) {
         if (!isSuccess) {
-            FirebaseCrashlytics.getInstance().recordException(RuntimeException(errorMessage))
+            Timber.tag("ASDASD").d(errorMessage)
+            analyticsExceptionHandler.sendException(ExceptionAnalyticsEvent(RuntimeException(errorMessage)))
             Timber.w(errorMessage)
 
             with(receiver = config.snackbarHandler ?: return) {

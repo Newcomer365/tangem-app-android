@@ -20,10 +20,6 @@ interface SettingsRepository {
 
     suspend fun setSendTapHelpPreviewAvailability(isEnabled: Boolean)
 
-    suspend fun wasApplicationStopped(): Boolean
-
-    suspend fun setWasApplicationStopped(value: Boolean)
-
     suspend fun shouldOpenWelcomeScreenOnResume(): Boolean
 
     suspend fun setShouldOpenWelcomeScreenOnResume(value: Boolean)
@@ -34,11 +30,15 @@ interface SettingsRepository {
 
     suspend fun incrementAppLaunchCounter()
 
+    suspend fun getWalletFirstUsageDate(): Long
+
+    suspend fun setWalletFirstUsageDate(value: Long)
+
     suspend fun shouldShowMarketsTooltip(): Boolean
 
     suspend fun setMarketsTooltipShown(value: Boolean)
 
-    suspend fun getUserCountryCodeSync(): UserCountry?
+    fun getUserCountryCodeSync(): UserCountry?
 
     fun getUserCountryCode(): StateFlow<UserCountry?>
 

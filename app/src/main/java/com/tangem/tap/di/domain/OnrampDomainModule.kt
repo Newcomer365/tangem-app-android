@@ -1,5 +1,6 @@
 package com.tangem.tap.di.domain
 
+import com.tangem.domain.onramp.repositories.LegacyTopUpRepository
 import com.tangem.domain.onramp.*
 import com.tangem.domain.onramp.repositories.HotCryptoRepository
 import com.tangem.domain.onramp.repositories.OnrampErrorResolver
@@ -169,29 +170,11 @@ internal object OnrampDomainModule {
 
     @Provides
     @Singleton
-    fun provideGetOnrampSelectedPaymentMethodUseCase(
-        onrampRepository: OnrampRepository,
-        onrampErrorResolver: OnrampErrorResolver,
-    ): GetOnrampSelectedPaymentMethodUseCase {
-        return GetOnrampSelectedPaymentMethodUseCase(onrampRepository, onrampErrorResolver)
-    }
-
-    @Provides
-    @Singleton
     fun provideGetOnrampProviderWithQuoteUseCase(
         onrampRepository: OnrampRepository,
         onrampErrorResolver: OnrampErrorResolver,
     ): GetOnrampProviderWithQuoteUseCase {
         return GetOnrampProviderWithQuoteUseCase(onrampRepository, onrampErrorResolver)
-    }
-
-    @Provides
-    @Singleton
-    fun provideOnrampSaveSelectedPaymentMethod(
-        onrampRepository: OnrampRepository,
-        onrampErrorResolver: OnrampErrorResolver,
-    ): OnrampSaveSelectedPaymentMethod {
-        return OnrampSaveSelectedPaymentMethod(onrampRepository, onrampErrorResolver)
     }
 
     @Provides
@@ -241,5 +224,11 @@ internal object OnrampDomainModule {
     @Singleton
     fun provideFetchHotCryptoUseCase(hotCryptoRepository: HotCryptoRepository): FetchHotCryptoUseCase {
         return FetchHotCryptoUseCase(hotCryptoRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGetLegacyTopUpUrlUseCase(legacyTopUpRepository: LegacyTopUpRepository): GetLegacyTopUpUrlUseCase {
+        return GetLegacyTopUpUrlUseCase(legacyTopUpRepository)
     }
 }

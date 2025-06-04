@@ -1,6 +1,8 @@
 package com.tangem.tap.domain.walletconnect2.domain
 
+import com.tangem.domain.walletconnect.model.legacy.Account
 import com.tangem.tap.domain.walletconnect2.domain.models.*
+import com.tangem.tap.features.details.redux.walletconnect.WalletConnectAction.OpenSession.SourceType
 import kotlinx.coroutines.flow.Flow
 
 interface LegacyWalletConnectRepository {
@@ -17,7 +19,7 @@ interface LegacyWalletConnectRepository {
 
     fun updateSessions()
 
-    fun pair(uri: String)
+    fun pair(uri: String, source: SourceType)
 
     fun disconnect(topic: String)
 

@@ -5,7 +5,4 @@ package com.tangem.features.wallet.featuretoggles
  *
  * @author Andrew Khokhlov on 25/10/2024
  */
-interface WalletFeatureToggles {
-
-    val isMainActionButtonsEnabled: Boolean
-}
+interface WalletFeatureToggles

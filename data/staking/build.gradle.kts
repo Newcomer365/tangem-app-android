@@ -5,6 +5,7 @@ plugins {
     alias(deps.plugins.kotlin.android)
     alias(deps.plugins.kotlin.kapt)
     alias(deps.plugins.hilt.android)
+    alias(deps.plugins.ksp)
     id("configuration")
 }
 
@@ -49,7 +50,7 @@ dependencies {
     implementation(deps.moshi.kotlin)
     implementation(deps.timber)
     implementation(deps.firebase.crashlytics)
-    kaptForObfuscatingVariants(deps.moshi.kotlin.codegen)
+    ksp(deps.moshi.kotlin.codegen)
     kaptForObfuscatingVariants(deps.retrofit.response.type.keeper)
 
     implementation(projects.libs.blockchainSdk)
@@ -61,5 +62,12 @@ dependencies {
     }
 
     // endregion
+
+    testImplementation(deps.test.coroutine)
+    testImplementation(deps.test.junit)
+    testImplementation(deps.test.mockk)
+    testImplementation(deps.test.truth)
+    testImplementation(tangemDeps.card.core)
+    testImplementation(projects.common.test)
 }
 

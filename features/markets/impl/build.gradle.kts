@@ -33,6 +33,7 @@ dependencies {
     implementation(projects.domain.tokens.models)
     implementation(projects.domain.wallets)
     implementation(projects.domain.wallets.models)
+    implementation(projects.domain.settings)
 
     // FIXME AND-8203
     // Remove the "Buy" and "Sell" actions from the redux middleware.
@@ -77,4 +78,7 @@ dependencies {
     /* Libs */
     implementation(projects.libs.crypto)
     implementation(projects.libs.blockchainSdk)
+
+    /** Tangem libraries */
+    implementation(tangemDeps.card.core)
 }

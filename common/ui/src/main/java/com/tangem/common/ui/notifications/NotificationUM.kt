@@ -73,6 +73,11 @@ sealed class NotificationUM(val config: NotificationConfig) {
             ),
         )
 
+        data object TonStakingExtraFeeError : Error(
+            title = resourceReference(R.string.staking_notification_ton_extra_reserve_title),
+            subtitle = resourceReference(R.string.staking_notification_ton_extra_reserve_is_required),
+        )
+
         data class TokenExceedsBalance(
             val networkIconId: Int,
             val currencyName: String,
@@ -158,6 +163,11 @@ sealed class NotificationUM(val config: NotificationConfig) {
                 wrappedList(amount),
             ),
             subtitle = resourceReference(id = R.string.send_notification_invalid_reserve_amount_text),
+        )
+
+        data object DestinationMemoRequired : Error(
+            title = resourceReference(id = R.string.send_validation_destination_tag_required_title),
+            subtitle = resourceReference(id = R.string.send_validation_destination_tag_required_description),
         )
     }
 
@@ -293,6 +303,21 @@ sealed class NotificationUM(val config: NotificationConfig) {
             subtitle = resourceReference(
                 id = R.string.cardano_insufficient_balance_to_send_token_description,
                 formatArgs = wrappedList(tokenName),
+            ),
+        )
+    }
+
+    sealed interface Sui {
+
+        data object NotEnoughCoinForTokenTransaction : Error(
+            title = resourceReference(id = R.string.sui_not_enough_coin_for_fee_title),
+            subtitle = resourceReference(
+                id = R.string.sui_not_enough_coin_for_fee_description,
+                formatArgs = wrappedList(
+                    BigDecimal.ONE.format {
+                        crypto(Blockchain.Sui.currency, Blockchain.Sui.decimals())
+                    },
+                ),
             ),
         )
     }

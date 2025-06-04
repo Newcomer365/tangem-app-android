@@ -4,10 +4,16 @@ import com.tangem.domain.card.repository.DerivationsRepository
 import com.tangem.domain.managetokens.*
 import com.tangem.domain.managetokens.repository.CustomTokensRepository
 import com.tangem.domain.managetokens.repository.ManageTokensRepository
+import com.tangem.domain.networks.multi.MultiNetworkStatusFetcher
+import com.tangem.domain.quotes.multi.MultiQuoteFetcher
+import com.tangem.domain.staking.multi.MultiYieldBalanceFetcher
 import com.tangem.domain.staking.repositories.StakingRepository
+import com.tangem.domain.tokens.TokensFeatureToggles
 import com.tangem.domain.tokens.repository.CurrenciesRepository
 import com.tangem.domain.tokens.repository.NetworksRepository
+import com.tangem.domain.tokens.repository.QuotesRepository
 import com.tangem.domain.walletmanager.WalletManagersFacade
+import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -67,6 +73,11 @@ internal object ManageTokensDomainModule {
         networksRepository: NetworksRepository,
         derivationsRepository: DerivationsRepository,
         stakingRepository: StakingRepository,
+        quotesRepository: QuotesRepository,
+        multiNetworkStatusFetcher: MultiNetworkStatusFetcher,
+        multiQuoteFetcher: MultiQuoteFetcher,
+        multiYieldBalanceFetcher: MultiYieldBalanceFetcher,
+        tokensFeatureToggles: TokensFeatureToggles,
     ): SaveManagedTokensUseCase {
         return SaveManagedTokensUseCase(
             customTokensRepository = customTokensRepository,
@@ -75,6 +86,11 @@ internal object ManageTokensDomainModule {
             networksRepository = networksRepository,
             derivationsRepository = derivationsRepository,
             stakingRepository = stakingRepository,
+            quotesRepository = quotesRepository,
+            multiNetworkStatusFetcher = multiNetworkStatusFetcher,
+            multiQuoteFetcher = multiQuoteFetcher,
+            multiYieldBalanceFetcher = multiYieldBalanceFetcher,
+            tokensFeatureToggles = tokensFeatureToggles,
         )
     }
 
@@ -104,5 +120,13 @@ internal object ManageTokensDomainModule {
     @Singleton
     fun provideCheckCurrencyUnsupportedUseCase(repository: ManageTokensRepository): CheckCurrencyUnsupportedUseCase {
         return CheckCurrencyUnsupportedUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideDistinctManagedCurrenciesTokenUseCase(
+        coroutineDispatchersProvider: CoroutineDispatcherProvider,
+    ): GetDistinctManagedCurrenciesUseCase {
+        return GetDistinctManagedCurrenciesUseCase(coroutineDispatchersProvider)
     }
 }

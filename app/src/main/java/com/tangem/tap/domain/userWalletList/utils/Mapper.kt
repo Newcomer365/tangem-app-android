@@ -6,19 +6,22 @@ import com.tangem.tap.domain.userWalletList.model.UserWalletPublicInformation
 import com.tangem.tap.domain.userWalletList.model.UserWalletSensitiveInformation
 
 internal val UserWallet.sensitiveInformation: UserWalletSensitiveInformation
-    get() = UserWalletSensitiveInformation(scanResponse.card.wallets)
+    get() = UserWalletSensitiveInformation(
+        wallets = scanResponse.card.wallets,
+        visaCardActivationStatus = scanResponse.visaCardActivationStatus,
+    )
 
 internal val UserWallet.publicInformation: UserWalletPublicInformation
     get() = UserWalletPublicInformation(
         name = name,
         walletId = walletId,
-        artworkUrl = artworkUrl,
         cardsInWallet = cardsInWallet,
         isMultiCurrency = isMultiCurrency,
         scanResponse = scanResponse.copy(
             card = scanResponse.card.copy(
                 wallets = emptyList(),
             ),
+            visaCardActivationStatus = null,
         ),
         hasBackupError = hasBackupError,
     )
@@ -27,7 +30,6 @@ internal fun UserWalletPublicInformation.toUserWallet(): UserWallet {
     return UserWallet(
         name = name,
         walletId = walletId,
-        artworkUrl = artworkUrl,
         cardsInWallet = cardsInWallet,
         scanResponse = scanResponse,
         isMultiCurrency = isMultiCurrency,
@@ -45,6 +47,7 @@ internal fun UserWallet.updateWith(sensitiveInformation: UserWalletSensitiveInfo
             card = scanResponse.card.copy(
                 wallets = sensitiveInformation.wallets,
             ),
+            visaCardActivationStatus = sensitiveInformation.visaCardActivationStatus,
         ),
     )
 }
@@ -70,5 +73,6 @@ internal fun UserWallet.lock(): UserWallet = copy(
         card = scanResponse.card.copy(
             wallets = emptyList(),
         ),
+        visaCardActivationStatus = null,
     ),
 )

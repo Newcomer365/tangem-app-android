@@ -10,11 +10,14 @@ import com.tangem.blockchain.common.address.Address
 import com.tangem.blockchain.common.address.AddressType
 import com.tangem.blockchain.common.address.EstimationFeeAddressFactory
 import com.tangem.blockchain.common.pagination.Page
+import com.tangem.blockchain.common.smartcontract.SmartContractCallDataProviderFactory
 import com.tangem.blockchain.common.transaction.Fee
 import com.tangem.blockchain.common.transaction.TransactionFee
 import com.tangem.blockchain.common.trustlines.AssetRequirementsManager
 import com.tangem.blockchain.extensions.Result
 import com.tangem.blockchain.extensions.SimpleResult
+import com.tangem.blockchain.nft.models.NFTAsset
+import com.tangem.blockchain.nft.models.NFTCollection
 import com.tangem.blockchain.transactionhistory.models.TransactionHistoryRequest
 import com.tangem.blockchainsdk.BlockchainSDKFactory
 import com.tangem.crypto.hdWallet.DerivationPath
@@ -274,10 +277,7 @@ class DefaultWalletManagersFacade(
         }
     }
 
-    private suspend fun getUserWallet(userWalletId: UserWalletId) =
-        requireNotNull(userWalletsStore.getSyncOrNull(userWalletId)) {
-            "Unable to find a user wallet with provided ID: $userWalletId"
-        }
+    private fun getUserWallet(userWalletId: UserWalletId) = userWalletsStore.getSyncStrict(userWalletId)
 
     private suspend fun getAndUpdateWalletManager(
         userWallet: UserWallet,
@@ -486,9 +486,20 @@ class DefaultWalletManagersFacade(
 
         val destination = estimationFeeAddressFactory.makeAddress(blockchain)
 
+        val callData = if (amount.type is AmountType.Token) {
+            SmartContractCallDataProviderFactory.getTokenTransferCallData(
+                destinationAddress = destination,
+                amount = amount,
+                blockchain = blockchain,
+            )
+        } else {
+            null
+        }
+
         (walletManager as? TransactionSender)?.estimateFee(
             amount = amount,
             destination = destination,
+            callData = callData,
         )
     }
 
@@ -637,6 +648,73 @@ class DefaultWalletManagersFacade(
         ) ?: return false
 
         return (walletManager as? UtxoBlockchainManager)?.allowConsolidation == true
+    }
+
+    override suspend fun getNFTCollections(userWalletId: UserWalletId, network: Network): List<NFTCollection> {
+        val blockchain = Blockchain.fromId(network.id.value)
+        val walletManager = getOrCreateWalletManager(
+            userWalletId = userWalletId,
+            blockchain = blockchain,
+            derivationPath = network.derivationPath.value,
+        ) ?: return emptyList()
+        val address = walletManager.wallet.address
+        return walletManager.getCollections(address)
+    }
+
+    override suspend fun getNFTAssets(
+        userWalletId: UserWalletId,
+        network: Network,
+        collectionIdentifier: NFTCollection.Identifier,
+    ): List<NFTAsset> {
+        val blockchain = Blockchain.fromId(network.id.value)
+        val walletManager = getOrCreateWalletManager(
+            userWalletId = userWalletId,
+            blockchain = blockchain,
+            derivationPath = network.derivationPath.value,
+        ) ?: return emptyList()
+        val address = walletManager.wallet.address
+        return walletManager.getAssets(address, collectionIdentifier)
+    }
+
+    override suspend fun getNFTAsset(
+        userWalletId: UserWalletId,
+        network: Network,
+        collectionIdentifier: NFTCollection.Identifier,
+        assetIdentifier: NFTAsset.Identifier,
+    ): NFTAsset? {
+        val blockchain = Blockchain.fromId(network.id.value)
+        val walletManager = getOrCreateWalletManager(
+            userWalletId = userWalletId,
+            blockchain = blockchain,
+            derivationPath = network.derivationPath.value,
+        ) ?: return null
+        return walletManager.getAsset(collectionIdentifier, assetIdentifier)
+    }
+
+    override suspend fun getNFTSalePrice(
+        userWalletId: UserWalletId,
+        network: Network,
+        collectionIdentifier: NFTCollection.Identifier,
+        assetIdentifier: NFTAsset.Identifier,
+    ): NFTAsset.SalePrice? {
+        val blockchain = Blockchain.fromId(network.id.value)
+        val walletManager = getOrCreateWalletManager(
+            userWalletId = userWalletId,
+            blockchain = blockchain,
+            derivationPath = network.derivationPath.value,
+        ) ?: return null
+        return walletManager.getSalePrice(collectionIdentifier, assetIdentifier)
+    }
+
+    override suspend fun getNFTExploreUrl(network: Network, assetIdentifier: NFTAsset.Identifier): String? {
+        val blockchain = Blockchain.fromId(network.id.value)
+        return blockchain.getNFTExploreUrl(assetIdentifier)
+    }
+
+    override suspend fun isAccountInitialized(userWalletId: UserWalletId, network: Network): Boolean {
+        val walletManager = getOrCreateWalletManager(userWalletId = userWalletId, network = network)
+        val initializableAccountWalletManger = walletManager as? InitializableAccount ?: return true
+        return initializableAccountWalletManger.accountInitializationState == InitializableAccount.State.INITIALIZED
     }
 
     private fun updateWalletManagerTokensIfNeeded(walletManager: WalletManager, tokens: Set<CryptoCurrency.Token>) {

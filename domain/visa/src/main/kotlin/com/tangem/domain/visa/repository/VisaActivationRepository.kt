@@ -6,8 +6,6 @@ interface VisaActivationRepository {
 
     suspend fun getActivationRemoteState(): VisaActivationRemoteState
 
-    suspend fun getActivationRemoteStateLongPoll(): VisaActivationRemoteState
-
     suspend fun getCardWalletAcceptanceData(request: VisaCardWalletDataToSignRequest): VisaDataToSignByCardWallet
 
     suspend fun getCustomerWalletAcceptanceData(
@@ -19,6 +17,8 @@ interface VisaActivationRepository {
     suspend fun approveByCustomerWallet(signedData: VisaSignedDataByCustomerWallet)
 
     suspend fun sendPinCode(pinCode: VisaEncryptedPinCode)
+
+    suspend fun getPinCodeRsaEncryptionPublicKey(): String
 
     interface Factory {
         fun create(cardId: VisaCardId): VisaActivationRepository

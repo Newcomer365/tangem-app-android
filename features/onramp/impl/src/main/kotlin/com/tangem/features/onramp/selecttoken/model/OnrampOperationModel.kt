@@ -6,7 +6,7 @@ import com.tangem.common.ui.alerts.models.AlertDemoModeUM
 import com.tangem.core.analytics.api.AnalyticsEventHandler
 import com.tangem.core.analytics.models.AnalyticsParam
 import com.tangem.core.analytics.models.event.MainScreenAnalyticsEvent
-import com.tangem.core.decompose.di.ComponentScoped
+import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
 import com.tangem.core.decompose.ui.UiMessageSender
@@ -20,6 +20,7 @@ import com.tangem.domain.onramp.model.OnrampSource
 import com.tangem.domain.redux.ReduxStateHolder
 import com.tangem.domain.tokens.legacy.TradeCryptoAction
 import com.tangem.domain.tokens.model.CryptoCurrencyStatus
+import com.tangem.domain.tokens.model.ScenarioUnavailabilityReason
 import com.tangem.domain.wallets.usecase.GetWalletsUseCase
 import com.tangem.features.onramp.OnrampFeatureToggles
 import com.tangem.features.onramp.impl.R
@@ -33,7 +34,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @Suppress("LongParameterList")
-@ComponentScoped
+@ModelScoped
 internal class OnrampOperationModel @Inject constructor(
     paramsContainer: ParamsContainer,
     getWalletsUseCase: GetWalletsUseCase,
@@ -79,13 +80,13 @@ internal class OnrampOperationModel @Inject constructor(
 
     fun onHotTokenClick(status: CryptoCurrencyStatus) {
         modelScope.launch {
-            val isAvailable = rampStateManager.availableForBuy(
+            val unavailabilityReason = rampStateManager.availableForBuy(
                 scanResponse = selectedUserWallet.scanResponse,
                 userWalletId = params.userWalletId,
                 cryptoCurrency = status.currency,
             )
 
-            if (isAvailable) {
+            if (unavailabilityReason == ScenarioUnavailabilityReason.None) {
                 analyticsEventHandler.send(
                     event = MainScreenAnalyticsEvent.HotTokenClicked(currencySymbol = status.currency.symbol),
                 )

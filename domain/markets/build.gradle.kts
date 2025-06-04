@@ -15,14 +15,19 @@ dependencies {
     api(projects.domain.appCurrency.models)
     api(projects.domain.card)
     api(projects.domain.core)
-    api(projects.domain.markets.models)
-    api(projects.domain.wallets.models)
-    api(projects.domain.models)
     api(projects.domain.legacy)
+    api(projects.domain.markets.models)
+    api(projects.domain.models)
+    api(projects.domain.networks)
+    api(projects.domain.staking)
+    api(projects.domain.quotes)
     api(projects.domain.wallets)
+    api(projects.domain.wallets.models)
+    api(projects.domain.promo)
 
     implementation(projects.domain.tokens.models)
     implementation(projects.domain.tokens)
+    implementation(projects.domain.settings)
 
     api(projects.core.pagination)
 

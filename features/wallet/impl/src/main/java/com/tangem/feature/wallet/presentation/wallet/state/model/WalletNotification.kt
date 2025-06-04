@@ -191,6 +191,19 @@ sealed class WalletNotification(val config: NotificationConfig) {
         ),
     )
 
+    data class UnlockVisaAccess(val onUnlockClick: () -> Unit) : WalletNotification(
+        config = NotificationConfig(
+            title = resourceReference(id = R.string.visa_unlock_notification_title),
+            subtitle = resourceReference(id = R.string.visa_unlock_notification_subtitle),
+            iconResId = R.drawable.ic_locked_24,
+            buttonsState = NotificationConfig.ButtonsState.PrimaryButtonConfig(
+                text = resourceReference(id = R.string.visa_unlock_notification_button),
+                iconResId = R.drawable.ic_tangem_24,
+                onClick = onUnlockClick,
+            ),
+        ),
+    )
+
     data class RateApp(
         val onLikeClick: () -> Unit,
         val onDislikeClick: () -> Unit,
@@ -239,6 +252,22 @@ sealed class WalletNotification(val config: NotificationConfig) {
         config = NotificationConfig(
             subtitle = resourceReference(R.string.warning_some_token_balances_not_updated),
             iconResId = R.drawable.ic_error_sync_24,
+        ),
+    )
+
+    data class ReferralPromo(
+        val onCloseClick: () -> Unit,
+        val onClick: () -> Unit,
+    ) : WalletNotification(
+        config = NotificationConfig(
+            title = resourceReference(R.string.notification_referral_promo_title),
+            subtitle = resourceReference(R.string.notification_referral_promo_text),
+            iconResId = R.drawable.img_referral_promo,
+            onCloseClick = onCloseClick,
+            buttonsState = NotificationConfig.ButtonsState.SecondaryButtonConfig(
+                text = resourceReference(R.string.notification_referral_promo_button),
+                onClick = onClick,
+            ),
         ),
     )
 }

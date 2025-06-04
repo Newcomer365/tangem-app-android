@@ -9,19 +9,19 @@ import org.rekotlin.Action
 sealed class WalletConnectAction : Action {
     data class HandleDeepLink(val wcUri: String?) : WalletConnectAction()
 
-    data class StartWalletConnect(
-        val copiedUri: String?,
-    ) : WalletConnectAction()
+    data object StartWalletConnect : WalletConnectAction()
 
     data class OpenSession(
         val wcUri: String,
-    ) : WalletConnectAction()
+        val source: SourceType,
+    ) : WalletConnectAction() {
+        enum class SourceType { QR, DEEPLINK, CLIPBOARD, ETC }
+    }
 
     data class DisconnectSession(val topic: String) : WalletConnectAction()
 
     data class RejectRequest(val topic: String, val id: Long) : WalletConnectAction()
 
-    data class ShowClipboardOrScanQrDialog(val wcUri: String) : WalletConnectAction()
     //region WalletConnect 2.0
     data class ApproveProposal(val proposal: WalletConnectEvents.SessionProposal) : WalletConnectAction()
     data object RejectProposal : WalletConnectAction()

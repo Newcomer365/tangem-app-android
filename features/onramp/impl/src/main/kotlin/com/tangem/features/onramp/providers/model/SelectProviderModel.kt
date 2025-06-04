@@ -4,7 +4,7 @@ import com.arkivanov.decompose.router.slot.SlotNavigation
 import com.arkivanov.decompose.router.slot.activate
 import com.arkivanov.decompose.router.slot.dismiss
 import com.tangem.core.analytics.api.AnalyticsEventHandler
-import com.tangem.core.decompose.di.ComponentScoped
+import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
 import com.tangem.core.ui.extensions.resourceReference
@@ -15,12 +15,13 @@ import com.tangem.core.ui.format.bigdecimal.format
 import com.tangem.core.ui.format.bigdecimal.percent
 import com.tangem.domain.onramp.GetOnrampPaymentMethodsUseCase
 import com.tangem.domain.onramp.GetOnrampProviderWithQuoteUseCase
-import com.tangem.domain.onramp.GetOnrampSelectedPaymentMethodUseCase
-import com.tangem.domain.onramp.OnrampSaveSelectedPaymentMethod
 import com.tangem.domain.onramp.analytics.OnrampAnalyticsEvent
 import com.tangem.domain.onramp.model.OnrampPaymentMethod
 import com.tangem.domain.onramp.model.OnrampProviderWithQuote
 import com.tangem.domain.onramp.model.error.OnrampError
+import com.tangem.domain.settings.usercountry.GetUserCountryUseCase
+import com.tangem.domain.settings.usercountry.models.UserCountry
+import com.tangem.domain.settings.usercountry.models.needApplyFCARestrictions
 import com.tangem.features.onramp.impl.R
 import com.tangem.features.onramp.paymentmethod.entity.PaymentMethodUM
 import com.tangem.features.onramp.providers.SelectProviderComponent
@@ -33,21 +34,24 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toPersistentList
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.math.BigDecimal
+import java.util.Locale
 import javax.inject.Inject
 
 @Suppress("LongParameterList")
-@ComponentScoped
+@ModelScoped
 internal class SelectProviderModel @Inject constructor(
     override val dispatchers: CoroutineDispatcherProvider,
     private val analyticsEventHandler: AnalyticsEventHandler,
     private val getOnrampPaymentMethodsUseCase: GetOnrampPaymentMethodsUseCase,
-    private val getOnrampSelectedPaymentMethodUseCase: GetOnrampSelectedPaymentMethodUseCase,
     private val getOnrampProviderWithQuoteUseCase: GetOnrampProviderWithQuoteUseCase,
-    private val saveSelectedPaymentMethod: OnrampSaveSelectedPaymentMethod,
+    getUserCountryUseCase: GetUserCountryUseCase,
     paramsContainer: ParamsContainer,
 ) : Model() {
 
@@ -56,11 +60,15 @@ internal class SelectProviderModel @Inject constructor(
     private val params: SelectProviderComponent.Params = paramsContainer.require()
     private val _state = MutableStateFlow(getInitialState())
 
+    private var userCountry: UserCountry? = null
+
     init {
+        userCountry = getUserCountryUseCase.invokeSync().getOrNull()
+            ?: UserCountry.Other(Locale.getDefault().country)
+
         analyticsEventHandler.send(OnrampAnalyticsEvent.ProvidersScreenOpened)
         getPaymentMethods()
         getProviders(params.selectedPaymentMethod)
-        subscribeToPaymentMethodUpdates()
     }
 
     private fun getPaymentMethods() {
@@ -92,17 +100,6 @@ internal class SelectProviderModel @Inject constructor(
                 isPaymentMethodClickEnabled = filteredEmptyMethods.isNotEmpty(),
             )
         }
-    }
-
-    private fun subscribeToPaymentMethodUpdates() {
-        getOnrampSelectedPaymentMethodUseCase.invoke()
-            .onEach { maybePaymentMethod ->
-                maybePaymentMethod.fold(
-                    ifLeft = ::sendOnrampErrorEvent,
-                    ifRight = ::getProviders,
-                )
-            }
-            .launchIn(modelScope)
     }
 
     private fun getProviders(paymentMethod: OnrampPaymentMethod) {
@@ -166,7 +163,6 @@ internal class SelectProviderModel @Inject constructor(
         val firstProvider = methodContainer.providers.firstOrNull()
         analyticsEventHandler.send(OnrampAnalyticsEvent.OnPaymentMethodChosen(paymentMethod = paymentMethod.name))
         modelScope.launch {
-            saveSelectedPaymentMethod.invoke(paymentMethod)
             _state.update { state ->
                 state.copy(
                     selectedPaymentMethod = state.selectedPaymentMethod.copy(
@@ -174,6 +170,7 @@ internal class SelectProviderModel @Inject constructor(
                     ),
                 )
             }
+            getProviders(paymentMethod)
             if (firstProvider is ProviderListItemUM.Available) {
                 onProviderSelected(firstProvider.providerResult, firstProvider.isBestRate)
             }
@@ -202,7 +199,8 @@ internal class SelectProviderModel @Inject constructor(
                     val rateDiff = bestProvider?.toAmount?.value?.let { bestRate ->
                         BigDecimal.ONE - quote.toAmount.value / bestRate
                     }
-                    val isBestProvider = quote == bestProvider && hasBestProvider
+                    val isBestProvider =
+                        quote == bestProvider && hasBestProvider && !userCountry.needApplyFCARestrictions()
                     val providerResult = SelectProviderResult.ProviderWithQuote(
                         paymentMethod = quote.paymentMethod,
                         provider = quote.provider,
@@ -253,7 +251,7 @@ internal class SelectProviderModel @Inject constructor(
                         onClick = {
                             onProviderSelected(
                                 result = providerResult,
-                                isBestRate = bestProvider == quote,
+                                isBestRate = bestProvider == quote && !userCountry.needApplyFCARestrictions(),
                             )
                             params.onDismiss()
                         },

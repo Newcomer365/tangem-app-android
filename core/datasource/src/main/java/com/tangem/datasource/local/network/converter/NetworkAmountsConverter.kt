@@ -14,7 +14,7 @@ private typealias AmountsDomainModel = Map<CryptoCurrency.ID, CryptoCurrencyAmou
  *
  * @author Andrew Khokhlov on 18/02/2025
  */
-internal object NetworkAmountsConverter : TwoWayConverter<AmountsDataModel, AmountsDomainModel> {
+object NetworkAmountsConverter : TwoWayConverter<AmountsDataModel, AmountsDomainModel> {
 
     override fun convert(value: AmountsDataModel): AmountsDomainModel {
         return value

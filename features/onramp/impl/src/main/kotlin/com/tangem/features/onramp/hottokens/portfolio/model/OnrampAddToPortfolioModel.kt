@@ -1,7 +1,7 @@
 package com.tangem.features.onramp.hottokens.portfolio.model
 
 import arrow.core.getOrElse
-import com.tangem.core.decompose.di.ComponentScoped
+import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
 import com.tangem.domain.card.DerivePublicKeysUseCase
@@ -29,7 +29,7 @@ import javax.inject.Inject
  *
  * @author Andrew Khokhlov on 18/01/2025
  */
-@ComponentScoped
+@ModelScoped
 internal class OnrampAddToPortfolioModel @Inject constructor(
     paramsContainer: ParamsContainer,
     override val dispatchers: CoroutineDispatcherProvider,
@@ -71,7 +71,7 @@ internal class OnrampAddToPortfolioModel @Inject constructor(
 
             addCryptoCurrenciesUseCase(
                 userWalletId = params.userWalletId,
-                currencies = listOfNotNull(params.cryptoCurrency),
+                currency = params.cryptoCurrency,
             )
                 .onRight { params.onSuccessAdding(params.cryptoCurrency.id) }
                 .onLeft { changeAddButtonProgressStatus(isProgress = false) }

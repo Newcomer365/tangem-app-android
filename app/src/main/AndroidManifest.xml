@@ -27,8 +27,7 @@
 
     <queries>
         <intent>
-            <action android:name=
-                "android.support.customtabs.action.CustomTabsService" />
+            <action android:name="android.support.customtabs.action.CustomTabsService" />
         </intent>
     </queries>
 
@@ -44,6 +43,7 @@
         android:resizeableActivity="@bool/resizeable_activity"
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
+        android:enableOnBackInvokedCallback="true"
         tools:ignore="GoogleAppIndexingWarning"
         tools:replace="android:allowBackup, android:fullBackupContent, android:label">
 
@@ -128,7 +128,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:host="onramp-success"
+                    android:host="*"
                     android:scheme="tangem" />
             </intent-filter>
 
@@ -143,7 +143,25 @@
                     android:scheme="tangem" />
             </intent-filter>
 
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="*"
+                    android:scheme="tangem" />
+            </intent-filter>
+
         </activity>
+
+        <!-- Disable android.startup completely. Used for Worker according doc -->
+        <!--https://developer.android.com/jetpack/androidx/releases/work#version_260_3-->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            tools:node="remove" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

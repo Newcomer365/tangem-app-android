@@ -1,9 +1,10 @@
 package com.tangem.features.onramp.selectcurrency.model
 
 import com.tangem.core.analytics.api.AnalyticsEventHandler
-import com.tangem.core.decompose.di.ComponentScoped
+import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
+import com.tangem.core.ui.components.fields.InputManager
 import com.tangem.core.ui.components.fields.entity.SearchBarUM
 import com.tangem.core.ui.extensions.resourceReference
 import com.tangem.domain.onramp.FetchOnrampCurrenciesUseCase
@@ -20,7 +21,6 @@ import com.tangem.features.onramp.selectcurrency.entity.CurrencyListController
 import com.tangem.features.onramp.selectcurrency.entity.transformer.UpdateCurrencyItemsErrorTransformer
 import com.tangem.features.onramp.selectcurrency.entity.transformer.UpdateCurrencyItemsLoadingTransformer
 import com.tangem.features.onramp.selectcurrency.entity.transformer.UpdateCurrencyItemsTransformer
-import com.tangem.features.onramp.utils.InputManager
 import com.tangem.features.onramp.utils.UpdateSearchBarActiveStateTransformer
 import com.tangem.features.onramp.utils.UpdateSearchQueryTransformer
 import com.tangem.features.onramp.utils.sendOnrampErrorEvent
@@ -35,7 +35,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @Suppress("LongParameterList")
-@ComponentScoped
+@ModelScoped
 internal class OnrampSelectCurrencyModel @Inject constructor(
     override val dispatchers: CoroutineDispatcherProvider,
     private val analyticsEventHandler: AnalyticsEventHandler,
@@ -97,7 +97,7 @@ internal class OnrampSelectCurrencyModel @Inject constructor(
 
     private fun updateCurrenciesList() {
         modelScope.launch {
-            fetchOnrampCurrenciesUseCase().onLeft {
+            fetchOnrampCurrenciesUseCase(userWallet = params.userWallet).onLeft {
                 controller.update(UpdateCurrencyItemsErrorTransformer(onRetry = ::onRetry))
             }
         }

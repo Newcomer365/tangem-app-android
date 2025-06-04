@@ -5,11 +5,14 @@ import com.tangem.domain.staking.FetchStakingYieldBalanceUseCase
 import com.tangem.domain.staking.model.stakekit.Yield
 import com.tangem.domain.staking.model.stakekit.action.StakingActionStatus
 import com.tangem.domain.tokens.FetchPendingTransactionsUseCase
+import com.tangem.domain.tokens.TokensFeatureToggles
 import com.tangem.domain.tokens.UpdateDelayedNetworkStatusUseCase
 import com.tangem.domain.tokens.model.CryptoCurrencyStatus
 import com.tangem.domain.txhistory.usecase.GetTxHistoryItemsCountUseCase
 import com.tangem.domain.txhistory.usecase.GetTxHistoryItemsUseCase
 import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.features.txhistory.TxHistoryFeatureToggles
+import com.tangem.features.txhistory.entity.TxHistoryContentUpdateEmitter
 import com.tangem.utils.coroutines.DelayedWork
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -24,6 +27,9 @@ internal class StakingBalanceUpdater @AssistedInject constructor(
     private val getTxHistoryItemsCountUseCase: GetTxHistoryItemsCountUseCase,
     private val getTxHistoryItemsUseCase: GetTxHistoryItemsUseCase,
     private val fetchActionsUseCase: FetchActionsUseCase,
+    private val txHistoryFeatureToggles: TxHistoryFeatureToggles,
+    private val txHistoryContentUpdateEmitter: TxHistoryContentUpdateEmitter,
+    private val tokensFeatureToggles: TokensFeatureToggles,
     @DelayedWork private val coroutineScope: CoroutineScope,
     @Assisted private val userWallet: UserWallet,
     @Assisted private val cryptoCurrencyStatus: CryptoCurrencyStatus,
@@ -60,20 +66,10 @@ internal class StakingBalanceUpdater @AssistedInject constructor(
         coroutineScope {
             listOf(
                 async {
-                    updateNetworkStatuses(delay = 0)
-                },
-                async {
-                    updateProcessingActions()
-                },
-            ).awaitAll()
-        }
-    }
-
-    suspend fun initialUpdate() {
-        coroutineScope {
-            listOf(
-                async {
                     updateStakeBalance()
+                },
+                async {
+                    updateNetworkStatuses(delay = 0)
                 },
                 async {
                     updateProcessingActions()
@@ -95,6 +91,7 @@ internal class StakingBalanceUpdater @AssistedInject constructor(
         stakingYieldBalanceUseCase(
             userWalletId = userWallet.walletId,
             cryptoCurrency = cryptoCurrencyStatus.currency,
+            isRefactoringEnabled = tokensFeatureToggles.isStakingLoadingRefactoringEnabled,
             refresh = true,
         )
     }
@@ -107,11 +104,15 @@ internal class StakingBalanceUpdater @AssistedInject constructor(
         )
 
         txHistoryItemsCountEither.onRight {
-            getTxHistoryItemsUseCase(
-                userWalletId = userWallet.walletId,
-                currency = cryptoCurrencyStatus.currency,
-                refresh = true,
-            )
+            if (txHistoryFeatureToggles.isFeatureEnabled) {
+                txHistoryContentUpdateEmitter.triggerUpdate()
+            } else {
+                getTxHistoryItemsUseCase(
+                    userWalletId = userWallet.walletId,
+                    currency = cryptoCurrencyStatus.currency,
+                    refresh = true,
+                )
+            }
         }
     }
 

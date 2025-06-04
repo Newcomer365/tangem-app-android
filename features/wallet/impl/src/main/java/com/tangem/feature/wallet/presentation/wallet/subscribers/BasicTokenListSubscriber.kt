@@ -2,6 +2,8 @@ package com.tangem.feature.wallet.presentation.wallet.subscribers
 
 import arrow.core.getOrElse
 import com.tangem.core.deeplink.DeepLinksRegistry
+import com.tangem.core.deeplink.global.ReferralDeepLink
+import com.tangem.core.deeplink.global.SellCurrencyDeepLink
 import com.tangem.domain.appcurrency.GetSelectedAppCurrencyUseCase
 import com.tangem.domain.appcurrency.model.AppCurrency
 import com.tangem.domain.core.lce.Lce
@@ -11,12 +13,12 @@ import com.tangem.domain.tokens.RunPolkadotAccountHealthCheckUseCase
 import com.tangem.domain.tokens.error.TokenListError
 import com.tangem.domain.tokens.model.TokenList
 import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.feature.wallet.child.wallet.model.intents.WalletClickIntents
 import com.tangem.feature.wallet.presentation.wallet.analytics.utils.TokenListAnalyticsSender
 import com.tangem.feature.wallet.presentation.wallet.domain.WalletWithFundsChecker
 import com.tangem.feature.wallet.presentation.wallet.state.WalletStateController
 import com.tangem.feature.wallet.presentation.wallet.state.transformers.SetTokenListErrorTransformer
 import com.tangem.feature.wallet.presentation.wallet.state.transformers.SetTokenListTransformer
-import com.tangem.feature.wallet.presentation.wallet.viewmodels.intents.WalletClickIntents
 import com.tangem.utils.coroutines.JobHolder
 import com.tangem.utils.coroutines.saveIn
 import kotlinx.coroutines.CoroutineScope
@@ -113,8 +115,14 @@ internal abstract class BasicTokenListSubscriber(
 
     protected open suspend fun onTokenListReceived(maybeTokenList: Lce<TokenListError, TokenList>) {
         /* no-op */
+        // Handling sell deeplink requires full content in order to correctly open Send screen
         if (maybeTokenList.getOrNull(false) != null) {
-            deepLinksRegistry.triggerDelayedDeeplink()
+            deepLinksRegistry.triggerDelayedDeeplink(deepLinkClass = SellCurrencyDeepLink::class.java)
+        }
+        // Handling referral deeplink requires only selected wallet to be loaded
+        // This is temporary solution, will be removed with complete deeplink navigation overhaul
+        if (maybeTokenList.getOrNull(true) != null) {
+            deepLinksRegistry.triggerDelayedDeeplink(deepLinkClass = ReferralDeepLink::class.java)
         }
     }
 

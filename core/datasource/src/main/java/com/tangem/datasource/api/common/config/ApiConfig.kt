@@ -24,8 +24,9 @@ sealed class ApiConfig {
         Express,
         TangemTech,
         StakeKit,
-        TangemVisaAuth,
         TangemVisa,
+        Attestation,
+        BlockAid,
     }
 
     private fun initializeId(): ID {
@@ -33,14 +34,14 @@ sealed class ApiConfig {
             is Express -> ID.Express
             is TangemTech -> ID.TangemTech
             is StakeKit -> ID.StakeKit
-            is TangemVisaAuth -> ID.TangemVisaAuth
             is TangemVisa -> ID.TangemVisa
+            is Attestation -> ID.Attestation
+            is BlockAid -> ID.BlockAid
         }
     }
 
     companion object {
         internal const val DEBUG_BUILD_TYPE = "debug"
-        internal const val DEBUG_PG_BUILD_TYPE = "debugPG"
         internal const val INTERNAL_BUILD_TYPE = "internal"
         internal const val MOCKED_BUILD_TYPE = "mocked"
         internal const val EXTERNAL_BUILD_TYPE = "external"

@@ -1,5 +1,6 @@
 package com.tangem.tap.features.home.redux
 
+import android.content.res.Resources
 import com.tangem.common.doOnFailure
 import com.tangem.common.doOnResult
 import com.tangem.common.doOnSuccess
@@ -10,7 +11,6 @@ import com.tangem.core.analytics.models.AnalyticsParam
 import com.tangem.core.analytics.models.Basic
 import com.tangem.domain.common.util.cardTypesResolver
 import com.tangem.domain.models.scan.ScanResponse
-import com.tangem.domain.wallets.builder.UserWalletBuilder
 import com.tangem.tap.common.analytics.converters.ParamCardCurrencyConverter
 import com.tangem.tap.common.analytics.events.IntroductionProcess
 import com.tangem.tap.common.extensions.dispatchNavigationAction
@@ -27,13 +27,22 @@ import kotlinx.coroutines.launch
 import org.rekotlin.Action
 import org.rekotlin.Middleware
 import timber.log.Timber
+import java.util.Locale
 
 internal const val HIDE_PROGRESS_DELAY = 400L
 
 object HomeMiddleware {
     val handler = homeMiddleware
 
-    const val NEW_BUY_WALLET_URL = "https://buy.tangem.com/?utm_source=tangem&utm_medium=app"
+    private val SYSTEM_LANGUAGE =
+        runCatching { Resources.getSystem().configuration.locales[0].language }.getOrElse { "" }
+    private val APP_LANGUAGE = Locale.getDefault().language
+    private val UTM_MARKS = "utm_source=tangem-app" +
+        "&utm_medium=app" +
+        "&utm_campaign=prospect-$SYSTEM_LANGUAGE" +
+        "&utm_content=devicelang-$APP_LANGUAGE"
+
+    val NEW_BUY_WALLET_URL = "https://buy.tangem.com/?$UTM_MARKS"
 }
 
 private val homeMiddleware: Middleware<AppState> = { _, _ ->
@@ -91,8 +100,9 @@ private suspend fun readCard() {
 }
 
 private fun proceedWithScanResponse(scanResponse: ScanResponse) = scope.launch {
-    val walletNameGenerateUseCase = store.inject(DaggerGraphState::generateWalletNameUseCase)
-    val userWallet = UserWalletBuilder(scanResponse, walletNameGenerateUseCase).build().guard {
+    val userWalletBuilder = store.inject(DaggerGraphState::userWalletBuilderFactory).create(scanResponse)
+
+    val userWallet = userWalletBuilder.build().guard {
         Timber.e("User wallet not created")
         return@launch
     }

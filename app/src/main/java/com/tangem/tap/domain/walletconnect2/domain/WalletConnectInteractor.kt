@@ -6,6 +6,9 @@ import com.tangem.blockchainsdk.utils.toNetworkId
 import com.tangem.domain.tokens.model.CryptoCurrency
 import com.tangem.domain.tokens.model.Network
 import com.tangem.domain.tokens.repository.CurrenciesRepository
+import com.tangem.domain.walletconnect.model.legacy.Account
+import com.tangem.domain.walletconnect.model.legacy.Session
+import com.tangem.domain.walletconnect.model.legacy.WalletConnectSessionsRepository
 import com.tangem.domain.walletmanager.WalletManagersFacade
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
 import com.tangem.domain.wallets.models.UserWallet
@@ -81,7 +84,7 @@ class WalletConnectInteractor(
         }
     }
 
-    private suspend fun initWithWallet(userWallet: UserWallet) {
+    private fun initWithWallet(userWallet: UserWallet) {
         if (userWallet.isMultiCurrency) {
             Timber.i("WalletConnect: initialize and setup networks for ${userWallet.walletId}")
             startListeningWc(userWallet.walletId.stringValue, getCardId(userWallet))
@@ -109,7 +112,7 @@ class WalletConnectInteractor(
         handleDeeplinkStack(accounts)
     }
 
-    private suspend fun startListeningWc(userWalletId: String, cardId: String?) {
+    private fun startListeningWc(userWalletId: String, cardId: String?) {
         this.userWalletId = userWalletId
         this.cardId = cardId
         listenerScope.coroutineContext.cancelChildren()
@@ -135,7 +138,9 @@ class WalletConnectInteractor(
             isWalletConnectReadyForDeepLinks = true
             if (deeplinkStack.empty()) return
             val lastDeeplink = deeplinkStack.pop()
-            store.dispatchOnMain(WalletConnectAction.OpenSession(lastDeeplink))
+            val action = WalletConnectAction
+                .OpenSession(lastDeeplink, WalletConnectAction.OpenSession.SourceType.DEEPLINK)
+            store.dispatchOnMain(action)
         }.onFailure {
             Timber.e("WC deeplink handling failed. $it")
         }
@@ -366,10 +371,6 @@ class WalletConnectInteractor(
         }
     }
 
-    fun isWalletConnectUri(uri: String): Boolean {
-        return uri.lowercase().startsWith(WC_SCHEME)
-    }
-
     /**
      * Handles Wallet Connect deep links.
      * If wallet connect is able to handle the deeplink, session is started with deeplink.
@@ -392,7 +393,8 @@ class WalletConnectInteractor(
         }
 
         if (isWalletConnectReadyForDeepLinks) {
-            store.dispatchOnMain(WalletConnectAction.OpenSession(deeplink))
+            val action = WalletConnectAction.OpenSession(deeplink, WalletConnectAction.OpenSession.SourceType.DEEPLINK)
+            store.dispatchOnMain(action)
         } else {
             deeplinkStack.push(deeplink)
         }
@@ -433,7 +435,6 @@ class WalletConnectInteractor(
     }
 
     private companion object {
-        const val WC_SCHEME = "wc"
         const val WC_TOPIC_QUERY_NAME = "sessionTopic"
         const val WC_PARAM_REGEX = "([a-zA-Z\\d-]+)=([a-zA-Z\\d]+)"
     }

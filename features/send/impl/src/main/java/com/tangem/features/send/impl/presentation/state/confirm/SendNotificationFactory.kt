@@ -1,9 +1,8 @@
 package com.tangem.features.send.impl.presentation.state.confirm
 
-import com.tangem.blockchain.common.Blockchain
 import com.tangem.blockchain.common.transaction.Fee
 import com.tangem.blockchain.common.transaction.TransactionFee
-import com.tangem.blockchainsdk.utils.minimalAmount
+import com.tangem.common.ui.R
 import com.tangem.common.ui.amountScreen.models.AmountState
 import com.tangem.common.ui.notifications.NotificationUM
 import com.tangem.common.ui.notifications.NotificationsFactory.addDustWarningNotification
@@ -18,10 +17,13 @@ import com.tangem.common.ui.notifications.NotificationsFactory.addReserveAmountE
 import com.tangem.common.ui.notifications.NotificationsFactory.addTransactionLimitErrorNotification
 import com.tangem.common.ui.notifications.NotificationsFactory.addValidateTransactionNotifications
 import com.tangem.core.analytics.api.AnalyticsEventHandler
+import com.tangem.core.ui.extensions.resourceReference
 import com.tangem.core.ui.utils.parseToBigDecimal
 import com.tangem.domain.appcurrency.model.AppCurrency
+import com.tangem.domain.notifications.GetTronFeeNotificationShowCountUseCase
 import com.tangem.domain.tokens.GetBalanceNotEnoughForFeeWarningUseCase
 import com.tangem.domain.tokens.GetCurrencyCheckUseCase
+import com.tangem.domain.tokens.model.CryptoCurrency
 import com.tangem.domain.tokens.model.CryptoCurrencyStatus
 import com.tangem.domain.tokens.model.warnings.CryptoCurrencyCheck
 import com.tangem.domain.transaction.error.GetFeeError
@@ -29,14 +31,16 @@ import com.tangem.domain.transaction.usecase.ValidateTransactionUseCase
 import com.tangem.domain.utils.convertToSdkAmount
 import com.tangem.domain.wallets.models.UserWalletId
 import com.tangem.features.send.impl.presentation.analytics.SendAnalyticEvents
+import com.tangem.features.send.impl.presentation.model.SendClickIntents
 import com.tangem.features.send.impl.presentation.state.SendStates
 import com.tangem.features.send.impl.presentation.state.SendUiState
 import com.tangem.features.send.impl.presentation.state.SendUiStateType
 import com.tangem.features.send.impl.presentation.state.StateRouter
 import com.tangem.features.send.impl.presentation.state.fee.*
-import com.tangem.features.send.impl.presentation.viewmodel.SendClickIntents
 import com.tangem.lib.crypto.BlockchainUtils
+import com.tangem.lib.crypto.BlockchainUtils.getTezosThreshold
 import com.tangem.lib.crypto.BlockchainUtils.isTezos
+import com.tangem.lib.crypto.BlockchainUtils.isTron
 import com.tangem.utils.Provider
 import com.tangem.utils.extensions.orZero
 import kotlinx.collections.immutable.ImmutableList
@@ -53,6 +57,7 @@ internal class SendNotificationFactory(
     private val validateTransactionUseCase: ValidateTransactionUseCase,
     private val getCurrencyCheckUseCase: GetCurrencyCheckUseCase,
     private val getBalanceNotEnoughForFeeWarningUseCase: GetBalanceNotEnoughForFeeWarningUseCase,
+    private val getTronFeeNotificationShowCountUseCase: GetTronFeeNotificationShowCountUseCase,
     private val cryptoCurrencyStatusProvider: Provider<CryptoCurrencyStatus>,
     private val feeCryptoCurrencyStatusProvider: Provider<CryptoCurrencyStatus?>,
     private val currentStateProvider: Provider<SendUiState>,
@@ -74,6 +79,7 @@ internal class SendNotificationFactory(
             val sendState = state.sendState ?: return@map persistentListOf()
             val feeState = state.getFeeState(isEditState) ?: return@map persistentListOf()
             val amountState = state.getAmountState(isEditState) as? AmountState.Data ?: return@map persistentListOf()
+            val recipientState = state.getRecipientState(isEditState)
 
             val amountValue = amountState.amountTextField.cryptoAmount.value.orZero()
             val feeValue = feeState.fee?.amount?.value.orZero()
@@ -118,14 +124,20 @@ internal class SendNotificationFactory(
                 )
                 addWarningNotifications(
                     amountState = amountState,
+                    recipientState = recipientState,
                     feeState = feeState,
                     sendState = sendState,
                     sendingAmount = sendingAmount,
                     isFeeCoverage = isFeeCoverage,
                     currencyCheck = currencyCheck,
                 )
+                addInfoNotifications()
             }.toImmutableList()
         }
+
+    private suspend fun MutableList<NotificationUM>.addInfoNotifications() {
+        addTronNetworkFeesNotification()
+    }
 
     fun dismissNotificationState(clazz: Class<out NotificationUM>, isIgnored: Boolean = false): SendUiState {
         val state = currentStateProvider()
@@ -233,6 +245,7 @@ internal class SendNotificationFactory(
 
     private suspend fun MutableList<NotificationUM>.addWarningNotifications(
         amountState: AmountState.Data,
+        recipientState: SendStates.RecipientState?,
         feeState: SendStates.FeeState,
         sendState: SendStates.SendState,
         sendingAmount: BigDecimal,
@@ -247,8 +260,8 @@ internal class SendNotificationFactory(
                 userWalletId = userWalletId,
                 amount = amountValue.convertToSdkAmount(cryptoCurrencyStatus.currency),
                 fee = feeState.fee,
-                memo = null,
-                destination = "",
+                memo = recipientState?.memoTextField?.value.orEmpty(),
+                destination = recipientState?.addressTextField?.value.orEmpty(),
                 network = cryptoCurrencyStatus.currency.network,
             ).leftOrNull()
         }
@@ -294,7 +307,7 @@ internal class SendNotificationFactory(
         val cryptoCurrencyStatus = cryptoCurrencyStatusProvider()
         val balance = cryptoCurrencyStatus.value.amount ?: BigDecimal.ZERO
         val isTezos = isTezos(cryptoCurrencyStatus.currency.network.id.value)
-        val threshold = Blockchain.Tezos.minimalAmount()
+        val threshold = getTezosThreshold()
         val isTotalBalance = sendAmount >= balance && balance > threshold
         if (!ignoreAmountReduce && isTotalBalance && isTezos) {
             add(
@@ -338,5 +351,24 @@ internal class SendNotificationFactory(
         checkIfFeeTooHigh(feeSelectorState) { diff ->
             add(NotificationUM.Warning.TooHigh(diff))
         }
+    }
+
+    private suspend fun MutableList<NotificationUM>.addTronNetworkFeesNotification() {
+        val cryptoCurrency = cryptoCurrencyStatusProvider().currency
+        val isTronToken = cryptoCurrency is CryptoCurrency.Token &&
+            isTron(cryptoCurrency.network.id.value)
+
+        if (isTronToken && getTronFeeNotificationShowCountUseCase() <= TRON_FEE_NOTIFICATION_MAX_SHOW_COUNT) {
+            add(
+                NotificationUM.Info(
+                    title = resourceReference(R.string.tron_will_be_send_token_fee_title),
+                    subtitle = resourceReference(R.string.tron_will_be_send_token_fee_description),
+                ),
+            )
+        }
+    }
+
+    companion object {
+        const val TRON_FEE_NOTIFICATION_MAX_SHOW_COUNT = 3
     }
 }

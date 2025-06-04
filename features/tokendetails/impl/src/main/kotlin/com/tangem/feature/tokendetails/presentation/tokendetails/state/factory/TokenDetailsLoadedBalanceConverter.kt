@@ -10,15 +10,16 @@ import com.tangem.core.ui.format.bigdecimal.*
 import com.tangem.domain.appcurrency.model.AppCurrency
 import com.tangem.domain.models.StatusSource
 import com.tangem.domain.staking.model.stakekit.YieldBalance
+import com.tangem.domain.staking.utils.getTotalWithRewardsStakingBalance
 import com.tangem.domain.tokens.error.CurrencyStatusError
 import com.tangem.domain.tokens.model.CryptoCurrencyStatus
+import com.tangem.feature.tokendetails.presentation.tokendetails.model.TokenDetailsClickIntents
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.BalanceType
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.TokenDetailsBalanceBlockState
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.TokenDetailsState
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.components.TokenDetailsNotification
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.factory.txhistory.TokenDetailsTxHistoryTransactionStateConverter
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.utils.getBalance
-import com.tangem.feature.tokendetails.presentation.tokendetails.viewmodels.TokenDetailsClickIntents
 import com.tangem.utils.Provider
 import com.tangem.utils.StringsSigns.DASH_SIGN
 import com.tangem.utils.converter.Converter
@@ -85,7 +86,10 @@ internal class TokenDetailsLoadedBalanceConverter(
         currentState: TokenDetailsBalanceBlockState,
         status: CryptoCurrencyStatus,
     ): TokenDetailsBalanceBlockState {
-        val stakingCryptoAmount = (status.value.yieldBalance as? YieldBalance.Data)?.getTotalWithRewardsStakingBalance()
+        val stakingCryptoAmount =
+            (status.value.yieldBalance as? YieldBalance.Data)?.getTotalWithRewardsStakingBalance(
+                status.currency.network.id.value,
+            )
         val stakingFiatAmount = stakingCryptoAmount?.let { status.value.fiatRate?.multiply(it) }
         val isBalanceSelectorEnabled = !stakingCryptoAmount.isNullOrZero()
         return when (status.value) {

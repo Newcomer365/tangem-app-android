@@ -1,9 +1,7 @@
-import com.tangem.plugin.configuration.configurations.extension.kaptForObfuscatingVariants
-
 plugins {
     alias(deps.plugins.android.library)
     alias(deps.plugins.kotlin.android)
-    alias(deps.plugins.kotlin.kapt)
+    alias(deps.plugins.ksp)
     id("configuration")
 }
 
@@ -14,6 +12,7 @@ android {
 dependencies {
     implementation(projects.core.datasource)
     implementation(projects.core.utils)
+    implementation(projects.core.error)
     implementation(projects.common)
     implementation(projects.libs.auth)
     implementation(projects.libs.blockchainSdk)
@@ -41,7 +40,7 @@ dependencies {
     implementation(deps.moshi.kotlin)
     implementation(deps.reKotlin)
     implementation(deps.timber)
-    kaptForObfuscatingVariants(deps.moshi.kotlin.codegen)
+    ksp(deps.moshi.kotlin.codegen)
 
     /** Testing libraries */
     testImplementation(deps.test.junit)

@@ -3,7 +3,7 @@ package com.tangem.feature.walletsettings.utils
 import com.tangem.common.routing.AppRoute
 import com.tangem.common.routing.AppRoute.ManageTokens.Source
 import com.tangem.core.analytics.api.AnalyticsEventHandler
-import com.tangem.core.decompose.di.ComponentScoped
+import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.navigation.Router
 import com.tangem.core.ui.components.block.model.BlockUM
 import com.tangem.core.ui.extensions.resourceReference
@@ -17,7 +17,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import javax.inject.Inject
 
-@ComponentScoped
+@ModelScoped
 internal class ItemsBuilder @Inject constructor(
     private val router: Router,
     private val analyticsEventHandler: AnalyticsEventHandler,
@@ -31,20 +31,33 @@ internal class ItemsBuilder @Inject constructor(
         isReferralAvailable: Boolean,
         isManageTokensAvailable: Boolean,
         isRenameWalletAvailable: Boolean,
+        isNFTFeatureEnabled: Boolean,
+        isNFTEnabled: Boolean,
+        onCheckedNFTChange: (Boolean) -> Unit,
         forgetWallet: () -> Unit,
         renameWallet: () -> Unit,
         onLinkMoreCardsClick: () -> Unit,
-    ): PersistentList<WalletSettingsItemUM> = persistentListOf(
-        buildNameItem(userWalletName, isRenameWalletAvailable, renameWallet),
-        buildCardItem(
-            userWalletId = userWalletId,
-            isLinkMoreCardsAvailable = isLinkMoreCardsAvailable,
-            isReferralAvailable = isReferralAvailable,
-            isManageTokensAvailable = isManageTokensAvailable,
-            onLinkMoreCardsClick = onLinkMoreCardsClick,
-        ),
-        buildForgetItem(forgetWallet),
-    )
+        onReferralClick: () -> Unit,
+    ): PersistentList<WalletSettingsItemUM> = persistentListOf<WalletSettingsItemUM>()
+        .add(buildNameItem(userWalletName, isRenameWalletAvailable, renameWallet))
+        .run {
+            if (isNFTFeatureEnabled) {
+                add(buildNFTItem(isNFTEnabled, onCheckedNFTChange))
+            } else {
+                this
+            }
+        }
+        .add(
+            buildCardItem(
+                userWalletId = userWalletId,
+                isLinkMoreCardsAvailable = isLinkMoreCardsAvailable,
+                isReferralAvailable = isReferralAvailable,
+                isManageTokensAvailable = isManageTokensAvailable,
+                onLinkMoreCardsClick = onLinkMoreCardsClick,
+                onReferralClick = onReferralClick,
+            ),
+        )
+        .add(buildForgetItem(forgetWallet))
 
     private fun buildNameItem(walletName: String, isRenameWalletAvailable: Boolean, renameWallet: () -> Unit) =
         WalletSettingsItemUM.WithText(
@@ -55,12 +68,22 @@ internal class ItemsBuilder @Inject constructor(
             onClick = renameWallet,
         )
 
+    private fun buildNFTItem(isNFTEnabled: Boolean, onCheckedNFTChange: (Boolean) -> Unit) =
+        WalletSettingsItemUM.WithSwitch(
+            id = "nft",
+            title = resourceReference(id = R.string.details_nft_title),
+            isChecked = isNFTEnabled,
+            onCheckedChange = onCheckedNFTChange,
+        )
+
+    @Suppress("LongParameterList")
     private fun buildCardItem(
         userWalletId: UserWalletId,
         isLinkMoreCardsAvailable: Boolean,
         isReferralAvailable: Boolean,
         isManageTokensAvailable: Boolean,
         onLinkMoreCardsClick: () -> Unit,
+        onReferralClick: () -> Unit,
     ) = WalletSettingsItemUM.WithItems(
         id = "card",
         description = resourceReference(R.string.settings_card_settings_footer),
@@ -94,7 +117,7 @@ internal class ItemsBuilder @Inject constructor(
                 BlockUM(
                     text = resourceReference(R.string.details_referral_title),
                     iconRes = R.drawable.ic_add_friends_24,
-                    onClick = { router.push(AppRoute.ReferralProgram(userWalletId)) },
+                    onClick = onReferralClick,
                 ).let(::add)
             }
         }.toImmutableList(),

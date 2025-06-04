@@ -1,6 +1,5 @@
 package com.tangem.features.staking.impl.presentation.state.transformers.notifications
 
-import com.tangem.blockchain.common.transaction.Fee
 import com.tangem.common.ui.amountScreen.models.AmountState
 import com.tangem.common.ui.notifications.NotificationUM
 import com.tangem.common.ui.notifications.NotificationsFactory.addDustWarningNotification
@@ -11,9 +10,11 @@ import com.tangem.common.ui.notifications.NotificationsFactory.addFeeUnreachable
 import com.tangem.common.ui.notifications.NotificationsFactory.addRentExemptionNotification
 import com.tangem.common.ui.notifications.NotificationsFactory.addReserveAmountErrorNotification
 import com.tangem.common.ui.notifications.NotificationsFactory.addTransactionLimitErrorNotification
-import com.tangem.common.ui.notifications.NotificationsFactory.addValidateTransactionNotifications
 import com.tangem.core.ui.extensions.networkIconResId
+import com.tangem.core.ui.extensions.stringReference
 import com.tangem.domain.appcurrency.model.AppCurrency
+import com.tangem.domain.staking.model.stakekit.StakingError
+import com.tangem.domain.staking.model.stakekit.StakingErrors
 import com.tangem.domain.staking.model.stakekit.Yield
 import com.tangem.domain.staking.model.stakekit.action.StakingActionCommonType
 import com.tangem.domain.tokens.model.CryptoCurrency
@@ -28,6 +29,7 @@ import com.tangem.features.staking.impl.presentation.state.StakingUiState
 import com.tangem.features.staking.impl.presentation.state.utils.checkAndCalculateSubtractedAmount
 import com.tangem.features.staking.impl.presentation.state.utils.checkFeeCoverage
 import com.tangem.lib.crypto.BlockchainUtils
+import com.tangem.lib.crypto.BlockchainUtils.isTon
 import com.tangem.utils.Provider
 import com.tangem.utils.extensions.orZero
 import com.tangem.utils.transformer.Transformer
@@ -40,8 +42,8 @@ internal class AddStakingNotificationsTransformer(
     private val appCurrencyProvider: Provider<AppCurrency>,
     private val feeCryptoCurrencyStatus: CryptoCurrencyStatus?,
     private val currencyWarning: CryptoCurrencyWarning?,
-    private val validatorError: Throwable?,
     private val feeError: GetFeeError?,
+    private val stakingError: StakingError?,
     private val currencyCheck: CryptoCurrencyCheck,
     private val isSubtractAvailable: Boolean,
     private val yield: Yield,
@@ -53,6 +55,7 @@ internal class AddStakingNotificationsTransformer(
         isSubtractAvailable = isSubtractAvailable,
     )
 
+    @Suppress("LongMethod")
     override fun transform(prevState: StakingUiState): StakingUiState {
         val cryptoCurrencyStatus = cryptoCurrencyStatusProvider()
         val balance = cryptoCurrencyStatus.value.amount.orZero()
@@ -65,7 +68,7 @@ internal class AddStakingNotificationsTransformer(
         val feeValue = feeState?.fee?.amount?.value.orZero()
         val reduceAmountBy = confirmationState.reduceAmountBy.orZero()
 
-        val isEnterAction = prevState.actionType == StakingActionCommonType.Enter
+        val isEnterAction = prevState.actionType is StakingActionCommonType.Enter
         val isFeeCoverage = checkFeeCoverage(
             amountValue = amountValue,
             feeValue = feeValue,
@@ -81,7 +84,7 @@ internal class AddStakingNotificationsTransformer(
                 amountValue = amountValue,
                 feeValue = feeValue,
                 reduceAmountBy = reduceAmountBy,
-            ).max(minimumRequirement)
+            )
         } else {
             // No amount is taken from account balance on exit or pending actions
             BigDecimal.ZERO
@@ -96,6 +99,7 @@ internal class AddStakingNotificationsTransformer(
                 onReload = prevState.clickIntents::getFee,
                 feeValue = feeValue,
             )
+            addStakingErrorNotifications(stakingError = stakingError, onReload = prevState.clickIntents::getFee)
             // warnings
             addWarningNotifications(
                 prevState = prevState,
@@ -111,6 +115,7 @@ internal class AddStakingNotificationsTransformer(
                 sendingAmount = sendingAmount,
                 actionAmount = amountValue,
                 feeValue = feeValue,
+                tonBalanceExtraFeeThreshold = TON_BALANCE_EXTRA_FEE_THRESHOLD,
             )
         }.toImmutableList()
 
@@ -129,6 +134,23 @@ internal class AddStakingNotificationsTransformer(
                 } && isActualSources,
             ),
         )
+    }
+
+    private fun MutableList<NotificationUM>.addStakingErrorNotifications(
+        stakingError: StakingError?,
+        onReload: () -> Unit,
+    ) {
+        when (stakingError) {
+            is StakingError.StakeKitApiError -> {
+                if (stakingError.message != StakingErrors.MinimumAmountNotReachedError.message) {
+                    add(
+                        StakingNotification.Error.Common(subtitle = stringReference(stakingError.toString())),
+                    )
+                }
+            }
+            null -> Unit
+            else -> add(NotificationUM.Warning.NetworkFeeUnreachable(onReload))
+        }
     }
 
     private fun MutableList<NotificationUM>.addErrorNotifications(
@@ -155,6 +177,7 @@ internal class AddStakingNotificationsTransformer(
             cryptoCurrencyStatus = cryptoCurrencyStatus,
             onClick = prevState.clickIntents::openTokenDetails,
         )
+        addTonExtraFeeErrorNotification()
         addExceedsBalanceNotification(
             cryptoCurrencyWarning = currencyWarning,
             cryptoCurrencyStatus = cryptoCurrencyStatus,
@@ -196,7 +219,7 @@ internal class AddStakingNotificationsTransformer(
     ) {
         val cryptoCurrencyStatus = cryptoCurrencyStatusProvider()
         val appCurrency = appCurrencyProvider()
-        val cryptoCurrency = cryptoCurrencyStatus.currency
+        cryptoCurrencyStatus.currency
 
         addRentExemptionNotification(
             rentWarning = currencyCheck.rentWarning,
@@ -216,15 +239,6 @@ internal class AddStakingNotificationsTransformer(
             appCurrency = appCurrency,
             cryptoCurrencyStatus = cryptoCurrencyStatus,
         )
-
-        // blockchain specific
-        addValidateTransactionNotifications(
-            dustValue = currencyCheck.dustValue.orZero(),
-            minAdaValue = (feeState?.fee as? Fee.CardanoToken)?.minAdaValue,
-            validationError = validatorError,
-            cryptoCurrency = cryptoCurrency,
-            onReduceClick = prevState.clickIntents::onAmountReduceToClick,
-        )
     }
 
     private fun MutableList<NotificationUM>.addStakeExceedBalanceNotification(
@@ -235,12 +249,12 @@ internal class AddStakingNotificationsTransformer(
         cryptoCurrencyStatus: CryptoCurrencyStatus,
         onClick: (CryptoCurrency) -> Unit,
     ) {
-        val balance = cryptoCurrencyStatus.value.amount ?: BigDecimal.ZERO
+        val balance = cryptoCurrencyStatus.value.amount.orZero()
         if (!isSubtractionAvailable) return
 
         val showNotification = sendingAmount + feeAmount > balance
         if (showNotification) {
-            val notification = if (actionType == StakingActionCommonType.Enter) {
+            val notification = if (actionType is StakingActionCommonType.Enter) {
                 NotificationUM.Error.TotalExceedsBalance
             } else {
                 with(cryptoCurrencyStatus.currency) {
@@ -257,5 +271,18 @@ internal class AddStakingNotificationsTransformer(
             }
             add(notification)
         }
+    }
+
+    private fun MutableList<NotificationUM>.addTonExtraFeeErrorNotification() {
+        val amount = cryptoCurrencyStatusProvider().value.amount.orZero()
+        val cryptoCurrencyNetworkIdValue = cryptoCurrencyStatusProvider().currency.network.id.value
+
+        if (isTon(cryptoCurrencyNetworkIdValue) && amount < TON_BALANCE_EXTRA_FEE_THRESHOLD) {
+            add(NotificationUM.Error.TonStakingExtraFeeError)
+        }
+    }
+
+    private companion object {
+        val TON_BALANCE_EXTRA_FEE_THRESHOLD = BigDecimal(0.2)
     }
 }

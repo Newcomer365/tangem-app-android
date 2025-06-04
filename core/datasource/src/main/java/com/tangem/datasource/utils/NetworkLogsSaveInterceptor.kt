@@ -25,7 +25,7 @@ private const val JSON_INDENT_SPACES = 4
  *
  * @author Andrew Khokhlov on 26/02/2024
  */
-internal class NetworkLogsSaveInterceptor(
+class NetworkLogsSaveInterceptor(
     private val appLogsStore: AppLogsStore,
 ) : Interceptor {
 

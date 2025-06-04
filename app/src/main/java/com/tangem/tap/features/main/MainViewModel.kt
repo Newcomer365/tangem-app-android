@@ -9,6 +9,7 @@ import com.tangem.core.analytics.api.AnalyticsEventHandler
 import com.tangem.core.analytics.models.event.TechAnalyticsEvent
 import com.tangem.core.decompose.di.GlobalUiMessageSender
 import com.tangem.core.decompose.ui.UiMessageSender
+import com.tangem.core.deeplink.DeepLinksRegistry
 import com.tangem.core.ui.R
 import com.tangem.core.ui.coil.ImagePreloader
 import com.tangem.core.ui.extensions.resourceReference
@@ -21,6 +22,7 @@ import com.tangem.domain.balancehiding.BalanceHidingSettings
 import com.tangem.domain.balancehiding.GetBalanceHidingSettingsUseCase
 import com.tangem.domain.balancehiding.ListenToFlipsUseCase
 import com.tangem.domain.balancehiding.UpdateBalanceHidingSettingsUseCase
+import com.tangem.domain.onboarding.repository.OnboardingRepository
 import com.tangem.domain.onramp.FetchHotCryptoUseCase
 import com.tangem.domain.promo.GetStoryContentUseCase
 import com.tangem.domain.promo.models.StoryContentIds
@@ -30,9 +32,11 @@ import com.tangem.domain.settings.usercountry.FetchUserCountryUseCase
 import com.tangem.domain.staking.FetchStakingTokensUseCase
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
 import com.tangem.feature.swap.analytics.StoriesEvents
-import com.tangem.features.onramp.OnrampFeatureToggles
-import com.tangem.features.swap.SwapFeatureToggles
+import com.tangem.features.onramp.deeplink.OnrampDeepLink
 import com.tangem.tap.common.extensions.setContext
+import com.tangem.tap.common.redux.global.GlobalAction
+import com.tangem.tap.features.onboarding.products.wallet.redux.BackupDialog
+import com.tangem.tap.store
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -60,8 +64,9 @@ internal class MainViewModel @Inject constructor(
     private val getStoryContentUseCase: GetStoryContentUseCase,
     private val imagePreloader: ImagePreloader,
     private val fetchHotCryptoUseCase: FetchHotCryptoUseCase,
-    private val swapFeatureToggles: SwapFeatureToggles,
-    onrampFeatureToggles: OnrampFeatureToggles,
+    private val onboardingRepository: OnboardingRepository,
+    private val deepLinksRegistry: DeepLinksRegistry,
+    private val onrampDeepLinkFactory: OnrampDeepLink.Factory,
     getBalanceHidingSettingsUseCase: GetBalanceHidingSettingsUseCase,
 ) : ViewModel() {
 
@@ -82,9 +87,7 @@ internal class MainViewModel @Inject constructor(
             }
         }
 
-        if (onrampFeatureToggles.isHotTokensEnabled) {
-            viewModelScope.launch { fetchHotCryptoUseCase() }
-        }
+        viewModelScope.launch { fetchHotCryptoUseCase() }
 
         updateAppCurrencies()
         observeFlips()
@@ -98,6 +101,15 @@ internal class MainViewModel @Inject constructor(
         sendKeyboardIdentifierEvent()
 
         preloadImages()
+
+        initializeDeepLinks()
+    }
+
+    fun checkForUnfinishedBackup() {
+        viewModelScope.launch(dispatchers.main) {
+            val onboardingScanResponse = onboardingRepository.getUnfinishedFinalizeOnboarding() ?: return@launch
+            store.dispatch(GlobalAction.ShowDialog(BackupDialog.UnfinishedBackupFound(onboardingScanResponse)))
+        }
     }
 
     /** Loading the resources needed to run the application */
@@ -130,7 +142,7 @@ internal class MainViewModel @Inject constructor(
 
     private fun fetchStakingTokens() {
         viewModelScope.launch(dispatchers.main) {
-            fetchStakingTokensUseCase(true)
+            fetchStakingTokensUseCase()
                 .onLeft { Timber.e(it.toString(), "Unable to fetch the staking tokens list") }
                 .onRight { Timber.d("Staking token list was fetched successfully") }
         }
@@ -301,23 +313,21 @@ internal class MainViewModel @Inject constructor(
     private fun preloadImages() {
         try {
             viewModelScope.launch {
-                if (swapFeatureToggles.isPromoStoriesEnabled) {
-                    val swapStories = getStoryContentUseCase.invokeSync(
-                        id = StoryContentIds.STORY_FIRST_TIME_SWAP.id,
-                        refresh = true,
-                    ).getOrNull()
+                val swapStories = getStoryContentUseCase.invokeSync(
+                    id = StoryContentIds.STORY_FIRST_TIME_SWAP.id,
+                    refresh = true,
+                ).getOrNull()
 
-                    if (swapStories == null) {
-                        analyticsEventHandler.send(
-                            StoriesEvents.Error(
-                                type = StoryContentIds.STORY_FIRST_TIME_SWAP.analyticType,
-                            ),
-                        )
-                    } else {
-                        val storiesImages = swapStories.getImageUrls()
-                        // try to preload images for stories
-                        storiesImages.forEach(imagePreloader::preload)
-                    }
+                if (swapStories == null) {
+                    analyticsEventHandler.send(
+                        StoriesEvents.Error(
+                            type = StoryContentIds.STORY_FIRST_TIME_SWAP.analyticType,
+                        ),
+                    )
+                } else {
+                    val storiesImages = swapStories.getImageUrls()
+                    // try to preload images for stories
+                    storiesImages.forEach(imagePreloader::preload)
                 }
             }
         } catch (ex: Exception) {
@@ -328,5 +338,9 @@ internal class MainViewModel @Inject constructor(
                 ),
             )
         }
+    }
+
+    private fun initializeDeepLinks() {
+        deepLinksRegistry.register(onrampDeepLinkFactory.create(viewModelScope))
     }
 }

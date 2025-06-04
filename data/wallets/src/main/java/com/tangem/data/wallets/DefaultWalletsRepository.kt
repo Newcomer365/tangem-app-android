@@ -6,11 +6,13 @@ import com.tangem.datasource.api.tangemTech.TangemTechApi
 import com.tangem.datasource.api.tangemTech.models.MarkUserWalletWasCreatedBody
 import com.tangem.datasource.api.tangemTech.models.SeedPhraseNotificationDTO
 import com.tangem.datasource.api.tangemTech.models.SeedPhraseNotificationDTO.Status
+import com.tangem.datasource.api.tangemTech.models.WalletBody
 import com.tangem.datasource.local.datastore.RuntimeStateStore
 import com.tangem.datasource.local.preferences.AppPreferencesStore
 import com.tangem.datasource.local.preferences.PreferencesKeys
 import com.tangem.datasource.local.preferences.PreferencesKeys.SEED_FIRST_NOTIFICATION_SHOW_TIME
 import com.tangem.datasource.local.preferences.utils.get
+import com.tangem.datasource.local.preferences.utils.getObjectMap
 import com.tangem.datasource.local.preferences.utils.getSyncOrDefault
 import com.tangem.datasource.local.preferences.utils.store
 import com.tangem.datasource.local.userwallet.UserWalletsStore
@@ -20,11 +22,9 @@ import com.tangem.domain.wallets.repository.WalletsRepository
 import com.tangem.utils.WEEK_MILLIS
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import com.tangem.utils.coroutines.runCatching
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.channelFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 typealias SeedPhraseNotificationsStatuses = Map<UserWalletId, SeedPhraseNotificationsStatus>
 
@@ -200,6 +200,74 @@ internal class DefaultWalletsRepository(
             it.toMutableMap().apply {
                 this[id] = value
             }
+        }
+    }
+
+    override fun nftEnabledStatus(userWalletId: UserWalletId): Flow<Boolean> = appPreferencesStore
+        .getObjectMap<Boolean>(PreferencesKeys.WALLETS_NFT_ENABLED_STATES_KEY)
+        .map { it[userWalletId.stringValue] == true }
+
+    override fun nftEnabledStatuses(): Flow<Map<UserWalletId, Boolean>> = appPreferencesStore
+        .getObjectMap<Boolean>(PreferencesKeys.WALLETS_NFT_ENABLED_STATES_KEY)
+        .map { it.mapKeys { UserWalletId(it.key) } }
+
+    override suspend fun enableNFT(userWalletId: UserWalletId) {
+        appPreferencesStore.editData {
+            it.setObjectMap(
+                key = PreferencesKeys.WALLETS_NFT_ENABLED_STATES_KEY,
+                value = it.getObjectMap<Boolean>(PreferencesKeys.WALLETS_NFT_ENABLED_STATES_KEY)
+                    .plus(userWalletId.stringValue to true),
+            )
+        }
+    }
+
+    override suspend fun disableNFT(userWalletId: UserWalletId) {
+        appPreferencesStore.editData {
+            it.setObjectMap(
+                key = PreferencesKeys.WALLETS_NFT_ENABLED_STATES_KEY,
+                value = it.getObjectMap<Boolean>(PreferencesKeys.WALLETS_NFT_ENABLED_STATES_KEY)
+                    .plus(userWalletId.stringValue to false),
+            )
+        }
+    }
+
+    override suspend fun isNotificationsEnabled(userWalletId: UserWalletId, force: Boolean): Boolean =
+        withContext(dispatchers.io) {
+            if (force) {
+                return@withContext loadAndSaveNotificationsEnabled(userWalletId)
+            }
+
+            val localValue = appPreferencesStore.getObjectMap<Boolean>(PreferencesKeys.NOTIFICATIONS_ENABLED_STATES_KEY)
+                .map { it[userWalletId.stringValue] }
+                .firstOrNull()
+
+            localValue ?: loadAndSaveNotificationsEnabled(userWalletId)
+        }
+
+    override suspend fun setNotificationsEnabled(userWalletId: UserWalletId, isEnabled: Boolean) {
+        withContext(dispatchers.io) {
+            tangemTechApi.setNotificationsEnabled(
+                walletId = userWalletId.stringValue,
+                body = WalletBody(notifyStatus = isEnabled),
+            ).getOrThrow()
+            setNotificationsEnabledLocally(userWalletId, isEnabled)
+        }
+    }
+
+    private suspend fun loadAndSaveNotificationsEnabled(userWalletId: UserWalletId): Boolean {
+        val walletResponse = tangemTechApi.getWalletById(walletId = userWalletId.stringValue).getOrThrow()
+        val isEnabled = walletResponse.notifyStatus
+        setNotificationsEnabledLocally(userWalletId, isEnabled)
+        return isEnabled
+    }
+
+    private suspend fun setNotificationsEnabledLocally(userWalletId: UserWalletId, isEnabled: Boolean) {
+        appPreferencesStore.editData {
+            it.setObjectMap(
+                key = PreferencesKeys.NOTIFICATIONS_ENABLED_STATES_KEY,
+                value = it.getObjectMap<Boolean>(PreferencesKeys.NOTIFICATIONS_ENABLED_STATES_KEY)
+                    .plus(userWalletId.stringValue to isEnabled),
+            )
         }
     }
 }

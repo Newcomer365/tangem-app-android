@@ -4,6 +4,7 @@ plugins {
     alias(deps.plugins.android.library)
     alias(deps.plugins.kotlin.android)
     alias(deps.plugins.kotlin.kapt)
+    alias(deps.plugins.ksp)
     id("configuration")
 }
 
@@ -22,6 +23,7 @@ dependencies {
     implementation(projects.domain.txhistory.models)
     implementation(projects.domain.wallets.models)
     implementation(projects.domain.staking.models)
+    implementation(projects.domain.staking)
 
     /** Project - Data */
     implementation(projects.core.datasource)
@@ -50,6 +52,6 @@ dependencies {
     implementation(deps.timber)
     implementation(deps.retrofit) // For HttpException
     implementation(deps.androidx.paging.runtime)
-    kaptForObfuscatingVariants(deps.moshi.kotlin.codegen)
+    ksp(deps.moshi.kotlin.codegen)
     kaptForObfuscatingVariants(deps.retrofit.response.type.keeper)
 }
