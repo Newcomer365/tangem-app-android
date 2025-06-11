@@ -1,4 +1,4 @@
-name: Tangem Application
+name: Tangem Application Create
 
 on:
   push:
