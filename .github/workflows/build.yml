@@ -1,13 +1,14 @@
 name: Tangem Application Build
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - release
   pull_request:
     branches:
       - release
-  workflow_dispatch:
+  
   
 
 jobs:
