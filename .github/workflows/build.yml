@@ -57,9 +57,15 @@ jobs:
     - name: Set up gradle.properties and Download Keystore
       run: |
         mkdir -p ~/.gradle
-        echo "gpr.key=${{ secrets.GITHUB_TOKEN }}" > ~/.gradle/gradle.properties
-        echo "gpr.user=${{ github.actor }}" >> ~/.gradle/gradle.properties
-        echo "sdk.dir=~/Android/Sdk" >> ~/.gradle/gradle.properties
+        cat > ~/.gradle/gradle.properties << EOF
+        gpr.key=${{ secrets.GITHUB_TOKEN }}
+        gpr.user=${{ github.actor }}
+        sdk.dir=~/Android/Sdk
+        org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+        org.gradle.parallel=true
+        org.gradle.caching=true
+        android.dexerMaxHeapSize=2g
+        EOF
         echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode > ~/keystore.jks
 
     - name: Build local.properties
@@ -113,12 +119,20 @@ jobs:
         echo "key_password=android" >> app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
         cp ~/.android/debug.keystore app/src/main/assets/tangem-app-config/android/keystore/
     
-  
+    - name: Clean project
+      run: ./gradlew clean
+    
     - name: Build and Sign APK
       run: |
         cd ${{ github.workspace }}
-        ./gradlew assembleRelease -Pandroid.injected.signing.store.file=$HOME/keystore.jks -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }} -PversionName=${{ env.VERSION_NAME }} -PversionCode=${{ env.VERSION_CODE }} -PpackageName=${{ env.PACKAGE_NAME }}
-
+        ./gradlew --daemon assembleRelease \
+          -Pandroid.injected.signing.store.file=$HOME/keystore.jks \
+          -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
+          -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
+          -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }} \
+          -PversionName=${{ env.VERSION_NAME }} \
+          -PversionCode=${{ env.VERSION_CODE }} \
+          -PpackageName=${{ env.PACKAGE_NAME }}
 
     - name: Rename APK to include version name
       run: |
