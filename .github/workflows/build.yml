@@ -17,6 +17,9 @@ jobs:
     - name: Install at tool
       run: sudo apt-get install -y at
 
+    - name: Clean Gradle Cache
+      run: rm -rf ~/.gradle/caches
+
     - name: Checkout repository
       uses: actions/checkout@v3
 
@@ -34,27 +37,18 @@ jobs:
         build-tools: 34.0.1
         ndk: '25.2.9519653'
 
-    - name: Cache Gradle dependencies
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-        restore-keys: |
-          gradle-${{ runner.os }}-
-
     - name: Cache Android SDK cmdline-tools
       uses: actions/cache@v3
       with:
         path: ~/Android/Sdk/cmdline-tools
         key: android-sdk-cmdline-tools-${{ runner.os }}-${{ hashFiles('**/*.xml') }}
-        restore-keys: |
-          android-sdk-cmdline-tools-${{ runner.os }}-
+        restore-keys: android-sdk-cmdline-tools-${{ runner.os }}-
 
     - name: Set gradle.properties
       run: |
         echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8" >> gradle.properties
+        echo "android.enableD8=true" >> gradle.properties
+        echo "android.useAndroidX=true" >> gradle.properties
 
     - name: Set up gradle.properties and Download Keystore
       run: |
@@ -118,6 +112,7 @@ jobs:
       run: |
         cd ${{ github.workspace }}
         ./gradlew assembleRelease \
+          --stacktrace \
           --no-daemon \
           --max-workers=2 \
           -Pandroid.injected.signing.store.file=$HOME/keystore.jks \
@@ -133,7 +128,6 @@ jobs:
         VERSION_NAME=${{ env.VERSION_NAME }}
         APK_PATH="app/build/outputs/apk/release/app-release.apk"
         mv $APK_PATH app/build/outputs/apk/release/tangem_${VERSION_NAME}.apk
-        echo "APK renamed to: tangem_${VERSION_NAME}.apk"
 
     - name: Generate SHA256 Hash
       run: |
@@ -154,7 +148,6 @@ jobs:
         echo "RELEASE_NAME=$RELEASE_NAME" >> $GITHUB_ENV
 
     - name: Create GitHub Release and Upload APK and SHA256 Hash
-      id: create_release
       uses: softprops/action-gh-release@v2
       with:
         name: ${{ env.RELEASE_NAME }}
@@ -163,13 +156,21 @@ jobs:
           Release APK
 
           ### Version ${{ env.VERSION_NAME }}
-          Below is the SHA256 hash of the APK:
           SHA256: ${{ env.SHA256 }}
         draft: false
         prerelease: false
         files: app/build/outputs/apk/release/tangem_${{ env.VERSION_NAME }}.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload build logs on failure
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-logs
+        path: |
+          **/build/reports/
+          ~/.gradle/daemon/
 
     - name: Schedule Tag and Release Deletion
       run: |
