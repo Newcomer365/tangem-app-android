@@ -3,165 +3,168 @@ name: Tangem Application Build
 on:
   workflow_dispatch:
   push:
-    branches:
-      - master
+    branches: [ master ]
   pull_request:
-    branches:
-      - master
+    branches: [ master ]
 
 jobs:
   build:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Install dependencies
-        run: sudo apt-get install -y at jq
+    - name: Install at tool
+      run: sudo apt-get install -y at
 
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-          cache: 'gradle'
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        cache: 'gradle'
 
-      - name: Install Android SDK
-        uses: android-actions/setup-android@v2
-        with:
-          api-level: 34
-          build-tools: 34.0.1
-          ndk: '25.2.9519653'
+    - name: Install Android SDK
+      uses: android-actions/setup-android@v2
+      with:
+        api-level: 34
+        build-tools: 34.0.1
+        ndk: '25.2.9519653'
 
-      - name: Cache Gradle
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: gradle-${{ runner.os }}-
+    - name: Cache Gradle
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          gradle-${{ runner.os }}-
 
-      - name: Set gradle.properties
-        run: |
-          echo "org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8" >> gradle.properties
-          echo "android.enableDexingArtifactTransform.desugaring=false" >> gradle.properties
+    - name: Cache Android SDK cmdline-tools
+      uses: actions/cache@v3
+      with:
+        path: ~/Android/Sdk/cmdline-tools
+        key: android-sdk-cmdline-tools-${{ runner.os }}-${{ hashFiles('**/*.xml') }}
+        restore-keys: |
+          android-sdk-cmdline-tools-${{ runner.os }}-
 
-      - name: Set up gradle.properties and Download Keystore
-        run: |
-          mkdir -p ~/.gradle
-          echo "gpr.key=${{ secrets.GITHUB_TOKEN }}" > ~/.gradle/gradle.properties
-          echo "gpr.user=${{ github.actor }}" >> ~/.gradle/gradle.properties
-          echo "sdk.dir=${ANDROID_HOME}" >> ~/.gradle/gradle.properties
-          echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode > ~/keystore.jks
+    - name: Set gradle.properties
+      run: |
+        echo "org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8" >> gradle.properties
 
-      - name: Build local.properties
-        run: |
-          echo "gpr.user=${{ github.actor }}" >> local.properties
-          echo "gpr.key=${{ secrets.GITHUB_TOKEN }}" >> local.properties
-          echo "sdk.dir=${ANDROID_HOME}" >> local.properties
+    - name: Set up gradle.properties and Download Keystore
+      run: |
+        mkdir -p ~/.gradle
+        echo "gpr.key=${{ secrets.GITHUB_TOKEN }}" > ~/.gradle/gradle.properties
+        echo "gpr.user=${{ github.actor }}" >> ~/.gradle/gradle.properties
+        echo "sdk.dir=~/Android/Sdk" >> ~/.gradle/gradle.properties
+        echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode > ~/keystore.jks
 
-      - name: Read version from version.properties
-        run: |
-          VERSION_NAME=$(grep 'versionName' version.properties | cut -d '=' -f2)
-          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+    - name: Build local.properties
+      run: |
+        echo "gpr.user=${{ github.actor }}" >> local.properties
+        echo "gpr.key=${{ secrets.GITHUB_TOKEN }}" >> local.properties
+        echo "sdk.dir=~/Android/Sdk" >> local.properties
 
-      - name: Clone external config
-        run: |
-          git clone https://github.com/Newcomer365/tangem-app-config.git
-          mkdir -p app/src/main/assets/tangem-app-config/
-          cp -r tangem-app-config/* app/src/main/assets/tangem-app-config/
+    - name: Read version from version.properties
+      run: |
+        VERSION_NAME=$(grep 'versionName' version.properties | cut -d '=' -f2)
+        echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+        echo "VERSION_NAME=$VERSION_NAME"
 
-      - name: Decode and extract package name
-        run: |
-          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > app/google-services.json
-          PACKAGE_NAME=$(jq -r '.client[0].client_info.android_client_info.package_name' app/google-services.json)
-          echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
+    - name: Clone tangem-app-config
+      run: |
+        git clone https://github.com/Newcomer365/tangem-app-config.git
+        mkdir -p app/src/main/assets/tangem-app-config/
+        cp -r tangem-app-config/* app/src/main/assets/tangem-app-config/
 
-      - name: Set versionCode using timestamp
-        run: |
-          VERSION_CODE=$(date +'%Y%m%d%H')
-          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+    - name: Decode google-services.json
+      run: |
+        echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > app/google-services.json
+        PACKAGE_NAME=$(jq -r '.client[0].client_info.android_client_info.package_name' app/google-services.json)
+        echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
 
-      - name: Update versionCode and packageName
-        run: |
-          sed -i 's|const val packageName = ".*"|const val packageName = "${{ env.PACKAGE_NAME }}"|' plugins/configuration/src/main/kotlin/com/tangem/plugin/configuration/model/AppConfig.kt
+    - name: Set versionCode as current timestamp
+      run: |
+        VERSION_CODE=$(date +'%Y%m%d%H')
+        echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
 
-      - name: Generate debug keystore
-        run: |
-          mkdir -p ~/.android
-          keytool -genkeypair -v \
-            -keystore ~/.android/debug.keystore \
-            -alias androiddebugkey \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass android -keypass android \
-            -dname "CN=Android Debug, OU=Unknown, O=Unknown, L=Unknown, ST=Unknown, C=US"
-          cp ~/.android/debug.keystore app/src/main/assets/tangem-app-config/android/keystore/
-          mkdir -p app/src/main/assets/tangem-app-config/android/keystore/
-          echo "store_password=android" > app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
-          echo "key_alias=androiddebugkey" >> app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
-          echo "key_password=android" >> app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
+    - name: Update AppConfig.kt
+      run: |
+        sed -i 's|const val packageName = ".*"|const val packageName = "${{ env.PACKAGE_NAME }}"|' plugins/configuration/src/main/kotlin/com/tangem/plugin/configuration/model/AppConfig.kt
 
-      - name: Build and Sign APK
-        run: |
-          ./gradlew assembleRelease \
-            --no-daemon \
-            --max-workers=2 \
-            -Dorg.gradle.jvmargs="-Xmx6g" \
-            -Pandroid.injected.signing.store.file=$HOME/keystore.jks \
-            -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
-            -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
-            -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }} \
-            -PversionName=${{ env.VERSION_NAME }} \
-            -PversionCode=${{ env.VERSION_CODE }} \
-            -PpackageName=${{ env.PACKAGE_NAME }}
+    - name: Generate debug keystore and config
+      run: |
+        mkdir -p ~/.android
+        keytool -genkeypair -v \
+          -keystore ~/.android/debug.keystore \
+          -alias androiddebugkey \
+          -keyalg RSA -keysize 2048 -validity 10000 \
+          -storepass android -keypass android \
+          -dname "CN=Android Debug, OU=Unknown, O=Unknown, L=Unknown, ST=Unknown, C=US"
+        mkdir -p app/src/main/assets/tangem-app-config/android/keystore/
+        cp ~/.android/debug.keystore app/src/main/assets/tangem-app-config/android/keystore/
+        echo "store_password=android" > app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
+        echo "key_alias=androiddebugkey" >> app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
+        echo "key_password=android" >> app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
 
-      - name: Rename APK
-        run: |
-          mv app/build/outputs/apk/release/app-release.apk \
-             app/build/outputs/apk/release/tangem_${{ env.VERSION_NAME }}.apk
+    - name: Build and Sign APK
+      run: |
+        ./gradlew assembleRelease \
+          --no-daemon \
+          --max-workers=2 \
+          -Pandroid.injected.signing.store.file=$HOME/keystore.jks \
+          -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
+          -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
+          -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }} \
+          -PversionName=${{ env.VERSION_NAME }} \
+          -PversionCode=${{ env.VERSION_CODE }} \
+          -PpackageName=${{ env.PACKAGE_NAME }}
 
-      - name: Generate SHA256 hash
-        run: |
-          APK=app/build/outputs/apk/release/tangem_${{ env.VERSION_NAME }}.apk
-          SHA256_HASH=$(sha256sum $APK | cut -d ' ' -f 1)
-          echo "SHA256=$SHA256_HASH" >> $GITHUB_ENV
+    - name: Rename APK
+      run: |
+        mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/tangem_${{ env.VERSION_NAME }}.apk
 
-      - name: Set tag name and release name
-        id: set_tag
-        run: |
-          TIMESTAMP=$(date -u +"%Y-%m-%d_%H-%M-%S")
-          TAG_NAME="v${{ env.VERSION_NAME }}_${TIMESTAMP}"
-          RELEASE_NAME="Tangem APK v${{ env.VERSION_NAME }} ($TIMESTAMP)"
-          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
-          echo "RELEASE_NAME=$RELEASE_NAME" >> $GITHUB_ENV
+    - name: Generate SHA256 Hash
+      run: |
+        HASH=$(sha256sum app/build/outputs/apk/release/tangem_${{ env.VERSION_NAME }}.apk | cut -d ' ' -f 1)
+        echo "SHA256=$HASH" >> $GITHUB_ENV
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: ${{ env.RELEASE_NAME }}
-          tag_name: ${{ env.TAG_NAME }}
-          body: |
-            ✅ Tangem Release v${{ env.VERSION_NAME }}
+    - name: Set tag and release name
+      run: |
+        TS=$(date '+%Y-%m-%d_%H-%M-%S')
+        TAG_NAME="v${{ env.VERSION_NAME }}_${TS}"
+        RELEASE_NAME="Tangem APK v${{ env.VERSION_NAME }} ${TS}"
+        echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+        echo "RELEASE_NAME=$RELEASE_NAME" >> $GITHUB_ENV
 
-            SHA256: `${{ env.SHA256 }}`
-          draft: false
-          prerelease: false
-          files: app/build/outputs/apk/release/tangem_${{ env.VERSION_NAME }}.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Create GitHub Release and Upload
+      uses: softprops/action-gh-release@v2
+      with:
+        name: ${{ env.RELEASE_NAME }}
+        tag_name: ${{ env.TAG_NAME }}
+        body: |
+          Tangem APK v${{ env.VERSION_NAME }}
+          SHA256: ${{ env.SHA256 }}
+        draft: false
+        prerelease: false
+        files: app/build/outputs/apk/release/tangem_${{ env.VERSION_NAME }}.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Schedule deletion after 30 days
-        run: |
-          echo "0 0 * * * gh release delete ${{ env.TAG_NAME }} --yes && gh tag delete ${{ env.TAG_NAME }}" | at now + 30 days
+    - name: Upload build logs on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs
+        path: |
+          **/build/reports/
+          ~/.gradle/daemon/
+        retention-days: 7
 
-      - name: Upload build logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-logs
-          path: |
-            **/build/reports/
-            ~/.gradle/daemon/
-          retention-days: 7
+    - name: Schedule tag/release deletion
+      run: |
+        echo "0 0 * * * gh release delete ${{ env.TAG_NAME }} -y" | at now + 30 days
+        echo "0 0 * * * gh tag delete ${{ env.TAG_NAME }} -y" | at now + 30 days
