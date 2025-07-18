@@ -72,7 +72,7 @@ jobs:
 
     - name: Extract VERSION_NAME from tangem_dependencies.toml
       run: |
-        LINE=$(grep 'tangemCardSdk' tangem-app-android/gradle/tangem_dependencies.toml)
+        LINE=$(grep 'tangemCardSdk' gradle/tangem_dependencies.toml)
         VERSION_NAME=$(echo "$LINE" | grep -oP 'releases-\K[0-9]+\.[0-9]+\.[0-9]+')
         if [ -z "$VERSION_NAME" ]; then
           echo "❌ VERSION_NAME is empty. Check tangem_dependencies.toml format"
