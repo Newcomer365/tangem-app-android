@@ -15,7 +15,7 @@ jobs:
 
     steps:
     - name: Install required tools
-      run: sudo apt-get install -y at jq
+      run: sudo apt-get install -y at
 
     - name: Checkout repository
       uses: actions/checkout@v3
@@ -27,13 +27,8 @@ jobs:
         java-version: '17'
         cache: 'gradle'
 
-    - name: Install Android SDK
-      uses: android-actions/setup-android@v2
-
-    - name: Install required Android packages
-      run: |
-        yes | sdkmanager --licenses
-        sdkmanager "platforms;android-34" "build-tools;34.0.1" "ndk;25.2.9519653"
+    - name: Let Gradle auto-manage Android SDK
+      run: echo "Gradle will install required SDK components automatically."
 
     - name: Cache Gradle dependencies
       uses: actions/cache@v3
@@ -54,21 +49,21 @@ jobs:
         mkdir -p ~/.gradle
         echo "gpr.key=${{ secrets.GITHUB_TOKEN }}" > ~/.gradle/gradle.properties
         echo "gpr.user=${{ github.actor }}" >> ~/.gradle/gradle.properties
-        echo "sdk.dir=$ANDROID_SDK_ROOT" >> ~/.gradle/gradle.properties
+        echo "sdk.dir=$ANDROID_HOME" >> ~/.gradle/gradle.properties
         echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode > ~/keystore.jks
 
     - name: Build local.properties
       run: |
-        echo "gpr.user=${{ github.actor }}" > local.properties
+        echo "gpr.user=${{ github.actor }}" >> local.properties
         echo "gpr.key=${{ secrets.GITHUB_TOKEN }}" >> local.properties
-        echo "sdk.dir=$ANDROID_SDK_ROOT" >> local.properties
+        echo "sdk.dir=$ANDROID_HOME" >> local.properties
 
     - name: Extract VERSION_NAME from tangem_dependencies.toml
       run: |
         LINE=$(grep 'tangemCardSdk' gradle/tangem_dependencies.toml)
         VERSION_NAME=$(echo "$LINE" | grep -oP 'releases-\K[0-9]+\.[0-9]+\.[0-9]+')
         if [ -z "$VERSION_NAME" ]; then
-          echo "❌ VERSION_NAME is empty. Check tangem_dependencies.toml format"
+          echo "VERSION_NAME is empty. Check tangem_dependencies.toml format"
           exit 1
         fi
         echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
@@ -152,7 +147,7 @@ jobs:
         body: |
           Release APK
 
-          ### Version ${{ env.VERSION_NAME }}
+          Version ${{ env.VERSION_NAME }}
           SHA256: ${{ env.SHA256 }}
         draft: false
         prerelease: false
