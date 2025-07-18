@@ -15,7 +15,7 @@ jobs:
 
     steps:
     - name: Install required tools
-      run: sudo apt-get install -y at
+      run: sudo apt-get install -y at jq
 
     - name: Checkout repository
       uses: actions/checkout@v3
@@ -29,10 +29,11 @@ jobs:
 
     - name: Install Android SDK
       uses: android-actions/setup-android@v2
-      with:
-        api-level: 34
-        build-tools: 34.0.1
-        ndk: '25.2.9519653'
+
+    - name: Install required Android packages
+      run: |
+        yes | sdkmanager --licenses
+        sdkmanager "platforms;android-34" "build-tools;34.0.1" "ndk;25.2.9519653"
 
     - name: Cache Gradle dependencies
       uses: actions/cache@v3
@@ -44,14 +45,6 @@ jobs:
         restore-keys: |
           gradle-${{ runner.os }}-
 
-    - name: Cache Android SDK cmdline-tools
-      uses: actions/cache@v3
-      with:
-        path: ~/Android/Sdk/cmdline-tools
-        key: android-sdk-cmdline-tools-${{ runner.os }}-${{ hashFiles('**/*.xml') }}
-        restore-keys: |
-          android-sdk-cmdline-tools-${{ runner.os }}-
-
     - name: Set Gradle properties for memory and encoding
       run: |
         echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8" >> gradle.properties
@@ -61,14 +54,14 @@ jobs:
         mkdir -p ~/.gradle
         echo "gpr.key=${{ secrets.GITHUB_TOKEN }}" > ~/.gradle/gradle.properties
         echo "gpr.user=${{ github.actor }}" >> ~/.gradle/gradle.properties
-        echo "sdk.dir=~/Android/Sdk" >> ~/.gradle/gradle.properties
+        echo "sdk.dir=$ANDROID_SDK_ROOT" >> ~/.gradle/gradle.properties
         echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode > ~/keystore.jks
 
     - name: Build local.properties
       run: |
-        echo "gpr.user=${{ github.actor }}" >> local.properties
+        echo "gpr.user=${{ github.actor }}" > local.properties
         echo "gpr.key=${{ secrets.GITHUB_TOKEN }}" >> local.properties
-        echo "sdk.dir=~/Android/Sdk" >> local.properties
+        echo "sdk.dir=$ANDROID_SDK_ROOT" >> local.properties
 
     - name: Extract VERSION_NAME from tangem_dependencies.toml
       run: |
