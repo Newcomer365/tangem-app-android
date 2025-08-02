@@ -40,9 +40,11 @@ jobs:
         restore-keys: |
           gradle-${{ runner.os }}-
 
-    - name: Set Gradle properties for memory and encoding
+    - name: Set Gradle memory and build options
       run: |
-        echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8" >> gradle.properties
+        echo "org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8" >> ./gradle.properties
+        echo "android.enableR8=true" >> ./gradle.properties
+        echo "org.gradle.parallel=false" >> ./gradle.properties
 
     - name: Set up gradle.properties and Download Keystore
       run: |
@@ -154,4 +156,3 @@ jobs:
         files: app/build/outputs/apk/release/tangem_${{ env.VERSION_NAME }}.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
