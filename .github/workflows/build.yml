@@ -95,9 +95,9 @@ jobs:
     - name: Generate Keystore Properties from Secrets
       run: |
         mkdir -p app/src/main/assets/tangem-app-config/android/keystore/
-        echo "store_password=${{ secrets.KEYSTORE_PASSWORD }}" > app/src/main/assets/tangem-app-config/android/keystore/keystore.properties
-        echo "key_alias=${{ secrets.KEY_ALIAS }}" >> app/src/main/assets/tangem-app-config/android/keystore/keystore.properties
-        echo "key_password=${{ secrets.KEY_PASSWORD }}" >> app/src/main/assets/tangem-app-config/android/keystore/keystore.properties
+        echo "store_password=${{ secrets.KEYSTORE_PASSWORD }}" > app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
+        echo "key_alias=${{ secrets.KEY_ALIAS }}" >> app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
+        echo "key_password=${{ secrets.KEY_PASSWORD }}" >> app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
         cp ~/keystore.jks app/src/main/assets/tangem-app-config/android/keystore/
     
     - name: Build and Sign APK
@@ -147,4 +147,5 @@ jobs:
         files: app/build/outputs/apk/release/tangem_${{ env.VERSION_NAME }}.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
