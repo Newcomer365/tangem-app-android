@@ -92,23 +92,14 @@ jobs:
       run: |
         sed -i 's|const val packageName = ".*"|const val packageName = "${{ env.PACKAGE_NAME }}"|' plugins/configuration/src/main/kotlin/com/tangem/plugin/configuration/model/AppConfig.kt
 
-    - name: Generate Debug Keystore and Properties
+    - name: Generate Keystore Properties from Secrets
       run: |
-        mkdir -p ~/.android
-        keytool -genkeypair -v \
-          -keystore ~/.android/debug.keystore \
-          -alias androiddebugkey \
-          -keyalg RSA -keysize 2048 -validity 10000 \
-          -storepass android \
-          -keypass android \
-          -dname "CN=Android Debug, OU=Unknown, O=Unknown, L=Unknown, ST=Unknown, C=US"
-        chmod 644 ~/.android/debug.keystore
         mkdir -p app/src/main/assets/tangem-app-config/android/keystore/
-        echo "store_password=android" > app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
-        echo "key_alias=androiddebugkey" >> app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
-        echo "key_password=android" >> app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
-        cp ~/.android/debug.keystore app/src/main/assets/tangem-app-config/android/keystore/
-
+        echo "store_password=${{ secrets.KEYSTORE_PASSWORD }}" > app/src/main/assets/tangem-app-config/android/keystore/keystore.properties
+        echo "key_alias=${{ secrets.KEY_ALIAS }}" >> app/src/main/assets/tangem-app-config/android/keystore/keystore.properties
+        echo "key_password=${{ secrets.KEY_PASSWORD }}" >> app/src/main/assets/tangem-app-config/android/keystore/keystore.properties
+        cp ~/keystore.jks app/src/main/assets/tangem-app-config/android/keystore/
+    
     - name: Build and Sign APK
       run: |
         ./gradlew assembleRelease \
@@ -156,3 +147,4 @@ jobs:
         files: app/build/outputs/apk/release/tangem_${{ env.VERSION_NAME }}.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
