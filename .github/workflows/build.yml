@@ -43,7 +43,7 @@ jobs:
     - name: Set Gradle memory and build options
       run: |
         echo "org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8" >> ./gradle.properties
-        echo "android.enableR8=false" >> ./gradle.properties
+        
     
     - name: Set up gradle.properties and Download Keystore
       run: |
@@ -146,6 +146,7 @@ jobs:
         files: app/build/outputs/apk/release/tangem_${{ env.VERSION_NAME }}.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
 
 
