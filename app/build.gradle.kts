@@ -55,7 +55,7 @@ android {
     
     buildTypes {
         release {
-            isMinifyEnabled = false  // 关闭混淆，解决闪退问题
+            isMinifyEnabled = false 
         }
     }
 
