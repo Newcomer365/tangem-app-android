@@ -54,10 +54,14 @@ android {
     }
     
     buildTypes {
-        release {
-            isMinifyEnabled = false 
-        }
+    release {
+      isMinifyEnabled = false
+      proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+      if (findProperty("STORE_KEY") != null) {
+        signingConfig = signingConfigs.getByName("release")
+      }
     }
+  }
 
 }
 
