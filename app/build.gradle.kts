@@ -52,8 +52,7 @@ android {
             keyPassword = keystoreProperties["key_password"] as String
         }
     }
-    
-    buildTypes {
+  buildTypes {
     release {
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
