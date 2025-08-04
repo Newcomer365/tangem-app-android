@@ -52,6 +52,12 @@ android {
             keyPassword = keystoreProperties["key_password"] as String
         }
     }
+    
+    buildTypes {
+        release {
+            isMinifyEnabled = false  // 关闭混淆，解决闪退问题
+        }
+    }
 
 }
 
