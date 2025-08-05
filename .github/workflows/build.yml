@@ -116,11 +116,25 @@ jobs:
         }
         EOF
 
-    - name: Ensure moshi dependency is added
+    - name: Inject Moshi dependencies if missing
       run: |
         FILE="app/build.gradle.kts"
-        if ! grep -q "com.squareup.moshi:moshi" "\$FILE"; then
-          sed -i '/dependencies {/a \    implementation("com.squareup.moshi:moshi:1.15.0")' \$FILE
+        if [ -f "$FILE" ]; then
+          if ! grep -q 'com.squareup.moshi:moshi' "$FILE"; then
+            echo "Injecting Moshi core dependency"
+            sed -i '/dependencies {/a \    implementation("com.squareup.moshi:moshi:1.15.0")' "$FILE"
+          fi
+          if ! grep -q 'com.squareup.moshi:moshi-kotlin' "$FILE"; then
+            echo "Injecting Moshi Kotlin dependency"
+            sed -i '/dependencies {/a \    implementation("com.squareup.moshi:moshi-kotlin:1.15.0")' "$FILE"
+          fi
+          if ! grep -q 'moshi-kotlin-codegen' "$FILE"; then
+            echo "Injecting Moshi codegen for KSP"
+            sed -i '/dependencies {/a \    ksp("com.squareup.moshi:moshi-kotlin-codegen:1.15.0")' "$FILE"
+          fi
+        else
+          echo "File $FILE does not exist"
+          exit 1
         fi
     
     - name: Build and Sign APK
@@ -170,7 +184,6 @@ jobs:
         files: app/build/outputs/apk/release/tangem_${{ env.VERSION_NAME }}.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
 
 
 
