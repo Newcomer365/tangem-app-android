@@ -94,13 +94,6 @@ jobs:
         sed -i "s|const val versionCode = .*|const val versionCode = ${VERSION_CODE}|" plugins/configuration/src/main/kotlin/com/tangem/plugin/configuration/model/AppConfig.kt
         sed -i "s|const val versionName = \".*\"|const val versionName = \"${VERSION_NAME}\"|" plugins/configuration/src/main/kotlin/com/tangem/plugin/configuration/model/AppConfig.kt
     
-    - name: Check updated AppConfig.kt content
-      run: cat plugins/configuration/src/main/kotlin/com/tangem/plugin/configuration/model/AppConfig.kt
-      env:
-        PACKAGE_NAME: ${{ env.PACKAGE_NAME }}
-        VERSION_CODE: ${{ env.VERSION_CODE }}
-        VERSION_NAME: ${{ env.VERSION_NAME }}
-        
     - name: Generate Keystore Properties from Secrets
       run: |
         mkdir -p app/src/main/assets/tangem-app-config/android/keystore/
@@ -108,6 +101,27 @@ jobs:
         echo "key_alias=${{ secrets.KEY_ALIAS }}" >> app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
         echo "key_password=${{ secrets.KEY_PASSWORD }}" >> app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
         cp ~/keystore.jks app/src/main/assets/tangem-app-config/android/keystore/debug_keystore
+    
+    - name: Inject Koin module with Moshi.Builder
+      run: |
+        mkdir -p app/src/main/kotlin/com/tangem/injected
+        cat <<EOF > app/src/main/kotlin/com/tangem/injected/KoinInjectedModules.kt
+        package com.tangem.injected
+
+        import org.koin.dsl.module
+        import com.squareup.moshi.Moshi
+
+        val injectedModule = module {
+            single { Moshi.Builder() }
+        }
+        EOF
+
+    - name: Ensure moshi dependency is added
+      run: |
+        FILE="build.gradle.kts"
+        if ! grep -q "com.squareup.moshi:moshi" "\$FILE"; then
+          sed -i '/dependencies {/a \    implementation("com.squareup.moshi:moshi:1.15.0")' \$FILE
+        fi
     
     - name: Build and Sign APK
       run: |
