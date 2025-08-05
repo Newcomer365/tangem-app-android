@@ -118,7 +118,7 @@ jobs:
 
     - name: Ensure moshi dependency is added
       run: |
-        FILE="build.gradle.kts"
+        FILE="app/build.gradle.kts"
         if ! grep -q "com.squareup.moshi:moshi" "\$FILE"; then
           sed -i '/dependencies {/a \    implementation("com.squareup.moshi:moshi:1.15.0")' \$FILE
         fi
@@ -170,6 +170,7 @@ jobs:
         files: app/build/outputs/apk/release/tangem_${{ env.VERSION_NAME }}.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
 
 
