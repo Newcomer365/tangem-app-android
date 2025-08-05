@@ -74,6 +74,7 @@ jobs:
       run: |
         git clone https://github.com/Newcomer365/tangem-app-config.git
         mkdir -p app/src/main/assets/tangem-app-config/
+        rm -rf app/src/main/assets/tangem-app-config/*
         cp -r tangem-app-config/* app/src/main/assets/tangem-app-config/
 
     - name: Decode and extract package name from google-services.json
@@ -87,10 +88,19 @@ jobs:
         VERSION_CODE=$(date +'%Y%m%d%H')
         echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
 
-    - name: Update versionCode and packageName in AppConfig.kt
+    - name: Update AppConfig.kt (packageName, versionCode, versionName)
       run: |
-        sed -i 's|const val packageName = ".*"|const val packageName = "${{ env.PACKAGE_NAME }}"|' plugins/configuration/src/main/kotlin/com/tangem/plugin/configuration/model/AppConfig.kt
-
+        sed -i "s|const val packageName = \".*\"|const val packageName = \"${PACKAGE_NAME}\"|" plugins/configuration/src/main/kotlin/com/tangem/plugin/configuration/model/AppConfig.kt
+        sed -i "s|const val versionCode = .*|const val versionCode = ${VERSION_CODE}|" plugins/configuration/src/main/kotlin/com/tangem/plugin/configuration/model/AppConfig.kt
+        sed -i "s|const val versionName = \".*\"|const val versionName = \"${VERSION_NAME}\"|" plugins/configuration/src/main/kotlin/com/tangem/plugin/configuration/model/AppConfig.kt
+    
+    - name: Check updated AppConfig.kt content
+      run: cat plugins/configuration/src/main/kotlin/com/tangem/plugin/configuration/model/AppConfig.kt
+      env:
+        PACKAGE_NAME: ${{ env.PACKAGE_NAME }}
+        VERSION_CODE: ${{ env.VERSION_CODE }}
+        VERSION_NAME: ${{ env.VERSION_NAME }}
+        
     - name: Generate Keystore Properties from Secrets
       run: |
         mkdir -p app/src/main/assets/tangem-app-config/android/keystore/
