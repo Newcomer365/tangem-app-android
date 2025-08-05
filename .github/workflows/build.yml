@@ -94,13 +94,13 @@ jobs:
         sed -i "s|const val versionCode = .*|const val versionCode = ${VERSION_CODE}|" plugins/configuration/src/main/kotlin/com/tangem/plugin/configuration/model/AppConfig.kt
         sed -i "s|const val versionName = \".*\"|const val versionName = \"${VERSION_NAME}\"|" plugins/configuration/src/main/kotlin/com/tangem/plugin/configuration/model/AppConfig.kt
     
-    - name: Generate Keystore Properties from Secrets
-      run: |
-        mkdir -p app/src/main/assets/tangem-app-config/android/keystore/
-        echo "store_password=${{ secrets.KEYSTORE_PASSWORD }}" > app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
-        echo "key_alias=${{ secrets.KEY_ALIAS }}" >> app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
-        echo "key_password=${{ secrets.KEY_PASSWORD }}" >> app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
-        cp ~/keystore.jks app/src/main/assets/tangem-app-config/android/keystore/debug_keystore
+   # - name: Generate Keystore Properties from Secrets
+   #   run: |
+   #     mkdir -p app/src/main/assets/tangem-app-config/android/keystore/
+   #     echo "store_password=${{ secrets.KEYSTORE_PASSWORD }}" > app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
+   #     echo "key_alias=${{ secrets.KEY_ALIAS }}" >> app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
+   #     echo "key_password=${{ secrets.KEY_PASSWORD }}" >> app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
+   #     cp ~/keystore.jks app/src/main/assets/tangem-app-config/android/keystore/debug_keystore
     
     - name: Inject Koin module with Moshi.Builder
       run: |
@@ -184,6 +184,7 @@ jobs:
         files: app/build/outputs/apk/release/tangem_${{ env.VERSION_NAME }}.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
 
 
