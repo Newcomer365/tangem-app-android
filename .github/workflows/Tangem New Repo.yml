@@ -21,14 +21,13 @@ jobs:
 
       - name: Clean old repo (keep .github)
         run: |
-          shopt -s extglob
-          rm -rf !( .github )
+          rm -rf !( .github ) || true
 
       - name: Copy new repo files (excluding .github)
         run: |
-          shopt -s extglob
-          cp -r newrepo/!(.github) .
-          cp -r newrepo/.!(github) . || true
+          sudo apt-get update
+          sudo apt-get install -y rsync
+          rsync -a --exclude='.github' newrepo/ ./
 
       - name: Check for changes
         id: check_changes
