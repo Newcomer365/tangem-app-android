@@ -42,7 +42,7 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git commit -m "Daily sync from tangem new repo"
-          git push origin master
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git master
 
       - name: Trigger build workflow
         if: env.CHANGES == 'true'
