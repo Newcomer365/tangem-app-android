@@ -21,7 +21,7 @@ jobs:
 
       - name: Clean old repo (keep .github)
         run: |
-          rm -rf !( .github ) || true
+          find . -mindepth 1 -maxdepth 1 ! -name ".github" -exec rm -rf {} +
 
       - name: Copy new repo files (excluding .github)
         run: |
