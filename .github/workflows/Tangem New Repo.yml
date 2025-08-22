@@ -18,6 +18,11 @@ jobs:
       - name: Checkout new repo
         run: |
           git clone --depth=1 https://github.com/tangem/tangem-app-android.git newrepo
+          if [ ! -d "newrepo" ]; then
+            echo "Error: newrepo directory not found, clone failed."
+            exit 1
+          fi
+          ls -la newrepo
 
       - name: Clean old repo (keep .github)
         run: |
@@ -25,8 +30,6 @@ jobs:
 
       - name: Copy new repo files (excluding .github)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y rsync
           rsync -a --exclude='.github' newrepo/ ./
 
       - name: Check for changes
