@@ -15,36 +15,29 @@ jobs:
           ref: master
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Configure git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
       - name: Clean old repo
         run: |
-          if [ -d ".github" ]; then
-            find . -mindepth 1 -maxdepth 1 ! -name ".github" -exec rm -rf {} +
-          else
-            rm -rf *
-          fi
+          find . -mindepth 1 -maxdepth 1 ! -name ".github" ! -name ".git" -exec rm -rf {} +
 
       - name: Clone new repo
         run: |
           git clone --depth=1 https://github.com/tangem/tangem-app-android.git newrepo
-          if [ ! -d "newrepo" ]; then
-            exit 1
-          fi
+          if [ ! -d "newrepo" ]; then exit 1; fi
 
-      - name: Sync new repo files in batches
+      - name: Sync new repo files
         run: |
-          for dir in $(ls -A newrepo); do
-            if [ "$dir" != ".github" ]; then
-              rsync -a newrepo/$dir/ ./$dir/ 2>/dev/null || cp -r newrepo/$dir ./
-              git add $dir || true
-              git commit -m "Sync $dir from new repo" || true
-            fi
-          done
+          rsync -a --exclude='.github' --exclude='.git' newrepo/ ./
           rm -rf newrepo
 
-      - name: Force push changes
+      - name: Commit and force push
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
+          git add .
+          git commit -m "Daily sync from tangem new repo" || true
           git push -f https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git master
 
       - name: Trigger build workflow
