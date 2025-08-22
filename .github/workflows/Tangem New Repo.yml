@@ -1,0 +1,57 @@
+name: Sync Tangem New Repo
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync-new-repo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout old repo
+        uses: actions/checkout@v3
+        with:
+          ref: master
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout new repo
+        run: |
+          git clone --depth=1 https://github.com/tangem/tangem-app-android.git newrepo
+
+      - name: Clean old repo (keep .github)
+        run: |
+          shopt -s extglob
+          rm -rf !( .github )
+
+      - name: Copy new repo files (excluding .github)
+        run: |
+          shopt -s extglob
+          cp -r newrepo/!(.github) .
+          cp -r newrepo/.!(github) . || true
+
+      - name: Check for changes
+        id: check_changes
+        run: |
+          git add .
+          if git diff --cached --quiet; then
+            echo "CHANGES=false" >> $GITHUB_ENV
+          else
+            echo "CHANGES=true" >> $GITHUB_ENV
+          fi
+
+      - name: Commit and push if changes
+        if: env.CHANGES == 'true'
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git commit -m "Daily sync from tangem new repo"
+          git push origin master
+
+      - name: Trigger build workflow
+        if: env.CHANGES == 'true'
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: build.yml
+          ref: master
+          token: ${{ secrets.GITHUB_TOKEN }}
