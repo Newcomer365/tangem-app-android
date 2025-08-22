@@ -2,13 +2,7 @@ name: Tangem Application Build
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
-
+  
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -151,6 +145,7 @@ jobs:
         files: app/build/outputs/apk/release/tangem_${{ env.VERSION_NAME }}.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
 
 
