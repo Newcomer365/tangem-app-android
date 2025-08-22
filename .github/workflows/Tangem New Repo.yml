@@ -15,37 +15,32 @@ jobs:
           ref: master
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Clone and sync new repo
+      - name: Clean old repo (keep .github)
+        run: |
+          mkdir tmp
+          mv .github tmp/
+          rm -rf *
+          mv tmp/.github ./
+
+      - name: Clone new repo and sync
         run: |
           git clone --depth=1 https://github.com/tangem/tangem-app-android.git newrepo
           if [ ! -d "newrepo" ]; then
             echo "Error: clone failed"
             exit 1
           fi
-          find . -mindepth 1 -maxdepth 1 ! -name ".github" ! -name "newrepo" -exec rm -rf {} +
           rsync -a --exclude='.github' newrepo/ ./
           rm -rf newrepo
 
-      - name: Check for changes
-        id: check_changes
-        run: |
-          git add .
-          if git diff --cached --quiet; then
-            echo "CHANGES=false" >> $GITHUB_ENV
-          else
-            echo "CHANGES=true" >> $GITHUB_ENV
-          fi
-
-      - name: Commit and push if changes
-        if: env.CHANGES == 'true'
+      - name: Commit and force push
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
+          git add .
           git commit -m "Daily sync from tangem new repo"
           git push -f https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git master
 
       - name: Trigger build workflow
-        if: env.CHANGES == 'true'
         uses: benc-uk/workflow-dispatch@v1
         with:
           workflow: build.yml
