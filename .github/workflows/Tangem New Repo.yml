@@ -15,12 +15,13 @@ jobs:
           ref: master
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Clean old repo (keep .github)
+      - name: Clean old repo (keep .github if exists)
         run: |
-          mkdir tmp
-          mv .github tmp/
-          rm -rf *
-          mv tmp/.github ./
+          if [ -d ".github" ]; then
+            find . -mindepth 1 -maxdepth 1 ! -name ".github" -exec rm -rf {} +
+          else
+            rm -rf *
+          fi
 
       - name: Clone new repo and sync
         run: |
