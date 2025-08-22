@@ -3,7 +3,7 @@ package com.tangem.core.analytics.api
 import com.tangem.core.analytics.models.AnalyticsEvent
 
 /**
- * Created by Anton Zhilenkov on 02.11.2022.
+[REDACTED_AUTHOR]
  * The filter is used to separate events to send and determine which handler it can be processed with.
  */
 interface AnalyticsEventFilter {

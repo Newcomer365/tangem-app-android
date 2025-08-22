@@ -11,7 +11,7 @@ import com.tangem.features.onramp.swap.entity.utils.toFilled
  *
  * @property selectedTokenItemState token item state
  *
- * @author Andrew Khokhlov on 02/11/2024
+[REDACTED_AUTHOR]
  */
 internal class SelectToTokenTransformer(
     private val selectedTokenItemState: TokenItemState,

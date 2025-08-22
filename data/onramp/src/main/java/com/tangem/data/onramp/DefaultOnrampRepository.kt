@@ -35,6 +35,9 @@ import com.tangem.datasource.local.preferences.PreferencesKeys
 import com.tangem.datasource.local.preferences.utils.getObject
 import com.tangem.datasource.local.preferences.utils.getObjectSyncOrNull
 import com.tangem.datasource.local.preferences.utils.storeObject
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.onramp.model.*
 import com.tangem.domain.onramp.model.cache.OnrampTransaction
 import com.tangem.domain.onramp.model.error.OnrampError
@@ -42,17 +45,13 @@ import com.tangem.domain.onramp.model.error.OnrampPairsError
 import com.tangem.domain.onramp.model.error.OnrampRedirectError
 import com.tangem.domain.onramp.repositories.OnrampRepository
 import com.tangem.domain.tokens.model.Amount
-import com.tangem.domain.tokens.model.CryptoCurrency
 import com.tangem.domain.walletmanager.WalletManagersFacade
-import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.domain.wallets.models.UserWalletId
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.withContext
 import org.joda.time.DateTime
 import timber.log.Timber
@@ -303,8 +302,12 @@ internal class DefaultOnrampRepository(
                                     OnrampQuote.Data(
                                         fromAmount = fromOnrampAmount,
                                         toAmount = convertToAmount(response.toAmount, cryptoCurrency),
-                                        minFromAmount = convertToAmount(response.minFromAmount, cryptoCurrency),
-                                        maxFromAmount = convertToAmount(response.maxFromAmount, cryptoCurrency),
+                                        minFromAmount = response.minFromAmount?.let {
+                                            convertToAmount(it, cryptoCurrency)
+                                        },
+                                        maxFromAmount = response.maxFromAmount?.let {
+                                            convertToAmount(it, cryptoCurrency)
+                                        },
                                         paymentMethod = paymentMethod,
                                         provider = provider,
                                         countryCode = response.countryCode,

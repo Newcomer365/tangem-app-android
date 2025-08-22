@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.map
  *
  * @property onboardingRepository onboarding repository
  *
- * @author Andrew Khokhlov on 18/02/2024
+[REDACTED_AUTHOR]
  */
 class WasTwinsOnboardingShownUseCase(
     private val onboardingRepository: OnboardingRepository,

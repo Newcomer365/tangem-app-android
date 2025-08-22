@@ -11,7 +11,7 @@ import com.tangem.domain.feedback.models.BlockchainInfo.Addresses as BlockchainA
 /**
  * Converter from [WalletManager] to [BlockchainInfo]
  *
- * @author Andrew Khokhlov on 06/03/2024
+[REDACTED_AUTHOR]
  */
 internal object BlockchainInfoConverter : Converter<WalletManager, BlockchainInfo> {
 

@@ -5,7 +5,7 @@ import com.tangem.blockchain.common.Token
 import com.tangem.crypto.hdWallet.DerivationPath
 
 /**
- * Created by Anton Zhilenkov on 07/04/2022.
+[REDACTED_AUTHOR]
  */
 sealed class CustomCurrency(
     val network: Blockchain,

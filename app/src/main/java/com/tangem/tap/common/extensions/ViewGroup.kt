@@ -8,7 +8,7 @@ import androidx.transition.Transition
 import androidx.transition.TransitionManager
 
 /**
- * Created by Anton Zhilenkov on 08/09/2020.
+[REDACTED_AUTHOR]
  */
 fun ViewGroup.inflate(viewToInflate: Int, attachToRoot: Boolean = false): View {
     return LayoutInflater.from(context).inflate(viewToInflate, this, attachToRoot)

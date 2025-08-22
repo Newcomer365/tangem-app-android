@@ -5,7 +5,7 @@ import com.tangem.core.analytics.models.AnalyticsEvent
 import com.tangem.domain.models.scan.ScanResponse
 
 /**
- * Created by Anton Zhilenkov on 22.02.2023.
+[REDACTED_AUTHOR]
  */
 class LinkedCardContextInterceptor(
     scanResponse: ScanResponse,

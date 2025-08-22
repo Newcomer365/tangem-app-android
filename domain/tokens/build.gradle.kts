@@ -8,12 +8,18 @@ android {
     namespace = "com.tangem.domain.tokens"
 }
 
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
+}
+
 dependencies {
 
     /** Project - Domain */
     api(projects.domain.core)
     implementation(projects.domain.models)
     implementation(projects.domain.legacy)
+    implementation(projects.domain.walletManager)
+    implementation(projects.domain.card)
     implementation(projects.domain.staking)
     implementation(projects.libs.blockchainSdk)
     implementation(projects.domain.tokens.models)
@@ -31,7 +37,6 @@ dependencies {
     implementation(projects.domain.quotes)
 
     /** Project - Api */
-    implementation(projects.features.send.api)
     implementation(projects.features.staking.api)
     implementation(projects.features.markets.api)
     implementation(projects.features.swap.api)
@@ -50,9 +55,12 @@ dependencies {
     implementation(deps.reKotlin)
 
     /** Tests */
-    testImplementation(deps.test.junit)
     testImplementation(deps.test.coroutine)
+    testImplementation(deps.test.junit5)
+    testRuntimeOnly(deps.test.junit5.engine)
     testImplementation(deps.test.mockk)
+    testImplementation(deps.test.truth)
+    testImplementation(projects.common.test)
     testImplementation(tangemDeps.blockchain) {
         exclude(module = "joda-time")
     }

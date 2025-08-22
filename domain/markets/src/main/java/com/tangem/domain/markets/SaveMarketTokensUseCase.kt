@@ -3,18 +3,13 @@ package com.tangem.domain.markets
 import arrow.core.Either
 import com.tangem.domain.card.repository.DerivationsRepository
 import com.tangem.domain.markets.repositories.MarketsTokenRepository
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.network.Network
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.networks.multi.MultiNetworkStatusFetcher
-import com.tangem.domain.quotes.multi.MultiQuoteFetcher
-import com.tangem.domain.staking.fetcher.YieldBalanceFetcherParams
+import com.tangem.domain.quotes.multi.MultiQuoteStatusFetcher
 import com.tangem.domain.staking.multi.MultiYieldBalanceFetcher
-import com.tangem.domain.staking.repositories.StakingRepository
-import com.tangem.domain.tokens.TokensFeatureToggles
-import com.tangem.domain.tokens.model.CryptoCurrency
-import com.tangem.domain.tokens.model.Network
 import com.tangem.domain.tokens.repository.CurrenciesRepository
-import com.tangem.domain.tokens.repository.NetworksRepository
-import com.tangem.domain.tokens.repository.QuotesRepository
-import com.tangem.domain.wallets.models.UserWalletId
 
 /**
  * Use case for saving tokens from Markets
@@ -23,20 +18,16 @@ import com.tangem.domain.wallets.models.UserWalletId
  * @property marketsTokenRepository markets token repository
  * @property currenciesRepository   currencies repository
  *
- * @author Andrew Khokhlov on 02/09/2024
+[REDACTED_AUTHOR]
  */
 @Suppress("LongParameterList")
 class SaveMarketTokensUseCase(
     private val derivationsRepository: DerivationsRepository,
     private val marketsTokenRepository: MarketsTokenRepository,
     private val currenciesRepository: CurrenciesRepository,
-    private val networksRepository: NetworksRepository,
-    private val stakingRepository: StakingRepository,
-    private val quotesRepository: QuotesRepository,
     private val multiNetworkStatusFetcher: MultiNetworkStatusFetcher,
-    private val multiQuoteFetcher: MultiQuoteFetcher,
+    private val multiQuoteStatusFetcher: MultiQuoteStatusFetcher,
     private val multiYieldBalanceFetcher: MultiYieldBalanceFetcher,
-    private val tokensFeatureToggles: TokensFeatureToggles,
 ) {
 
     suspend operator fun invoke(
@@ -46,22 +37,21 @@ class SaveMarketTokensUseCase(
         removedNetworks: Set<TokenMarketInfo.Network>,
     ): Either<Throwable, Unit> = Either.catch {
         if (removedNetworks.isNotEmpty()) {
-            currenciesRepository.removeCurrencies(
-                userWalletId = userWalletId,
-                currencies = removedNetworks.mapNotNull {
-                    marketsTokenRepository.createCryptoCurrency(
-                        userWalletId = userWalletId,
-                        token = tokenMarketParams,
-                        network = it,
-                    )
-                },
-            )
+            val removedCurrencies = removedNetworks.mapNotNull {
+                marketsTokenRepository.createCryptoCurrency(
+                    userWalletId = userWalletId,
+                    token = tokenMarketParams,
+                    network = it,
+                )
+            }
+
+            currenciesRepository.removeCurrencies(userWalletId = userWalletId, currencies = removedCurrencies)
         }
 
         if (addedNetworks.isNotEmpty()) {
             derivationsRepository.derivePublicKeysByNetworkIds(
                 userWalletId = userWalletId,
-                networkIds = addedNetworks.map { Network.ID(it.networkId) },
+                networkIds = addedNetworks.map { Network.RawID(it.networkId) },
             )
 
             val addedCurrencies = addedNetworks.mapNotNull {
@@ -72,66 +62,47 @@ class SaveMarketTokensUseCase(
                 )
             }
 
-            currenciesRepository.addCurrencies(userWalletId = userWalletId, currencies = addedCurrencies)
+            val savedCurrencies = currenciesRepository.addCurrenciesCache(
+                userWalletId = userWalletId,
+                currencies = addedCurrencies,
+            )
 
-            refreshUpdatedNetworks(userWalletId, addedCurrencies)
+            refreshUpdatedNetworks(userWalletId, savedCurrencies)
 
-            refreshUpdatedYieldBalances(userWalletId, addedCurrencies)
+            refreshUpdatedYieldBalances(userWalletId, savedCurrencies)
 
-            refreshUpdatedQuotes(addedCurrencies)
+            refreshUpdatedQuotes(savedCurrencies)
         }
     }
 
     private suspend fun refreshUpdatedNetworks(userWalletId: UserWalletId, addedCurrencies: List<CryptoCurrency>) {
-        if (tokensFeatureToggles.isNetworksLoadingRefactoringEnabled) {
-            multiNetworkStatusFetcher(
-                MultiNetworkStatusFetcher.Params(
-                    userWalletId = userWalletId,
-                    networks = addedCurrencies.map(CryptoCurrency::network).toSet(),
-                ),
-            )
-        } else {
-            networksRepository.getNetworkStatusesSync(
+        multiNetworkStatusFetcher(
+            MultiNetworkStatusFetcher.Params(
                 userWalletId = userWalletId,
                 networks = addedCurrencies.map(CryptoCurrency::network).toSet(),
-                refresh = true,
-            )
-        }
+            ),
+        )
+        currenciesRepository.syncTokens(userWalletId)
     }
 
     private suspend fun refreshUpdatedYieldBalances(
         userWalletId: UserWalletId,
         existingCurrencies: List<CryptoCurrency>,
     ) {
-        if (tokensFeatureToggles.isStakingLoadingRefactoringEnabled) {
-            multiYieldBalanceFetcher(
-                params = YieldBalanceFetcherParams.Multi(
-                    userWalletId = userWalletId,
-                    currencyIdWithNetworkMap = existingCurrencies.associateTo(hashMapOf()) { it.id to it.network },
-                ),
-            )
-        } else {
-            stakingRepository.fetchMultiYieldBalance(
+        multiYieldBalanceFetcher(
+            params = MultiYieldBalanceFetcher.Params(
                 userWalletId = userWalletId,
-                cryptoCurrencies = existingCurrencies,
-                refresh = true,
-            )
-        }
+                currencyIdWithNetworkMap = existingCurrencies.associateTo(hashMapOf()) { it.id to it.network },
+            ),
+        )
     }
 
     private suspend fun refreshUpdatedQuotes(addedCurrencies: List<CryptoCurrency>) {
-        if (tokensFeatureToggles.isQuotesLoadingRefactoringEnabled) {
-            multiQuoteFetcher(
-                params = MultiQuoteFetcher.Params(
-                    currenciesIds = addedCurrencies.mapNotNullTo(hashSetOf()) { it.id.rawCurrencyId },
-                    appCurrencyId = null,
-                ),
-            )
-        } else {
-            quotesRepository.fetchQuotes(
+        multiQuoteStatusFetcher(
+            params = MultiQuoteStatusFetcher.Params(
                 currenciesIds = addedCurrencies.mapNotNullTo(hashSetOf()) { it.id.rawCurrencyId },
-                refresh = true,
-            )
-        }
+                appCurrencyId = null,
+            ),
+        )
     }
 }

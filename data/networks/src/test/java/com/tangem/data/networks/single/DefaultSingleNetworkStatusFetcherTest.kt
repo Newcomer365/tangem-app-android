@@ -1,88 +1,77 @@
 package com.tangem.data.networks.single
 
-import com.google.common.truth.Truth
+import arrow.core.Either
+import arrow.core.left
 import com.tangem.common.test.domain.token.MockCryptoCurrencyFactory
-import com.tangem.data.networks.store.NetworksStatusesStoreV2
-import com.tangem.datasource.local.userwallet.UserWalletsStore
+import com.tangem.common.test.utils.assertEither
+import com.tangem.domain.models.wallet.UserWalletId
+import com.tangem.domain.networks.multi.MultiNetworkStatusFetcher
 import com.tangem.domain.networks.single.SingleNetworkStatusFetcher
-import com.tangem.domain.tokens.model.NetworkStatus
-import com.tangem.domain.walletmanager.WalletManagersFacade
-import com.tangem.domain.walletmanager.model.UpdateWalletManagerResult
-import com.tangem.domain.wallets.models.UserWalletId
-import com.tangem.utils.coroutines.TestingCoroutineDispatcherProvider
+import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
-import org.junit.Test
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 
 /**
- * @author Andrew Khokhlov on 28/03/2025
+[REDACTED_AUTHOR]
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 internal class DefaultSingleNetworkStatusFetcherTest {
 
-    private val walletManagersFacade: WalletManagersFacade = mockk(relaxed = true)
-    private val networksStatusesStore: NetworksStatusesStoreV2 = mockk(relaxed = true)
-    private val userWalletsStore: UserWalletsStore = mockk(relaxed = true)
+    private val multiNetworkStatusFetcher: MultiNetworkStatusFetcher = mockk()
 
-    private val fetcher = DefaultSingleNetworkStatusFetcher(
-        excludedBlockchains = mockk(relaxed = true),
-        walletManagersFacade = walletManagersFacade,
-        networksStatusesStore = networksStatusesStore,
-        userWalletsStore = userWalletsStore,
-        appPreferencesStore = mockk(relaxed = true),
-        dispatchers = TestingCoroutineDispatcherProvider(),
-    )
+    private val fetcher = DefaultSingleNetworkStatusFetcher(multiNetworkStatusFetcher = multiNetworkStatusFetcher)
 
-    @Test
-    fun `fetch network status successfully`() = runTest {
-        val params = SingleNetworkStatusFetcher.Params.Simple(userWalletId = userWalletId, network = network)
-
-        val result = UpdateWalletManagerResult.MissedDerivation
-        coEvery { walletManagersFacade.update(userWalletId, network, emptySet()) } returns result
-
-        val actual = fetcher(params)
-
-        coVerifyOrder {
-            networksStatusesStore.refresh(userWalletId = userWalletId, network = network)
-            userWalletsStore.getSyncStrict(key = userWalletId)
-            walletManagersFacade.update(userWalletId, network, emptySet())
-            networksStatusesStore.storeSuccess(
-                userWalletId = userWalletId,
-                value = NetworkStatus(network, NetworkStatus.MissedDerivation),
-            )
-        }
-
-        Truth.assertThat(actual.isRight()).isTrue()
+    @BeforeEach
+    fun resetMocks() {
+        clearMocks(multiNetworkStatusFetcher)
     }
 
     @Test
-    fun `fetch network status failure`() = runTest {
-        val params = SingleNetworkStatusFetcher.Params.Simple(userWalletId = userWalletId, network = network)
+    fun `fetch successfully`() = runTest {
+        // Arrange
+        val params = SingleNetworkStatusFetcher.Params(userWalletId = userWalletId, network = ethereum.network)
+        val multiParams = MultiNetworkStatusFetcher.Params(userWalletId, setOf(params.network))
+        val multiFetcherResult = Either.Right(Unit)
 
-        val exception = IllegalStateException()
-        coEvery { userWalletsStore.getSyncStrict(key = userWalletId) } throws exception
+        coEvery { multiNetworkStatusFetcher(params = multiParams) } returns multiFetcherResult
 
+        // Act
         val actual = fetcher(params)
 
-        coVerifyOrder {
-            networksStatusesStore.refresh(userWalletId = userWalletId, network = network)
-            userWalletsStore.getSyncStrict(key = userWalletId)
-            networksStatusesStore.storeError(userWalletId = userWalletId, network = network)
-        }
+        // Assert
+        val expected = multiFetcherResult
+        assertEither(actual, expected)
 
-        coVerify(inverse = true) {
-            walletManagersFacade.update(userWalletId = any(), network = any(), extraTokens = any())
-            networksStatusesStore.storeSuccess(userWalletId = any(), value = any())
-        }
+        coVerify(exactly = 1) { multiNetworkStatusFetcher(params = multiParams) }
+    }
 
-        Truth.assertThat(actual.isLeft()).isTrue()
-        Truth.assertThat(actual.leftOrNull()).isEqualTo(exception)
+    @Test
+    fun `fetch failure`() = runTest {
+        // Arrange
+        val params = SingleNetworkStatusFetcher.Params(userWalletId = userWalletId, network = ethereum.network)
+        val multiParams = MultiNetworkStatusFetcher.Params(userWalletId, setOf(params.network))
+        val multiFetcherResult = IllegalStateException("Error").left()
+
+        coEvery { multiNetworkStatusFetcher(params = multiParams) } returns multiFetcherResult
+
+        // Act
+        val actual = fetcher(params)
+
+        // Arrange
+        val expected = multiFetcherResult
+        assertEither(actual, expected)
+
+        coVerify(exactly = 1) { multiNetworkStatusFetcher(params = multiParams) }
     }
 
     private companion object {
+
         val userWalletId = UserWalletId("011")
-        val network = MockCryptoCurrencyFactory().ethereum.network
+        val ethereum = MockCryptoCurrencyFactory().ethereum
     }
 }

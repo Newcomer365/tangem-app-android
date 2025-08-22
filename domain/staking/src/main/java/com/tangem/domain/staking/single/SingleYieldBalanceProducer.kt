@@ -1,15 +1,15 @@
 package com.tangem.domain.staking.single
 
 import com.tangem.domain.core.flow.FlowProducer
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.network.Network
 import com.tangem.domain.staking.model.stakekit.YieldBalance
-import com.tangem.domain.tokens.model.CryptoCurrency
-import com.tangem.domain.tokens.model.Network
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWalletId
 
 /**
  * Producer of yield balance for selected wallet [UserWalletId]
  *
- * @author Andrew Khokhlov on 17/04/2025
+[REDACTED_AUTHOR]
  */
 interface SingleYieldBalanceProducer : FlowProducer<YieldBalance> {
 
@@ -17,7 +17,18 @@ interface SingleYieldBalanceProducer : FlowProducer<YieldBalance> {
         val userWalletId: UserWalletId,
         val currencyId: CryptoCurrency.ID,
         val network: Network,
-    )
+    ) {
+
+        override fun toString(): String {
+            return """
+                SingleYieldBalanceProducer.Params(
+                    userWalletId = $userWalletId,
+                    currencyId = $currencyId,
+                    network = $network
+                )
+            """.trimIndent()
+        }
+    }
 
     interface Factory : FlowProducer.Factory<Params, SingleYieldBalanceProducer>
 }

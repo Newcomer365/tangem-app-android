@@ -30,7 +30,8 @@ import com.tangem.feature.tester.presentation.navigation.InnerTesterRouter
 import com.tangem.feature.tester.presentation.navigation.TesterScreen
 import com.tangem.feature.tester.presentation.providers.ui.BlockchainProvidersScreen
 import com.tangem.feature.tester.presentation.providers.viewmodel.BlockchainProvidersViewModel
-import com.tangem.features.tester.api.TesterRouter
+import com.tangem.feature.tester.presentation.testpush.ui.TestPushScreen
+import com.tangem.feature.tester.presentation.testpush.viewmodel.TestPushViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.collections.immutable.persistentSetOf
 import javax.inject.Inject
@@ -42,20 +43,14 @@ internal class TesterActivity : ComposeActivity() {
     @Inject
     override lateinit var uiDependencies: UiDependencies
 
-    /** Router for inner feature navigation */
     @Inject
-    lateinit var testerRouter: TesterRouter
+    lateinit var innerTesterRouter: InnerTesterRouter
 
     @Inject
     lateinit var appFinisher: AppFinisher
 
     @Inject
     lateinit var appRouter: AppRouter
-
-    private val innerTesterRouter: InnerTesterRouter
-        get() = requireNotNull(testerRouter as? InnerTesterRouter) {
-            "TesterRouter must be InnerTesterRouter for tester feature"
-        }
 
     @Composable
     override fun ScreenContent(modifier: Modifier) {
@@ -66,7 +61,7 @@ internal class TesterActivity : ComposeActivity() {
         TesterNavHost()
     }
 
-    @Suppress("TopLevelComposableFunctions")
+    @Suppress("TopLevelComposableFunctions", "LongMethod")
     @Composable
     private fun TesterNavHost() {
         val navController = rememberNavController().also { innerTesterRouter.setNavController(it) }
@@ -82,6 +77,7 @@ internal class TesterActivity : ComposeActivity() {
                             ButtonUM.ENVIRONMENT_TOGGLES,
                             ButtonUM.BLOCKCHAIN_PROVIDERS,
                             ButtonUM.TESTER_ACTIONS,
+                            ButtonUM.TEST_PUSHES,
                         ),
                         onButtonClick = {
                             val route = when (it) {
@@ -90,6 +86,7 @@ internal class TesterActivity : ComposeActivity() {
                                 ButtonUM.ENVIRONMENT_TOGGLES -> TesterScreen.ENVIRONMENTS_TOGGLES
                                 ButtonUM.BLOCKCHAIN_PROVIDERS -> TesterScreen.BLOCKCHAIN_PROVIDERS
                                 ButtonUM.TESTER_ACTIONS -> TesterScreen.TESTER_ACTIONS
+                                ButtonUM.TEST_PUSHES -> TesterScreen.TEST_PUSHES
                             }
 
                             innerTesterRouter.open(route)
@@ -140,6 +137,15 @@ internal class TesterActivity : ComposeActivity() {
 
                 val state by viewModel.state.collectAsStateWithLifecycle()
                 BlockchainProvidersScreen(state)
+            }
+
+            composable(route = TesterScreen.TEST_PUSHES.name) {
+                val viewModel = hiltViewModel<TestPushViewModel>().apply {
+                    setupNavigation(innerTesterRouter)
+                }
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+                TestPushScreen(state, viewModel)
             }
         }
     }

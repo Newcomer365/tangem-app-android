@@ -1,6 +1,6 @@
 package com.tangem.features.markets.portfolio.impl.model
 
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWalletId
 
 /**
  * Portfolio UI data. Combined data from all UI flows that required to setup portfolio
@@ -10,7 +10,7 @@ import com.tangem.domain.wallets.models.UserWalletId
  * @property addToPortfolioData         add to portfolio data
  * @property hasMissedDerivations       flag that indicates if user has missed derivations
  *
- * @author Andrew Khokhlov on 29/08/2024
+[REDACTED_AUTHOR]
  */
 internal data class PortfolioUIData(
     val portfolioBSVisibilityModel: PortfolioBSVisibilityModel,

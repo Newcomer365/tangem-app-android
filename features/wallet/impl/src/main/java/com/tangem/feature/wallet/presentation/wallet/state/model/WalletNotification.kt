@@ -14,7 +14,7 @@ import org.joda.time.DateTime
  *
  * @property config state
  *
- * @author Andrew Khokhlov on 23/06/2023
+[REDACTED_AUTHOR]
  */
 @Immutable
 sealed class WalletNotification(val config: NotificationConfig) {
@@ -252,6 +252,20 @@ sealed class WalletNotification(val config: NotificationConfig) {
         config = NotificationConfig(
             subtitle = resourceReference(R.string.warning_some_token_balances_not_updated),
             iconResId = R.drawable.ic_error_sync_24,
+        ),
+    )
+
+    data class FinishWalletActivation(
+        val onFinishClick: () -> Unit,
+    ) : WalletNotification(
+        config = NotificationConfig(
+            title = resourceReference(R.string.hw_activation_need_title),
+            subtitle = resourceReference(R.string.hw_activation_need_description),
+            iconResId = R.drawable.img_knight_shield_32,
+            buttonsState = NotificationConfig.ButtonsState.SecondaryButtonConfig(
+                text = resourceReference(R.string.hw_activation_need_finish),
+                onClick = onFinishClick,
+            ),
         ),
     )
 

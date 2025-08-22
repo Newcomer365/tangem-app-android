@@ -6,30 +6,24 @@ import com.tangem.domain.onramp.GetOnrampTransactionsUseCase
 import com.tangem.domain.onramp.OnrampRemoveTransactionUseCase
 import com.tangem.domain.settings.SetWalletWithFundsFoundUseCase
 import com.tangem.domain.tokens.GetCryptoCurrencyActionsUseCase
-import com.tangem.domain.tokens.GetPrimaryCurrencyStatusUpdatesUseCase
+import com.tangem.domain.tokens.GetSingleCryptoCurrencyStatusUseCase
 import com.tangem.domain.txhistory.usecase.GetTxHistoryItemsCountUseCase
 import com.tangem.domain.txhistory.usecase.GetTxHistoryItemsUseCase
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.domain.wallets.usecase.ShouldSaveUserWalletsUseCase
-import com.tangem.feature.wallet.presentation.wallet.state.WalletStateController
 import com.tangem.feature.wallet.child.wallet.model.intents.WalletClickIntents
 import com.tangem.feature.wallet.presentation.wallet.analytics.utils.WalletWarningsAnalyticsSender
 import com.tangem.feature.wallet.presentation.wallet.domain.GetSingleWalletWarningsFactory
+import com.tangem.feature.wallet.presentation.wallet.state.WalletStateController
 import com.tangem.feature.wallet.presentation.wallet.subscribers.*
-import com.tangem.feature.wallet.presentation.wallet.subscribers.PrimaryCurrencySubscriber
-import com.tangem.feature.wallet.presentation.wallet.subscribers.SingleWalletButtonsSubscriber
-import com.tangem.feature.wallet.presentation.wallet.subscribers.SingleWalletNotificationsSubscriber
-import com.tangem.feature.wallet.presentation.wallet.subscribers.TxHistorySubscriber
-import com.tangem.feature.wallet.presentation.wallet.subscribers.WalletDropDownItemsSubscriber
-import com.tangem.feature.wallet.presentation.wallet.subscribers.WalletSubscriber
 
 @Suppress("LongParameterList")
 internal class SingleWalletContentLoader(
-    private val userWallet: UserWallet,
+    private val userWallet: UserWallet.Cold,
     private val clickIntents: WalletClickIntents,
     private val isRefresh: Boolean,
     private val stateHolder: WalletStateController,
-    private val getPrimaryCurrencyStatusUpdatesUseCase: GetPrimaryCurrencyStatusUpdatesUseCase,
+    private val getSingleCryptoCurrencyStatusUseCase: GetSingleCryptoCurrencyStatusUseCase,
     private val getCryptoCurrencyActionsUseCase: GetCryptoCurrencyActionsUseCase,
     private val getSingleWalletWarningsFactory: GetSingleWalletWarningsFactory,
     private val setWalletWithFundsFoundUseCase: SetWalletWithFundsFoundUseCase,
@@ -48,7 +42,7 @@ internal class SingleWalletContentLoader(
             PrimaryCurrencySubscriber(
                 userWallet = userWallet,
                 stateHolder = stateHolder,
-                getPrimaryCurrencyStatusUpdatesUseCase = getPrimaryCurrencyStatusUpdatesUseCase,
+                getSingleCryptoCurrencyStatusUseCase = getSingleCryptoCurrencyStatusUseCase,
                 setWalletWithFundsFoundUseCase = setWalletWithFundsFoundUseCase,
                 getSelectedAppCurrencyUseCase = getSelectedAppCurrencyUseCase,
                 analyticsEventHandler = analyticsEventHandler,
@@ -57,7 +51,7 @@ internal class SingleWalletContentLoader(
                 userWallet = userWallet,
                 stateHolder = stateHolder,
                 clickIntents = clickIntents,
-                getPrimaryCurrencyStatusUpdatesUseCase = getPrimaryCurrencyStatusUpdatesUseCase,
+                getSingleCryptoCurrencyStatusUseCase = getSingleCryptoCurrencyStatusUseCase,
                 getCryptoCurrencyActionsUseCase = getCryptoCurrencyActionsUseCase,
             ),
             SingleWalletNotificationsSubscriber(
@@ -78,7 +72,7 @@ internal class SingleWalletContentLoader(
                 clickIntents = clickIntents,
                 getSelectedAppCurrencyUseCase = getSelectedAppCurrencyUseCase,
                 analyticsEventHandler = analyticsEventHandler,
-                getPrimaryCurrencyStatusUpdatesUseCase = getPrimaryCurrencyStatusUpdatesUseCase,
+                getSingleCryptoCurrencyStatusUseCase = getSingleCryptoCurrencyStatusUseCase,
                 getOnrampTransactionsUseCase = getOnrampTransactionsUseCase,
                 onrampRemoveTransactionUseCase = onrampRemoveTransactionUseCase,
             ),
@@ -87,7 +81,7 @@ internal class SingleWalletContentLoader(
                 isRefresh = isRefresh,
                 stateHolder = stateHolder,
                 clickIntents = clickIntents,
-                getPrimaryCurrencyStatusUpdatesUseCase = getPrimaryCurrencyStatusUpdatesUseCase,
+                getSingleCryptoCurrencyStatusUseCase = getSingleCryptoCurrencyStatusUseCase,
                 txHistoryItemsCountUseCase = txHistoryItemsCountUseCase,
                 txHistoryItemsUseCase = txHistoryItemsUseCase,
             ),

@@ -35,7 +35,7 @@ inline fun <reified M : Model> AppComponentContext.getOrCreateModel(): M = getOr
  * If you pass a object with different lifecycle than the [Model] then you can face memory leaks.
  *
  * @param params The parameters to store in the [ParamsContainer],
- * if `null` then no container will be created.
+
  */
 inline fun <reified M : Model, reified P : Any> AppComponentContext.getOrCreateModel(
     params: P?,

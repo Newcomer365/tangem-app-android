@@ -11,6 +11,6 @@ internal interface AppRouterConfig {
     var componentRouter: Router?
     var stack: List<AppRoute>?
 
-    // TODO: Replace with UI message handler: https://tangem.atlassian.net/browse/AND-8005
+    // TODO: Replace with UI message handler: [REDACTED_JIRA]
     var snackbarHandler: SnackbarHandler?
 }

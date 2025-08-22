@@ -48,7 +48,6 @@ dependencies {
     implementation(projects.core.analytics.models)
     implementation(projects.core.decompose)
 
-
     /** Domain */
     implementation(projects.domain.tokens)
     implementation(projects.domain.tokens.models)
@@ -64,7 +63,10 @@ dependencies {
     implementation(projects.domain.transaction)
     implementation(projects.domain.transaction.models)
     implementation(projects.domain.txhistory)
+    implementation(projects.domain.txhistory.models)
     implementation(projects.domain.feedback)
+    implementation(projects.domain.feedback.models)
+    implementation(projects.domain.notifications.models)
 
     /** Common */
     implementation(projects.common.ui)

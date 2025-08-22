@@ -9,7 +9,7 @@ import java.math.BigDecimal
  *
  * @property exchanges list of exchanges
  *
- * @author Andrew Khokhlov on 30/09/2024
+[REDACTED_AUTHOR]
  */
 @JsonClass(generateAdapter = true)
 data class TokenMarketExchangesResponse(

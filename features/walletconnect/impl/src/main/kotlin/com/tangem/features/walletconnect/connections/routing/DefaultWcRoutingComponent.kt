@@ -14,9 +14,17 @@ import com.tangem.core.decompose.context.AppComponentContext
 import com.tangem.core.decompose.context.childByContext
 import com.tangem.core.decompose.model.getOrCreateModel
 import com.tangem.core.ui.decompose.ComposableContentComponent
+import com.tangem.features.send.v2.api.FeeSelectorBlockComponent
+import com.tangem.features.send.v2.api.FeeSelectorComponent
 import com.tangem.features.walletconnect.components.WcRoutingComponent
-import com.tangem.features.walletconnect.connections.components.WcAppInfoContainerComponent
-import com.tangem.features.walletconnect.transaction.components.WcSignTransactionComponent
+import com.tangem.features.walletconnect.connections.components.AlertsComponent
+import com.tangem.features.walletconnect.connections.components.AlertsComponent.AlertType.*
+import com.tangem.features.walletconnect.connections.components.WcPairComponent
+import com.tangem.features.walletconnect.transaction.components.chain.WcAddNetworkContainerComponent
+import com.tangem.features.walletconnect.transaction.components.chain.WcSwitchNetworkComponent
+import com.tangem.features.walletconnect.transaction.components.common.WcTransactionModelParams
+import com.tangem.features.walletconnect.transaction.components.send.WcSendTransactionContainerComponent
+import com.tangem.features.walletconnect.transaction.components.sign.WcSignTransactionContainerComponent
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -25,6 +33,8 @@ import dagger.assisted.AssistedInject
 internal class DefaultWcRoutingComponent @AssistedInject constructor(
     @Assisted private val appComponentContext: AppComponentContext,
     @Assisted params: Unit,
+    private val feeSelectorBlockComponentFactory: FeeSelectorBlockComponent.Factory,
+    private val feeSelectorComponentFactory: FeeSelectorComponent.Factory,
 ) : AppComponentContext by appComponentContext, WcRoutingComponent {
 
     private val model: WcRoutingModel = getOrCreateModel()
@@ -55,13 +65,61 @@ internal class DefaultWcRoutingComponent @AssistedInject constructor(
             router = model.innerRouter,
         )
         return when (config) {
-            is WcInnerRoute.SignMessage -> WcSignTransactionComponent(
-                childContext,
-                params = WcSignTransactionComponent.Params(config.rawRequest),
+            is WcInnerRoute.SignMessage -> WcSignTransactionContainerComponent(
+                appComponentContext = childContext,
+                params = WcTransactionModelParams(config.rawRequest),
             )
-            is WcInnerRoute.Pair -> WcAppInfoContainerComponent(
+            is WcInnerRoute.AddNetwork -> WcAddNetworkContainerComponent(
+                appComponentContext = childContext,
+                params = WcTransactionModelParams(config.rawRequest),
+            )
+            is WcInnerRoute.SwitchNetwork -> WcSwitchNetworkComponent(
+                appComponentContext = childContext,
+                params = WcTransactionModelParams(config.rawRequest),
+            )
+            is WcInnerRoute.Send -> WcSendTransactionContainerComponent(
+                appComponentContext = childContext,
+                params = WcTransactionModelParams(config.rawRequest),
+                feeSelectorBlockComponentFactory = feeSelectorBlockComponentFactory,
+                feeSelectorComponentFactory = feeSelectorComponentFactory,
+            )
+            is WcInnerRoute.Pair -> WcPairComponent(
+                appComponentContext = childContext,
+                params = WcPairComponent.Params(
+                    userWalletId = config.request.userWalletId,
+                    wcUrl = config.request.uri,
+                    source = config.request.source,
+                ),
+            )
+            is WcInnerRoute.UnsupportedMethodAlert -> AlertsComponent(
                 childContext,
-                WcAppInfoContainerComponent.Params(config.request.uri, config.request.source),
+                AlertsComponent.Params(
+                    alertType = UnsupportedMethod { model.innerRouter.pop() },
+                ),
+            )
+            is WcInnerRoute.WcDappDisconnected -> AlertsComponent(
+                childContext,
+                AlertsComponent.Params(
+                    alertType = WcDisconnected { model.innerRouter.pop() },
+                ),
+            )
+            is WcInnerRoute.TangemUnsupportedNetwork -> AlertsComponent(
+                childContext,
+                AlertsComponent.Params(
+                    alertType = TangemUnsupportedNetwork(config.networkName) { model.innerRouter.pop() },
+                ),
+            )
+            is WcInnerRoute.RequiredAddNetwork -> AlertsComponent(
+                childContext,
+                AlertsComponent.Params(
+                    alertType = RequiredAddNetwork(config.networkName) { model.innerRouter.pop() },
+                ),
+            )
+            is WcInnerRoute.RequiredReconnectWithNetwork -> AlertsComponent(
+                childContext,
+                AlertsComponent.Params(
+                    alertType = RequiredReconnectWithNetwork(config.networkName) { model.innerRouter.pop() },
+                ),
             )
         }
     }

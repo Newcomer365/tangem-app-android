@@ -16,7 +16,7 @@ import com.tangem.core.ui.extensions.TextReference
  * @property isInProgress indicates progress state of button
  * @property showBadge display dot in upper right corner
  *
- * @author Andrew Khokhlov on 23/06/2023
+[REDACTED_AUTHOR]
  */
 data class ActionButtonConfig(
     val text: TextReference,

@@ -7,7 +7,7 @@ import com.tangem.tap.common.analytics.events.AnalyticsParam
 import com.tangem.utils.converter.Converter
 
 /**
- * Created by Anton Zhilenkov on 09.11.2022.
+[REDACTED_AUTHOR]
  */
 class AnalyticsErrorConverter : Converter<Throwable, Map<String, String>> {
     fun canBeHandled(error: Throwable): Boolean {

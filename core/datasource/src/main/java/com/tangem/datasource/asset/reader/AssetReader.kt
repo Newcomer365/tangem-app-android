@@ -5,7 +5,7 @@ package com.tangem.datasource.asset.reader
  *
  * @see <a href = "https://www.notion.so/tangem/Assets-e045dd890413413faf34ce07ae47ff56">Documentation</a>
  *
- * @author Anton Zhilenkov on 15/09/2022.
+[REDACTED_AUTHOR]
  */
 interface AssetReader {
 

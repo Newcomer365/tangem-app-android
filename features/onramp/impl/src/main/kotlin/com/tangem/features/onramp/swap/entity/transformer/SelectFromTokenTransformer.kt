@@ -12,7 +12,7 @@ import com.tangem.features.onramp.swap.entity.utils.toFilled
  * @property selectedTokenItemState token item state
  * @property onRemoveClick          callback is called when remove button is clicked
  *
- * @author Andrew Khokhlov on 02/11/2024
+[REDACTED_AUTHOR]
  */
 internal class SelectFromTokenTransformer(
     private val selectedTokenItemState: TokenItemState,

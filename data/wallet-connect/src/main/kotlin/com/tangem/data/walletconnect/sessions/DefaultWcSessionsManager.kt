@@ -6,29 +6,35 @@ import arrow.core.right
 import com.domain.blockaid.models.dapp.CheckDAppResult
 import com.reown.walletkit.client.Wallet
 import com.reown.walletkit.client.WalletKit
+import com.tangem.core.analytics.api.AnalyticsEventHandler
+import com.tangem.data.walletconnect.utils.WC_TAG
+import com.tangem.data.walletconnect.utils.WcNetworksConverter
 import com.tangem.data.walletconnect.utils.WcSdkObserver
 import com.tangem.data.walletconnect.utils.WcSdkSessionConverter
 import com.tangem.datasource.local.walletconnect.WalletConnectStore
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.walletconnect.WcAnalyticEvents
 import com.tangem.domain.walletconnect.model.WcSession
 import com.tangem.domain.walletconnect.model.WcSessionDTO
 import com.tangem.domain.walletconnect.model.legacy.WalletConnectSessionsRepository
 import com.tangem.domain.walletconnect.repository.WcSessionsManager
-import com.tangem.domain.wallets.models.UserWallet
 import com.tangem.domain.wallets.usecase.GetWalletsUseCase
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withContext
+import org.joda.time.DateTime
 import timber.log.Timber
 import kotlin.coroutines.resume
 
+@Suppress("LongParameterList")
 internal class DefaultWcSessionsManager(
     private val store: WalletConnectStore,
     private val legacyStore: WalletConnectSessionsRepository,
     private val getWallets: GetWalletsUseCase,
     private val dispatchers: CoroutineDispatcherProvider,
+    private val wcNetworksConverter: WcNetworksConverter,
+    private val analytics: AnalyticsEventHandler,
     private val scope: CoroutineScope,
 ) : WcSessionsManager, WcSdkObserver {
 
@@ -46,7 +52,7 @@ internal class DefaultWcSessionsManager(
                     if (someMigrated) return@transform // ignore emit, wait next one
                 }
                 val associatedSessions: List<WcSession> = associate(inSdk, inStore, wallets)
-                val someRemove = removeUnknownSessions(inStore, associatedSessions)
+                val someRemove = removeUnknownSessions(inStore, inSdk, associatedSessions)
                 if (someRemove) return@transform // ignore emit, wait next one
                 emit(associatedSessions.groupBy { it.wallet })
             }
@@ -56,31 +62,32 @@ internal class DefaultWcSessionsManager(
     override fun onWcSdkInit() {
         oneTimeMigration.value = true
         listenOnSessionDelete()
+        extendSessions()
     }
 
     override suspend fun saveSession(session: WcSession) {
-        store.saveSession(WcSessionDTO(session.sdkModel.topic, session.wallet.walletId, session.securityStatus))
+        store.saveSession(
+            WcSessionDTO(
+                topic = session.sdkModel.topic,
+                walletId = session.wallet.walletId,
+                securityStatus = session.securityStatus,
+                connectingTime = session.connectingTime ?: DateTime.now().millis,
+            ),
+        )
     }
 
     override suspend fun removeSession(session: WcSession): Either<Throwable, Unit> {
         val topic = session.sdkModel.topic
         val sdkCall = sdkDisconnectSession(topic)
-            .onRight { onSessionDelete.trySend(Wallet.Model.SessionDelete.Success(topic = topic, reason = "")) }
+        onSessionDelete.trySend(Wallet.Model.SessionDelete.Success(topic = topic, reason = ""))
+        analytics.send(WcAnalyticEvents.SessionDisconnected(session.sdkModel.appMetaData))
         return sdkCall
     }
 
     override suspend fun findSessionByTopic(topic: String): WcSession? = withContext(dispatchers.io) {
-        val storedSession = sessions.firstOrNull()
+        sessions.firstOrNull()
             ?.values?.flatten()
             ?.firstOrNull { it.sdkModel.topic == topic }
-            ?: return@withContext null
-        val sdkSession = WalletKit.getActiveSessionByTopic(topic) ?: return@withContext null
-        val wallet = storedSession.wallet
-        WcSession(
-            wallet = wallet,
-            sdkModel = WcSdkSessionConverter.convert(sdkSession),
-            securityStatus = storedSession.securityStatus,
-        )
     }
 
     override fun onSessionDelete(sessionDelete: Wallet.Model.SessionDelete) {
@@ -114,36 +121,88 @@ internal class DefaultWcSessionsManager(
         return mustSaveInNewStore.isNotEmpty()
     }
 
-    private fun associate(
+    private suspend fun associate(
         inSdk: List<Wallet.Model.Session>,
         inStore: Set<WcSessionDTO>,
         wallets: List<UserWallet>,
     ): List<WcSession> {
-        val wcSessions = inStore.mapNotNull { session ->
-            val wallet = wallets.find { it.walletId == session.walletId } ?: return@mapNotNull null
-            val sdkSession = inSdk.find { it.topic == session.topic } ?: return@mapNotNull null
-            WcSession(wallet = wallet, sdkModel = WcSdkSessionConverter.convert(sdkSession), session.securityStatus)
+        val wcSessions = inStore.mapNotNull { storeSession ->
+            val wallet = wallets.find { it.walletId == storeSession.walletId } ?: return@mapNotNull null
+            val sdkSession = inSdk.find { it.topic == storeSession.topic } ?: return@mapNotNull null
+            val networks = wcNetworksConverter.findWalletNetworks(wallet, sdkSession)
+            WcSession(
+                wallet = wallet,
+                sdkModel = WcSdkSessionConverter.convert(sdkSession),
+                securityStatus = storeSession.securityStatus,
+                networks = networks,
+                connectingTime = storeSession.connectingTime,
+                showWalletInfo = wallets.size > 1,
+            )
         }
         return wcSessions
     }
 
-    private suspend fun removeUnknownSessions(storeSessions: Set<WcSessionDTO>, wcSessions: List<WcSession>): Boolean {
+    private suspend fun removeUnknownSessions(
+        storeSessions: Set<WcSessionDTO>,
+        inSdkSessions: List<Wallet.Model.Session>,
+        wcSessions: List<WcSession>,
+    ): Boolean {
         val unknownStoredSessions = storeSessions
             .filterNot { dto -> wcSessions.any { it.sdkModel.topic == dto.topic } }
         val haveSomeUnknown = unknownStoredSessions.isNotEmpty()
+        val unknownSdkSessions = inSdkSessions
+            .filterNot { sdkSession -> wcSessions.any { it.sdkModel.topic == sdkSession.topic } }
+        val haveSomeUnknownSdkSessions = unknownSdkSessions.isNotEmpty()
 
         if (haveSomeUnknown) {
+            Timber.tag(WC_TAG).i("removeUnknownSessions $unknownStoredSessions")
             store.removeSessions(unknownStoredSessions.toSet())
         }
-        return haveSomeUnknown
+
+        val emptyNetworkSessions = wcSessions.filter { it.networks.isEmpty() }
+        val emptyNetworksDto = storeSessions
+            .filter { dto -> emptyNetworkSessions.find { it.sdkModel.topic == dto.topic } != null }
+            .toSet()
+        val haveEmptySessions = emptyNetworkSessions.isNotEmpty()
+        val haveEmptyDto = emptyNetworksDto.isNotEmpty()
+
+        if (haveEmptyDto) {
+            Timber.tag(WC_TAG).i("remove sessions without networks $emptyNetworksDto")
+            store.removeSessions(emptyNetworksDto)
+        }
+        if (haveEmptySessions) {
+            emptyNetworkSessions.forEach { scope.launch { sdkDisconnectSession(it.sdkModel.topic) } }
+        }
+        if (haveSomeUnknownSdkSessions) {
+            unknownSdkSessions.forEach { scope.launch { sdkDisconnectSession(it.topic) } }
+        }
+        return haveSomeUnknown || haveEmptyDto
+    }
+
+    private fun extendSessions() {
+        scope.launch(dispatchers.io) {
+            val topics: List<String> = WalletKit.getListOfActiveSessions().map { it.topic }
+            val jobs = topics.map { topic -> launch { sdkSessionExtend(topic) } }
+            jobs.joinAll()
+        }
     }
 
     private suspend fun sdkDisconnectSession(topic: String): Either<Throwable, Unit> {
         return suspendCancellableCoroutine { continuation ->
             WalletKit.disconnectSession(
                 params = Wallet.Params.SessionDisconnect(topic),
-                onSuccess = { continuation.resume(Unit.right()) },
-                onError = { continuation.resume(it.throwable.left()) },
+                onSuccess = { if (continuation.isActive) continuation.resume(Unit.right()) },
+                onError = { if (continuation.isActive) continuation.resume(it.throwable.left()) },
+            )
+        }
+    }
+
+    private suspend fun sdkSessionExtend(topic: String): Either<Throwable, Unit> {
+        return suspendCancellableCoroutine { continuation ->
+            WalletKit.extendSession(
+                params = Wallet.Params.SessionExtend(topic),
+                onSuccess = { if (continuation.isActive) continuation.resume(Unit.right()) },
+                onError = { if (continuation.isActive) continuation.resume(it.throwable.left()) },
             )
         }
     }

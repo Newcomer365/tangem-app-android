@@ -7,7 +7,7 @@ typealias ApiConfigs = Set<@JvmSuppressWildcards ApiConfig>
  *
  * @see <a href="https://www.notion.so/tangem/API-eacb264e7daf420a88b419a8a26f5b26?pvs=4">API configuration</a>
  *
- * @author Andrew Khokhlov on 07/08/2024
+[REDACTED_AUTHOR]
  */
 sealed class ApiConfig {
 
@@ -24,8 +24,7 @@ sealed class ApiConfig {
         Express,
         TangemTech,
         StakeKit,
-        TangemVisa,
-        Attestation,
+        TangemPay,
         BlockAid,
     }
 
@@ -34,8 +33,7 @@ sealed class ApiConfig {
             is Express -> ID.Express
             is TangemTech -> ID.TangemTech
             is StakeKit -> ID.StakeKit
-            is TangemVisa -> ID.TangemVisa
-            is Attestation -> ID.Attestation
+            is TangemPay -> ID.TangemPay
             is BlockAid -> ID.BlockAid
         }
     }

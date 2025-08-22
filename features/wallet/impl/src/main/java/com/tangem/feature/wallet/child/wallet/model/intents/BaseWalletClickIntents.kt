@@ -8,7 +8,7 @@ import kotlin.properties.Delegates
  * Base wallet click intents component.
  * Provides router and viewModelScope to child classes.
  *
- * @author Andrew Khokhlov on 18/11/2023
+[REDACTED_AUTHOR]
  */
 @Suppress("UnnecessaryAbstractClass")
 internal abstract class BaseWalletClickIntents {

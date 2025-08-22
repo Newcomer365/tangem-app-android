@@ -1,7 +1,7 @@
 package com.tangem.tap.features.onboarding
 
-import com.tangem.domain.common.util.cardTypesResolver
-import com.tangem.domain.common.util.twinsIsTwinned
+import com.tangem.domain.card.common.util.cardTypesResolver
+import com.tangem.domain.card.common.util.twinsIsTwinned
 import com.tangem.domain.models.scan.CardDTO
 import com.tangem.domain.models.scan.ScanResponse
 import com.tangem.domain.visa.model.VisaCardActivationStatus
@@ -11,7 +11,7 @@ import com.tangem.tap.proxy.redux.DaggerGraphState
 import com.tangem.tap.store
 
 /**
- * Created by Anton Zhilenkov on 05/10/2021.
+[REDACTED_AUTHOR]
  */
 object OnboardingHelper {
     suspend fun isOnboardingCase(response: ScanResponse): Boolean {

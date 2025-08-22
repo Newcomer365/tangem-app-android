@@ -1,22 +1,42 @@
 package com.tangem.features.walletconnect.connections.routes
 
 import androidx.compose.runtime.Immutable
+import com.tangem.core.decompose.navigation.Route
 import com.tangem.core.ui.components.bottomsheets.TangemBottomSheetConfigContent
-import com.tangem.features.walletconnect.connections.components.AlertsComponent
+import com.tangem.domain.models.network.Network
+import com.tangem.domain.models.wallet.UserWalletId
 import kotlinx.serialization.Serializable
 
 @Serializable
 @Immutable
-internal sealed class WcAppInfoRoutes : TangemBottomSheetConfigContent {
+internal sealed class WcAppInfoRoutes : TangemBottomSheetConfigContent, Route {
     @Serializable
     data object AppInfo : WcAppInfoRoutes()
 
     @Serializable
-    data object SelectWallet : WcAppInfoRoutes()
+    data class SelectWallet(val selectedWalletId: UserWalletId) : WcAppInfoRoutes()
 
     @Serializable
-    data object SelectNetworks : WcAppInfoRoutes()
+    data class SelectNetworks(
+        val missingRequiredNetworks: Set<Network>,
+        val requiredNetworks: Set<Network>,
+        val availableNetworks: Set<Network>,
+        val enabledAvailableNetworks: Set<Network>,
+        val notAddedNetworks: Set<Network>,
+    ) : WcAppInfoRoutes()
 
     @Serializable
-    data class Alert(val alertType: AlertsComponent.AlertType) : WcAppInfoRoutes()
+    data class Alert(val alertType: Type) : WcAppInfoRoutes() {
+        @Serializable
+        sealed class Type {
+            data class Verified(val appName: String) : Type()
+            data object UnknownDomain : Type()
+            data object UnsafeDomain : Type()
+            data object InvalidDomain : Type()
+            data class UnsupportedDApp(val appName: String) : Type()
+            data class UnsupportedNetwork(val appName: String) : Type()
+            data object UriAlreadyUsed : Type()
+            data object TimeoutException : Type()
+        }
+    }
 }

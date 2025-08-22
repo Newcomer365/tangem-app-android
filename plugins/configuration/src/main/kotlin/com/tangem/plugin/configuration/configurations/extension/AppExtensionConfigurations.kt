@@ -38,10 +38,11 @@ private fun AppExtension.configureDefaultConfig(project: Project) {
         buildFeatures.buildConfig = true
 
         testInstrumentationRunner = "com.tangem.common.HiltTestRunner"
+        testInstrumentationRunnerArguments["clearPackageData"] = "true"
     }
 }
 
-// TODO: https://tangem.atlassian.net/browse/AND-3189
+// TODO: [REDACTED_JIRA]
 private fun AppExtension.configureBuildFeatures() {
     buildFeatures.apply {
         viewBinding = true

@@ -6,7 +6,7 @@ import com.tangem.core.analytics.api.ParamsInterceptor
 import com.tangem.tap.common.analytics.api.AnalyticsHandlerBuilder
 
 /**
- * Created by Anton Zhilenkov on 22/09/2022.
+[REDACTED_AUTHOR]
  */
 class AnalyticsFactory {
 

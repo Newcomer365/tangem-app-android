@@ -1,6 +1,7 @@
 package com.tangem.feature.wallet.presentation.wallet.domain
 
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
+import com.tangem.domain.models.wallet.copy
 import com.tangem.domain.wallets.repository.WalletNamesMigrationRepository
 import timber.log.Timber
 

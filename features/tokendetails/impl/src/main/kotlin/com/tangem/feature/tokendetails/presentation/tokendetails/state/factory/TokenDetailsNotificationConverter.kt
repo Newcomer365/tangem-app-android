@@ -6,7 +6,7 @@ import com.tangem.core.ui.extensions.resourceReference
 import com.tangem.core.ui.format.bigdecimal.crypto
 import com.tangem.core.ui.format.bigdecimal.format
 import com.tangem.core.ui.format.bigdecimal.shorted
-import com.tangem.domain.tokens.model.CryptoCurrency
+import com.tangem.domain.models.currency.CryptoCurrency
 import com.tangem.domain.tokens.model.warnings.CryptoCurrencyWarning
 import com.tangem.domain.tokens.model.warnings.HederaWarnings
 import com.tangem.domain.tokens.model.warnings.KaspaWarnings
@@ -39,6 +39,12 @@ internal class TokenDetailsNotificationConverter(
     fun removeHederaAssociateWarning(currentState: TokenDetailsState): ImmutableList<TokenDetailsNotification> {
         val newNotifications = currentState.notifications.toMutableList()
         newNotifications.removeBy { it is HederaAssociateWarning }
+        return newNotifications.toImmutableList()
+    }
+
+    fun removeRequiredTrustlineWarning(currentState: TokenDetailsState): ImmutableList<TokenDetailsNotification> {
+        val newNotifications = currentState.notifications.toMutableList()
+        newNotifications.removeBy { it is RequiredTrustlineWarning }
         return newNotifications.toImmutableList()
     }
 
@@ -118,6 +124,12 @@ internal class TokenDetailsNotificationConverter(
                 feeCurrencySymbol = warning.feeCurrencySymbol,
                 onAssociateClick = clickIntents::onAssociateClick,
             )
+            is CryptoCurrencyWarning.RequiredTrustline -> RequiredTrustlineWarning(
+                currency = warning.currency,
+                amount = warning.requiredAmount.format { crypto(symbol = "", warning.currencyDecimals) },
+                currencySymbol = warning.currencySymbol,
+                onOpenClick = clickIntents::onOpenTrustlineClick,
+            )
             is KaspaWarnings.IncompleteTransaction -> KaspaIncompleteTransactionWarning(
                 currency = warning.currency,
                 amount = warning.amount.format { crypto(symbol = "", decimals = warning.currencyDecimals) },
@@ -135,7 +147,6 @@ internal class TokenDetailsNotificationConverter(
                 },
             )
             is CryptoCurrencyWarning.MigrationMaticToPol -> MigrationMaticToPol
-            is CryptoCurrencyWarning.TokensInBetaWarning -> TokensInBeta
             is CryptoCurrencyWarning.UsedOutdatedDataWarning -> UsedOutdatedData
         }
     }

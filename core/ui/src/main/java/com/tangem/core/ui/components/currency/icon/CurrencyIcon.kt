@@ -21,7 +21,7 @@ import com.tangem.core.ui.utils.getGreyScaleColorFilter
 /**
  * Cryptocurrency icon with network badge
  *
- * TODO [separate domain from ui](https://tangem.atlassian.net/browse/AND-5015)
+ * TODO [separate domain from ui]([REDACTED_JIRA])
  *
  * @param state cryptocurrency icon config
  * @param modifier component modifier

@@ -6,7 +6,7 @@ import com.tangem.utils.transformer.Transformer
 /**
  * Base [SearchBarUM] transformer
  *
- * @author Andrew Khokhlov on 23/10/2024
+[REDACTED_AUTHOR]
  */
 internal abstract class SearchBarUMTransformer : Transformer<SearchBarUM> {
 

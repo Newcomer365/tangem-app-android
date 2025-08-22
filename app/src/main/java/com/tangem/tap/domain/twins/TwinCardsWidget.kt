@@ -12,7 +12,7 @@ import com.tangem.sdk.ui.widget.leapfrogWidget.LeapViewState
 import com.tangem.sdk.ui.widget.leapfrogWidget.LeapfrogWidget
 
 /**
- * Created by Anton Zhilenkov on 14/10/2021.
+[REDACTED_AUTHOR]
  */
 class TwinsCardWidget(
     val leapfrogWidget: LeapfrogWidget,

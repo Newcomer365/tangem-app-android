@@ -6,12 +6,12 @@ import arrow.core.raise.either
 import com.tangem.blockchain.common.BlockchainSdkError
 import com.tangem.blockchain.extensions.SimpleResult
 import com.tangem.domain.card.repository.CardSdkConfigRepository
-import com.tangem.domain.tokens.model.CryptoCurrency
+import com.tangem.domain.models.currency.CryptoCurrency
 import com.tangem.domain.transaction.error.IncompleteTransactionError
 import com.tangem.domain.transaction.error.SendTransactionError
 import com.tangem.domain.transaction.error.parseWrappedError
 import com.tangem.domain.walletmanager.WalletManagersFacade
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWalletId
 
 class RetryIncompleteTransactionUseCase(
     private val cardSdkConfigRepository: CardSdkConfigRepository,

@@ -17,7 +17,7 @@ import timber.log.Timber
  * @property blockchainProviderTypesStore        blockchain provider types store
  * @property changedBlockchainProvidersStore     changed blockchain providers store
  *
- * @author Andrew Khokhlov on 06/01/2025
+[REDACTED_AUTHOR]
  */
 internal class DevBlockchainProvidersTypesManager(
     private val prodBlockchainProvidersTypesManager: ProdBlockchainProvidersTypesManager,

@@ -3,11 +3,11 @@ package com.tangem.data.staking.utils
 import com.tangem.blockchain.common.Blockchain
 import com.tangem.blockchainsdk.utils.toCoinId
 import com.tangem.blockchainsdk.utils.toMigratedCoinId
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.network.Network
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.staking.model.StakingID
-import com.tangem.domain.tokens.model.CryptoCurrency
-import com.tangem.domain.tokens.model.Network
 import com.tangem.domain.walletmanager.WalletManagersFacade
-import com.tangem.domain.wallets.models.UserWalletId
 import javax.inject.Inject
 
 /**
@@ -15,27 +15,13 @@ import javax.inject.Inject
  *
  * @property walletManagersFacade wallet manager facade
  *
- * @author Andrew Khokhlov on 17/04/2025
+[REDACTED_AUTHOR]
  */
 internal class StakingIdFactory @Inject constructor(
     private val walletManagersFacade: WalletManagersFacade,
 ) {
 
-    suspend fun create(userWalletId: UserWalletId, currencyId: CryptoCurrency.ID, network: Network): Set<StakingID> {
-        val addresses = walletManagersFacade.getAddresses(userWalletId = userWalletId, network = network)
-
-        val integrationId = createIntegrationId(currencyId) ?: return emptySet()
-
-        return addresses.mapTo(hashSetOf()) { address ->
-            StakingID(integrationId = integrationId, address = address.value)
-        }
-    }
-
-    suspend fun createForDefault(
-        userWalletId: UserWalletId,
-        currencyId: CryptoCurrency.ID,
-        network: Network,
-    ): StakingID? {
+    suspend fun create(userWalletId: UserWalletId, currencyId: CryptoCurrency.ID, network: Network): StakingID? {
         val address = walletManagersFacade.getDefaultAddress(userWalletId = userWalletId, network = network)
         val integrationId = createIntegrationId(currencyId)
 
@@ -48,6 +34,8 @@ internal class StakingIdFactory @Inject constructor(
         val integrationKey = with(currencyId) { rawNetworkId.plus(rawCurrencyId) }
         return integrationIdMap[integrationKey]
     }
+
+    fun isPolygonIntegrationId(integrationId: String): Boolean = integrationId == ETHEREUM_POLYGON_INTEGRATION_ID
 
     @Suppress("UnusedPrivateMember", "unused")
     companion object {
@@ -67,7 +55,7 @@ internal class StakingIdFactory @Inject constructor(
         private const val CARDANO_INTEGRATION_ID = "cardano-ada-native-staking"
 
         // uncomment items as implementation is ready
-        val integrationIdMap = mapOf(
+        private val integrationIdMap = mapOf(
             Blockchain.TON.toDefaultKey() to TON_INTEGRATION_ID,
             Blockchain.Solana.toDefaultKey() to SOLANA_INTEGRATION_ID,
             Blockchain.Cosmos.toDefaultKey() to COSMOS_INTEGRATION_ID,

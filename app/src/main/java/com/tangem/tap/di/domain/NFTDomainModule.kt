@@ -1,9 +1,14 @@
 package com.tangem.tap.di.domain
 
+import com.tangem.domain.networks.single.SingleNetworkStatusSupplier
 import com.tangem.domain.nft.*
 import com.tangem.domain.nft.repository.NFTRepository
+import com.tangem.domain.quotes.single.SingleQuoteStatusFetcher
+import com.tangem.domain.quotes.single.SingleQuoteStatusSupplier
+import com.tangem.domain.tokens.MultiWalletCryptoCurrenciesSupplier
+import com.tangem.domain.tokens.TokensFeatureToggles
 import com.tangem.domain.tokens.repository.CurrenciesRepository
-import com.tangem.domain.tokens.repository.NetworksRepository
+import com.tangem.domain.wallets.repository.WalletsRepository
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import dagger.Module
 import dagger.Provides
@@ -30,9 +35,13 @@ internal object NFTDomainModule {
     fun providesFetchNFTCollectionsUseCase(
         currenciesRepository: CurrenciesRepository,
         nftRepository: NFTRepository,
+        multiWalletCryptoCurrenciesSupplier: MultiWalletCryptoCurrenciesSupplier,
+        tokensFeatureToggles: TokensFeatureToggles,
     ): FetchNFTCollectionsUseCase = FetchNFTCollectionsUseCase(
         currenciesRepository = currenciesRepository,
         nftRepository = nftRepository,
+        multiWalletCryptoCurrenciesSupplier = multiWalletCryptoCurrenciesSupplier,
+        tokensFeatureToggles = tokensFeatureToggles,
     )
 
     @Provides
@@ -40,9 +49,13 @@ internal object NFTDomainModule {
     fun providesRefreshAllNFTUseCase(
         currenciesRepository: CurrenciesRepository,
         nftRepository: NFTRepository,
+        multiWalletCryptoCurrenciesSupplier: MultiWalletCryptoCurrenciesSupplier,
+        tokensFeatureToggles: TokensFeatureToggles,
     ): RefreshAllNFTUseCase = RefreshAllNFTUseCase(
         currenciesRepository = currenciesRepository,
         nftRepository = nftRepository,
+        multiWalletCryptoCurrenciesSupplier = multiWalletCryptoCurrenciesSupplier,
+        tokensFeatureToggles = tokensFeatureToggles,
     )
 
     @Provides
@@ -72,10 +85,11 @@ internal object NFTDomainModule {
 
     @Provides
     @Singleton
-    fun providesGetNFTNetworkStatusUseCase(networksRepository: NetworksRepository): GetNFTNetworkStatusUseCase =
-        GetNFTNetworkStatusUseCase(
-            networksRepository = networksRepository,
-        )
+    fun providesGetNFTNetworkStatusUseCase(
+        singleNetworkStatusSupplier: SingleNetworkStatusSupplier,
+    ): GetNFTNetworkStatusUseCase {
+        return GetNFTNetworkStatusUseCase(singleNetworkStatusSupplier = singleNetworkStatusSupplier)
+    }
 
     @Provides
     @Singleton
@@ -83,4 +97,61 @@ internal object NFTDomainModule {
         GetNFTExploreUrlUseCase(
             nftRepository = nftRepository,
         )
+
+    @Provides
+    @Singleton
+    fun provideGetNFTPriceUseCase(
+        nftRepository: NFTRepository,
+        singleQuoteStatusSupplier: SingleQuoteStatusSupplier,
+    ): GetNFTPriceUseCase {
+        return GetNFTPriceUseCase(nftRepository, singleQuoteStatusSupplier)
+    }
+
+    @Provides
+    @Singleton
+    fun provideFetchNFTPriceUseCase(
+        nftRepository: NFTRepository,
+        singleQuoteStatusFetcher: SingleQuoteStatusFetcher,
+    ): FetchNFTPriceUseCase {
+        return FetchNFTPriceUseCase(nftRepository, singleQuoteStatusFetcher)
+    }
+
+    @Provides
+    @Singleton
+    fun provideEnableWalletNFTUseCase(walletsRepository: WalletsRepository): EnableWalletNFTUseCase {
+        return EnableWalletNFTUseCase(walletsRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideDisableWalletNFTUseCase(
+        walletsRepository: WalletsRepository,
+        nftRepository: NFTRepository,
+        currenciesRepository: CurrenciesRepository,
+        multiWalletCryptoCurrenciesSupplier: MultiWalletCryptoCurrenciesSupplier,
+        tokensFeatureToggles: TokensFeatureToggles,
+    ): DisableWalletNFTUseCase {
+        return DisableWalletNFTUseCase(
+            walletsRepository = walletsRepository,
+            nftRepository = nftRepository,
+            currenciesRepository = currenciesRepository,
+            multiWalletCryptoCurrenciesSupplier = multiWalletCryptoCurrenciesSupplier,
+            tokensFeatureToggles = tokensFeatureToggles,
+        )
+    }
+
+    @Provides
+    @Singleton
+    fun provideGetWalletNFTEnabledUseCase(walletsRepository: WalletsRepository): GetWalletNFTEnabledUseCase {
+        return GetWalletNFTEnabledUseCase(walletsRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideClearNFTCacheUseCase(
+        nftRepository: NFTRepository,
+        currenciesRepository: CurrenciesRepository,
+    ): ObserveAndClearNFTCacheIfNeedUseCase {
+        return ObserveAndClearNFTCacheIfNeedUseCase(nftRepository, currenciesRepository)
+    }
 }

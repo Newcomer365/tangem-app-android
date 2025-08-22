@@ -1,26 +1,38 @@
 package com.tangem.tap.domain.userWalletList.repository.implementation
 
 import com.tangem.common.services.secure.SecureStorage
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.tap.domain.userWalletList.repository.SelectedUserWalletRepository
+import com.tangem.utils.coroutines.CoroutineDispatcherProvider
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 internal class DefaultSelectedUserWalletRepository(
     private val secureStorage: SecureStorage,
+    private val dispatchers: CoroutineDispatcherProvider,
 ) : SelectedUserWalletRepository {
-    override fun get(): UserWalletId? {
-        return secureStorage.get(StorageKey.SelectedWalletId.name)
-            ?.decodeToString(throwOnInvalidSequence = true)
-            ?.let { UserWalletId(it) }
+
+    private val mutex = Mutex()
+
+    override suspend fun get(): UserWalletId? = withContext(dispatchers.io) {
+        mutex.withLock {
+            secureStorage.get(StorageKey.SelectedWalletId.name)
+                ?.decodeToString(throwOnInvalidSequence = true)
+                ?.let { UserWalletId(it) }
+        }
     }
 
-    override fun set(walletId: UserWalletId?) {
-        if (walletId == null) {
-            secureStorage.delete(StorageKey.SelectedWalletId.name)
-        } else {
-            secureStorage.store(
-                data = walletId.stringValue.encodeToByteArray(throwOnInvalidSequence = true),
-                account = StorageKey.SelectedWalletId.name,
-            )
+    override suspend fun set(walletId: UserWalletId?) = withContext(dispatchers.io) {
+        mutex.withLock {
+            if (walletId == null) {
+                secureStorage.delete(StorageKey.SelectedWalletId.name)
+            } else {
+                secureStorage.store(
+                    data = walletId.stringValue.encodeToByteArray(throwOnInvalidSequence = true),
+                    account = StorageKey.SelectedWalletId.name,
+                )
+            }
         }
     }
 

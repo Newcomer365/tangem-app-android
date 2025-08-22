@@ -4,6 +4,7 @@ import com.tangem.core.ui.components.appbar.models.TopAppBarButtonUM
 import com.tangem.core.ui.components.dropdownmenu.TangemDropdownMenuItem
 import com.tangem.core.ui.extensions.resourceReference
 import com.tangem.core.ui.res.TangemTheme
+import com.tangem.features.walletconnect.connections.entity.VerifiedDAppState
 import com.tangem.features.walletconnect.connections.entity.WcConnectedAppInfo
 import com.tangem.features.walletconnect.connections.entity.WcConnectionsState
 import com.tangem.features.walletconnect.connections.entity.WcConnectionsTopAppBarConfig
@@ -22,13 +23,16 @@ internal object WcConnectionsPreviewData {
                 WcConnectedAppInfo(
                     name = "Moralis",
                     iconUrl = "$BASE_URL/satoshi.png",
-                    isVerified = true,
+                    subtitle = "https://react-app.walletconnect.com/",
+                    verifiedState = VerifiedDAppState.Verified {},
                     onClick = { Timber.d("Moralis clicked") },
                 ),
                 WcConnectedAppInfo(
                     name = "website.com",
                     iconUrl = "$BASE_URL/doge_again_lol.jpg",
+                    subtitle = "https://react-app.walletconnect.com/",
                     onClick = { Timber.d("website.com clicked") },
+                    verifiedState = VerifiedDAppState.Unknown,
                 ),
             ),
         ),
@@ -37,9 +41,10 @@ internal object WcConnectionsPreviewData {
             walletName = "Bitcoin",
             connectedApps = persistentListOf(
                 WcConnectedAppInfo(
-                    name = "React app",
+                    name = "React app React app React app React app React app",
                     iconUrl = "$BASE_URL/LiteCoin.png",
-                    isVerified = true,
+                    subtitle = "https://react-app.walletconnect.com/",
+                    verifiedState = VerifiedDAppState.Verified {},
                     onClick = { Timber.d("React app clicked") },
                 ),
             ),
@@ -51,12 +56,15 @@ internal object WcConnectionsPreviewData {
                 WcConnectedAppInfo(
                     name = "Moralis",
                     iconUrl = "$BASE_URL/satoshi.png",
-                    isVerified = true,
+                    subtitle = "https://react-app.walletconnect.com/",
+                    verifiedState = VerifiedDAppState.Verified {},
                     onClick = { Timber.d("Moralis clicked") },
                 ),
                 WcConnectedAppInfo(
                     name = "website.com",
                     iconUrl = "$BASE_URL/doge_again_lol.jpg",
+                    subtitle = "https://react-app.walletconnect.com/",
+                    verifiedState = VerifiedDAppState.Unknown,
                     onClick = { Timber.d("website.com clicked") },
                 ),
             ),
@@ -68,8 +76,9 @@ internal object WcConnectionsPreviewData {
                 WcConnectedAppInfo(
                     name = "React app",
                     iconUrl = "$BASE_URL/LiteCoin.png",
-                    isVerified = true,
+                    subtitle = "https://react-app.walletconnect.com/",
                     onClick = { Timber.d("React app clicked") },
+                    verifiedState = VerifiedDAppState.Verified {},
                 ),
             ),
         ),
@@ -80,13 +89,16 @@ internal object WcConnectionsPreviewData {
                 WcConnectedAppInfo(
                     name = "Moralis",
                     iconUrl = "$BASE_URL/satoshi.png",
-                    isVerified = true,
+                    subtitle = "https://react-app.walletconnect.com/",
+                    verifiedState = VerifiedDAppState.Verified {},
                     onClick = { Timber.d("Moralis clicked") },
                 ),
                 WcConnectedAppInfo(
                     name = "website.com",
                     iconUrl = "$BASE_URL/doge_again_lol.jpg",
+                    subtitle = "https://react-app.walletconnect.com/",
                     onClick = { Timber.d("website.com clicked") },
+                    verifiedState = VerifiedDAppState.Unknown,
                 ),
             ),
         ),
@@ -97,7 +109,8 @@ internal object WcConnectionsPreviewData {
                 WcConnectedAppInfo(
                     name = "React app",
                     iconUrl = "$BASE_URL/LiteCoin.png",
-                    isVerified = true,
+                    subtitle = "https://react-app.walletconnect.com/",
+                    verifiedState = VerifiedDAppState.Verified {},
                     onClick = { Timber.d("React app clicked") },
                 ),
             ),

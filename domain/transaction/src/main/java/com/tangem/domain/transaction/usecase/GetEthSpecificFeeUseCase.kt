@@ -9,10 +9,10 @@ import com.tangem.blockchain.common.transaction.Fee
 import com.tangem.blockchain.common.transaction.TransactionFee
 import com.tangem.blockchain.extensions.Result
 import com.tangem.blockchainsdk.utils.fromNetworkId
-import com.tangem.domain.tokens.model.CryptoCurrency
+import com.tangem.domain.models.currency.CryptoCurrency
 import com.tangem.domain.transaction.error.GetFeeError
 import com.tangem.domain.walletmanager.WalletManagersFacade
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.models.wallet.UserWallet
 import java.math.BigInteger
 import java.math.MathContext
 import java.math.RoundingMode

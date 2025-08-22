@@ -7,9 +7,9 @@ import com.tangem.datasource.api.common.blockaid.models.response.TransactionMeta
 @JsonClass(generateAdapter = true)
 data class SolanaTransactionScanRequest(
     @Json(name = "encoding") val encoding: String = "base64",
-    @Json(name = "chain") val chain: String,
+    @Json(name = "blockchain") val blockchain: String,
     @Json(name = "method") val method: String,
-    @Json(name = "options") val options: List<String> = listOf("simulation, validation"),
+    @Json(name = "options") val options: List<String> = listOf("simulation", "validation"),
     @Json(name = "metadata") val metadata: TransactionMetadata,
     @Json(name = "account_address") val accountAddress: String,
     @Json(name = "transactions") val transactions: List<String>,

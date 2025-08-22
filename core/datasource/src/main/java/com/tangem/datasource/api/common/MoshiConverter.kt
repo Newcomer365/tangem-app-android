@@ -8,7 +8,7 @@ import com.tangem.datasource.api.common.adapter.BigDecimalAdapter
 import retrofit2.converter.moshi.MoshiConverterFactory
 
 /**
- * @author Anton Zhilenkov on 02/04/2022
+[REDACTED_AUTHOR]
  */
 // TODO("Remove after removing Redux")
 @Deprecated("Provide by DI")

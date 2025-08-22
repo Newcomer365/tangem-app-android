@@ -34,7 +34,7 @@ import org.burnoutcrew.reorderable.rememberReorderableLazyListState
  * @param state    state
  * @param modifier modifier
  *
- * @author Andrew Khokhlov on 02/11/2024
+[REDACTED_AUTHOR]
  */
 @Composable
 fun GroupTitleItem(state: TokensListItemUM.GroupTitle, modifier: Modifier = Modifier) {

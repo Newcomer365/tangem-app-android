@@ -16,7 +16,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
 /**
- * @author Andrew Khokhlov on 26/05/2024
+[REDACTED_AUTHOR]
  */
 @OptIn(ExperimentalStdlibApi::class)
 class AssetLoaderTest {

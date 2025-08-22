@@ -1,13 +1,13 @@
 package com.tangem.tap.common.analytics.converters
 
 import com.tangem.blockchain.common.Blockchain
-import com.tangem.domain.common.CardTypesResolver
+import com.tangem.domain.card.CardTypesResolver
 import com.tangem.tap.common.analytics.events.AnalyticsParam
 import com.tangem.utils.converter.Converter
 import com.tangem.core.analytics.models.AnalyticsParam as CoreAnalyticsParam
 
 /**
- * Created by Anton Zhilenkov on 02.11.2022.
+[REDACTED_AUTHOR]
  */
 class ParamCardCurrencyConverter : Converter<CardTypesResolver, CoreAnalyticsParam.WalletType?> {
 

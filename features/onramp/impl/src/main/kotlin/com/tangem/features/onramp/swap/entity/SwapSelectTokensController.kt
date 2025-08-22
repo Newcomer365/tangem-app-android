@@ -11,7 +11,7 @@ import javax.inject.Inject
 /**
  * [SwapSelectTokensUM] controller
  *
- * @author Andrew Khokhlov on 02/11/2024
+[REDACTED_AUTHOR]
  */
 internal class SwapSelectTokensController @Inject constructor() {
 

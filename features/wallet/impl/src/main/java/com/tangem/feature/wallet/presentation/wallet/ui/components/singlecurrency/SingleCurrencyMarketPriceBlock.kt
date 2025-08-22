@@ -11,7 +11,7 @@ import com.tangem.core.ui.components.marketprice.MarketPriceBlockState
  * @param state    component state
  * @param modifier modifier
  *
- * @author Andrew Khokhlov on 07/08/2023
+[REDACTED_AUTHOR]
  */
 internal fun LazyListScope.marketPriceBlock(state: MarketPriceBlockState, modifier: Modifier = Modifier) {
     item(

@@ -2,59 +2,56 @@ package com.tangem.data.common.currency
 
 import com.tangem.blockchain.common.Blockchain
 import com.tangem.blockchain.common.Token
-import com.tangem.blockchainsdk.utils.ExcludedBlockchains
 import com.tangem.blockchainsdk.utils.fromNetworkId
 import com.tangem.blockchainsdk.utils.toCoinId
+import com.tangem.data.common.network.NetworkFactory
 import com.tangem.datasource.api.tangemTech.models.UserTokensResponse
-import com.tangem.domain.common.util.cardTypesResolver
-import com.tangem.domain.models.scan.ScanResponse
-import com.tangem.domain.tokens.model.CryptoCurrency
+import com.tangem.domain.card.common.util.cardTypesResolver
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.wallet.UserWallet
 import timber.log.Timber
+import javax.inject.Inject
 import com.tangem.blockchain.common.Token as SdkToken
 
-class ResponseCryptoCurrenciesFactory(
-    private val excludedBlockchains: ExcludedBlockchains,
+class ResponseCryptoCurrenciesFactory @Inject constructor(
+    private val networkFactory: NetworkFactory,
 ) {
 
-    fun createCurrency(currencyId: String, response: UserTokensResponse, scanResponse: ScanResponse): CryptoCurrency {
+    fun createCurrency(currencyId: String, response: UserTokensResponse, userWallet: UserWallet): CryptoCurrency {
         return response.tokens
             .asSequence()
-            .mapNotNull { createCurrency(it, scanResponse) }
+            .mapNotNull { createCurrency(it, userWallet) }
             .first { it.id.value == currencyId }
     }
 
-    fun createCurrencies(response: UserTokensResponse, scanResponse: ScanResponse): List<CryptoCurrency> {
-        return response.tokens
-            .asSequence()
-            .mapNotNull { createCurrency(it, scanResponse) }
-            .distinctBy { it.id }
-            .toList()
+    fun createCurrencies(response: UserTokensResponse, userWallet: UserWallet): List<CryptoCurrency> {
+        return createCurrencies(tokens = response.tokens, userWallet = userWallet)
     }
 
-    fun createCurrencies(tokens: List<UserTokensResponse.Token>, scanResponse: ScanResponse): List<CryptoCurrency> {
+    fun createCurrencies(tokens: List<UserTokensResponse.Token>, userWallet: UserWallet): List<CryptoCurrency> {
         return tokens
             .asSequence()
-            .mapNotNull { createCurrency(it, scanResponse) }
+            .mapNotNull { createCurrency(it, userWallet) }
             .distinctBy(CryptoCurrency::id)
             .toList()
     }
 
-    fun createCurrency(responseToken: UserTokensResponse.Token, scanResponse: ScanResponse): CryptoCurrency? {
+    fun createCurrency(responseToken: UserTokensResponse.Token, userWallet: UserWallet): CryptoCurrency? {
         var blockchain = Blockchain.fromNetworkId(responseToken.networkId)
         if (blockchain == null || blockchain == Blockchain.Unknown) {
             Timber.e("Unable to find a blockchain with the network ID: ${responseToken.networkId}")
             return null
         }
 
-        if (scanResponse.cardTypesResolver.isTestCard()) {
+        if (userWallet is UserWallet.Cold && userWallet.scanResponse.cardTypesResolver.isTestCard()) {
             blockchain = blockchain.getTestnetVersion() ?: blockchain
         }
 
         val sdkToken = createSdkToken(responseToken)
         return if (sdkToken == null) {
-            createCoin(blockchain, responseToken, scanResponse)
+            createCoin(blockchain, responseToken, userWallet)
         } else {
-            createToken(blockchain, sdkToken, responseToken.derivationPath, scanResponse)
+            createToken(blockchain, sdkToken, responseToken.derivationPath, userWallet)
         }
     }
 
@@ -73,13 +70,12 @@ class ResponseCryptoCurrenciesFactory(
     private fun createCoin(
         blockchain: Blockchain,
         responseToken: UserTokensResponse.Token,
-        scanResponse: ScanResponse,
+        userWallet: UserWallet,
     ): CryptoCurrency.Coin? {
-        val network = getNetwork(
-            blockchain,
-            responseToken.derivationPath,
-            scanResponse,
-            excludedBlockchains,
+        val network = networkFactory.create(
+            blockchain = blockchain,
+            extraDerivationPath = responseToken.derivationPath,
+            userWallet = userWallet,
         ) ?: return null
 
         return CryptoCurrency.Coin(
@@ -97,7 +93,7 @@ class ResponseCryptoCurrenciesFactory(
         return when (this) {
             // workaround: Dischain was renamed but backend still returns the old name,
             // get name and symbol from enum Blockchain until backend renamed
-            // https://tangem.atlassian.net/browse/AND-6158
+            // [REDACTED_JIRA]
             Blockchain.Dischain,
             Blockchain.Polygon,
             -> this.currency
@@ -109,13 +105,12 @@ class ResponseCryptoCurrenciesFactory(
         blockchain: Blockchain,
         sdkToken: Token,
         responseDerivationPath: String?,
-        scanResponse: ScanResponse,
+        userWallet: UserWallet,
     ): CryptoCurrency.Token? {
-        val network = getNetwork(
-            blockchain,
-            responseDerivationPath,
-            scanResponse,
-            excludedBlockchains,
+        val network = networkFactory.create(
+            blockchain = blockchain,
+            extraDerivationPath = responseDerivationPath,
+            userWallet = userWallet,
         ) ?: return null
 
         val id = getTokenId(network, sdkToken)

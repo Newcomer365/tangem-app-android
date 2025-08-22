@@ -1,8 +1,8 @@
 package com.tangem.domain.wallets.legacy
 
 import com.tangem.common.CompletionResult
-import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
 import kotlinx.coroutines.flow.Flow
 
 interface UserWalletsListManager {
@@ -14,6 +14,9 @@ interface UserWalletsListManager {
 
     /** [Flow] with all saved [UserWallet]s updates */
     val userWallets: Flow<List<UserWallet>>
+
+    /** Count saved wallets updates */
+    val savedWalletsCount: Flow<Int>
 
     /** [Flow] with selected [UserWallet] updates */
     @Deprecated("You should provide the selected wallet via routing parameters due to the scalability of the features")

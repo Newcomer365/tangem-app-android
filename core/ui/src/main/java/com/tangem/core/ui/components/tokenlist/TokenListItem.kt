@@ -19,7 +19,7 @@ import com.tangem.core.ui.res.TangemTheme
  * @param isBalanceHidden flag that shows/hides balance
  * @param modifier        modifier
  *
- * @author Andrew Khokhlov on 28/07/2023
+[REDACTED_AUTHOR]
  */
 @Composable
 fun TokenListItem(state: TokensListItemUM, isBalanceHidden: Boolean, modifier: Modifier = Modifier) {

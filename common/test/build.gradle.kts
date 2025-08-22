@@ -17,8 +17,10 @@ dependencies {
 
     implementation(projects.domain.legacy)
     implementation(projects.domain.models)
+    implementation(projects.domain.card)
     implementation(projects.domain.staking.models)
     implementation(projects.domain.tokens.models)
+    implementation(projects.domain.txhistory.models)
     implementation(projects.domain.wallets)
     implementation(projects.domain.wallets.models)
 
@@ -30,4 +32,7 @@ dependencies {
 
     implementation(tangemDeps.blockchain)
     implementation(tangemDeps.card.core)
+
+    implementation(deps.test.junit5)
+    implementation(deps.test.truth)
 }

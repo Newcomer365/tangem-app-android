@@ -10,7 +10,7 @@ import com.tangem.feature.wallet.impl.R
  *
  * @property config action config
  *
- * @author Andrew Khokhlov on 24/06/2023
+[REDACTED_AUTHOR]
  */
 @Immutable
 internal sealed class WalletManageButton(val config: ActionButtonConfig) {

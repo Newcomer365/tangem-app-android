@@ -1,7 +1,8 @@
 package com.tangem.feature.wallet.presentation.wallet.state.transformers
 
-import com.tangem.domain.common.util.getCardsCount
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.card.common.util.getCardsCount
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.requireColdWallet
 import com.tangem.feature.wallet.presentation.wallet.domain.WalletAdditionalInfoFactory
 import com.tangem.feature.wallet.presentation.wallet.domain.WalletImageResolver
 import com.tangem.feature.wallet.presentation.wallet.state.model.WalletCardState
@@ -39,8 +40,8 @@ internal class UpdateWalletCardsCountTransformer(
         return when (this) {
             is WalletCardState.Content -> copy(
                 additionalInfo = WalletAdditionalInfoFactory.resolve(wallet = userWallet),
-                imageResId = walletImageResolver.resolve(userWallet = userWallet),
-                cardCount = userWallet.getCardsCount(),
+                imageResId = walletImageResolver.resolve(userWallet = userWallet.requireColdWallet()), // TODO [REDACTED_TASK_KEY]
+                cardCount = userWallet.requireColdWallet().getCardsCount(), // TODO [REDACTED_TASK_KEY]
             )
             else -> this
         }

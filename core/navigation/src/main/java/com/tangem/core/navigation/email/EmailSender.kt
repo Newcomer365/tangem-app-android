@@ -5,7 +5,7 @@ import java.io.File
 /**
  * Email sender
  *
- * @author Andrew Khokhlov on 05/03/2024
+[REDACTED_AUTHOR]
  */
 interface EmailSender {
 

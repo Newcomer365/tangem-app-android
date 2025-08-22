@@ -6,14 +6,14 @@ import com.tangem.common.test.datastore.MockStateDataStore
 import com.tangem.common.test.utils.getEmittedValues
 import com.tangem.data.staking.toDomain
 import com.tangem.datasource.local.datastore.RuntimeSharedStore
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.staking.model.stakekit.YieldBalance
-import com.tangem.domain.wallets.models.UserWalletId
 import com.tangem.utils.coroutines.TestingCoroutineDispatcherProvider
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
 /**
- * @author Andrew Khokhlov on 27/03/2025
+[REDACTED_AUTHOR]
  */
 internal class YieldsBalancesStoreGetMethodTest {
 
@@ -32,7 +32,8 @@ internal class YieldsBalancesStoreGetMethodTest {
 
         val values = getEmittedValues(flow = actual)
 
-        Truth.assertThat(values).isEqualTo(emptyList<Set<YieldBalance>>())
+        val expected = listOf(emptySet<YieldBalance>())
+        Truth.assertThat(values).isEqualTo(expected)
     }
 
     @Test
@@ -43,7 +44,8 @@ internal class YieldsBalancesStoreGetMethodTest {
 
         val values = getEmittedValues(flow = actual)
 
-        Truth.assertThat(values).isEqualTo(emptyList<Set<YieldBalance>>())
+        val expected = listOf(emptySet<YieldBalance>())
+        Truth.assertThat(values).isEqualTo(expected)
     }
 
     @Test

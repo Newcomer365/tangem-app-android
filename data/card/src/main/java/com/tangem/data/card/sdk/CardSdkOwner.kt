@@ -5,7 +5,7 @@ import androidx.fragment.app.FragmentActivity
 /**
  * Lifecycle observer for creating Card SDK instance
  *
- * @author Andrew Khokhlov on 13/07/2023
+[REDACTED_AUTHOR]
  */
 interface CardSdkOwner {
 

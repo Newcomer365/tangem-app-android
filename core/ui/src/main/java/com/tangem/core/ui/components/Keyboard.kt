@@ -42,7 +42,7 @@ fun keyboardAsState(): State<Keyboard> {
             keyboardStateInternal is Keyboard.Opened &&
             keyboardStateInternal.height < 50.dp
         // FIX android <=10 devices can randomly send ime paddings,
-        // which leads to a false positive keyboard opening (AND-8272)
+        // which leads to a false positive keyboard opening ([REDACTED_TASK_KEY])
         if (falsePositive) return@LaunchedEffect
 
         keyboardState.value = keyboardStateInternal

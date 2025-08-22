@@ -13,7 +13,7 @@ import com.tangem.core.ui.extensions.TextReference
  * @property buttonsState   buttons state
  * @property tokenIconState token icon state
  *
- * @author Andrew Khokhlov on 26/07/2024
+[REDACTED_AUTHOR]
  */
 data class CurrencyNotificationConfig(
     val title: TextReference,

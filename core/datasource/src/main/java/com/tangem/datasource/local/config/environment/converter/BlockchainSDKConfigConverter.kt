@@ -7,7 +7,7 @@ import com.tangem.utils.converter.Converter
 /**
  * Converts [EnvironmentConfigModel] to [BlockchainSdkConfig]
  *
- * @author Andrew Khokhlov on 04/04/2024
+[REDACTED_AUTHOR]
  */
 internal object BlockchainSDKConfigConverter : Converter<EnvironmentConfigModel, BlockchainSdkConfig> {
 
@@ -43,6 +43,7 @@ internal object BlockchainSDKConfigConverter : Converter<EnvironmentConfigModel,
             bittensorOnfinalityApiKey = value.bittensorOnfinalityKey,
             koinosProApiKey = value.koinosProApiKey,
             alephiumApiKey = value.alephiumTangemApiKey,
+            moralisApiKey = value.moralisApiKey,
         )
     }
 

@@ -7,7 +7,7 @@ package com.tangem.features.onramp.swap.entity
  * @property exchangeFrom exchange "from" card UI model
  * @property exchangeTo   exchange "to" card UI model
  *
- * @author Andrew Khokhlov on 02/11/2024
+[REDACTED_AUTHOR]
  */
 internal data class SwapSelectTokensUM(
     val onBackClick: () -> Unit,

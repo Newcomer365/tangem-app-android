@@ -11,7 +11,7 @@ import javax.inject.Inject
 /**
  * Merger of [BlockchainProvidersResponse]
  *
- * @author Andrew Khokhlov on 15/04/2024
+[REDACTED_AUTHOR]
  */
 internal class BlockchainProvidersResponseMerger @Inject internal constructor(
     private val analyticsExceptionHandler: AnalyticsExceptionHandler,

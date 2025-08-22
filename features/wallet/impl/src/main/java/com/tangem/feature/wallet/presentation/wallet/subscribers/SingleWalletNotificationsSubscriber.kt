@@ -1,6 +1,6 @@
 package com.tangem.feature.wallet.presentation.wallet.subscribers
 
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.feature.wallet.child.wallet.model.intents.WalletClickIntents
 import com.tangem.feature.wallet.presentation.wallet.analytics.utils.WalletWarningsAnalyticsSender
 import com.tangem.feature.wallet.presentation.wallet.domain.GetSingleWalletWarningsFactory
@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.onEach
 
 /**
- * @author Andrew Khokhlov on 16/11/2023
+[REDACTED_AUTHOR]
  */
 internal class SingleWalletNotificationsSubscriber(
     private val userWallet: UserWallet,

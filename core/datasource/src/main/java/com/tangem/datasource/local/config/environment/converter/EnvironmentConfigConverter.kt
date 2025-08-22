@@ -7,7 +7,7 @@ import com.tangem.utils.converter.Converter
 /**
  * Converter from [EnvironmentConfigModel] to [EnvironmentConfig]
  *
- * @author Andrew Khokhlov on 24/09/2024
+[REDACTED_AUTHOR]
  */
 internal object EnvironmentConfigConverter : Converter<EnvironmentConfigModel, EnvironmentConfig> {
 

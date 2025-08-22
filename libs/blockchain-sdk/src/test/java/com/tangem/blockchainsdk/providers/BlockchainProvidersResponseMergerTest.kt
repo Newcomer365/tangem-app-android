@@ -12,7 +12,7 @@ import org.junit.Before
 import org.junit.Test
 
 /**
- * @author Andrew Khokhlov on 05/01/2025
+[REDACTED_AUTHOR]
  */
 internal class BlockchainProvidersResponseMergerTest {
 

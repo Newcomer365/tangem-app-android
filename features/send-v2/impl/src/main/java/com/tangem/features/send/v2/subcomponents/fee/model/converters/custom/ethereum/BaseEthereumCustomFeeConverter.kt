@@ -2,7 +2,7 @@ package com.tangem.features.send.v2.subcomponents.fee.model.converters.custom.et
 
 import com.tangem.blockchain.common.transaction.Fee
 import com.tangem.features.send.v2.subcomponents.fee.model.converters.custom.CustomFeeConverter
-import com.tangem.features.send.v2.subcomponents.fee.ui.state.CustomFeeFieldUM
+import com.tangem.features.send.v2.api.entity.CustomFeeFieldUM
 import kotlinx.collections.immutable.ImmutableList
 
 /**
@@ -10,7 +10,7 @@ import kotlinx.collections.immutable.ImmutableList
  *
  * @param T subtype of [Fee.Ethereum]
  *
- * @author Andrew Khokhlov on 11/10/2024
+[REDACTED_AUTHOR]
  */
 internal interface BaseEthereumCustomFeeConverter<T : Fee.Ethereum> : CustomFeeConverter<T> {
 

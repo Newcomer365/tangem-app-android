@@ -11,7 +11,7 @@ import javax.inject.Inject
  *
  * @property stateHolder state holder for changing state
  *
- * @author Andrew Khokhlov on 24/11/2023
+[REDACTED_AUTHOR]
  */
 internal class WalletEventSender @Inject constructor(
     private val stateHolder: WalletStateController,

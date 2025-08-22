@@ -10,7 +10,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 
 /**
- * Created by Anton Zhilenkov on 08/06/2022.
+[REDACTED_AUTHOR]
  */
 typealias AnimatedValue = Pair<Float, Float>
 

@@ -18,6 +18,8 @@ dependencies {
     implementation(projects.features.manageTokens.api)
     implementation(projects.features.nft.api)
     implementation(projects.features.onboardingV2.api)
+    implementation(projects.features.pushNotifications.api)
+    implementation(projects.features.hotWallet.api)
 
     /* Project - Core */
     implementation(projects.core.decompose)
@@ -30,10 +32,16 @@ dependencies {
 
     /* Project - Domain */
     implementation(projects.domain.legacy)
+    implementation(projects.domain.card)
     implementation(projects.domain.models)
     implementation(projects.domain.wallets)
     implementation(projects.domain.wallets.models)
     implementation(projects.domain.demo)
+    implementation(projects.domain.nft)
+    implementation(projects.domain.settings)
+    implementation(projects.domain.notifications.toggles)
+    implementation(projects.domain.notifications.models)
+    implementation(projects.domain.notifications)
 
     /* AndroidX */
     implementation(deps.androidx.fragment.ktx)

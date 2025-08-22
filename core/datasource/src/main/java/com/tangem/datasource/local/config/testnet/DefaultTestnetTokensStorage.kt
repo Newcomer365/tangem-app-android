@@ -8,7 +8,7 @@ import com.tangem.datasource.local.config.testnet.models.TestnetTokensConfig
  *
  * @property assetLoader asset loader
  *
- * @author Andrew Khokhlov on 07/04/2023
+[REDACTED_AUTHOR]
  */
 internal class DefaultTestnetTokensStorage(
     private val assetLoader: AssetLoader,

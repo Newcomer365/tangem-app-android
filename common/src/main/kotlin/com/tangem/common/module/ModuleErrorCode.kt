@@ -1,7 +1,7 @@
 package com.tangem.common.module
 
 /**
- * Created by Anton Zhilenkov on 09.10.2022.
+[REDACTED_AUTHOR]
  */
 @Deprecated("Will be removed")
 object ModuleErrorCode {

@@ -8,7 +8,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 
 /**
- * Creates a new [CoroutineScope] for a component with the provided [lifecycle] that will be created in
+
  * [CoroutineDispatcherProvider.mainImmediate] dispatcher.
  * */
 @Suppress("FunctionName")

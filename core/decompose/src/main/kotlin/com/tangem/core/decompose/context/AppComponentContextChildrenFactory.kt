@@ -10,6 +10,7 @@ import com.tangem.core.decompose.ui.DefaultUiMessageSender
 import com.tangem.core.decompose.ui.UiMessageHandler
 import com.tangem.core.decompose.ui.UiMessageSender
 import com.tangem.core.decompose.ui.UiMessageSenderOwner
+import com.tangem.core.decompose.utils.ActivityHolder
 import com.tangem.core.decompose.utils.ComponentCoroutineScope
 import com.tangem.core.decompose.utils.DispatchersOwner
 import kotlinx.coroutines.CoroutineScope
@@ -22,7 +23,7 @@ import kotlinx.coroutines.CoroutineScope
  * @param router The [Router] to use in the child. If not provided, the parent's router will be used.
  * @param messageHandler The [UiMessageHandler] to use in the child. If not provided, the parent's message sender will
  * be used.
- * @return The created [AppComponentContext].
+
  *
  * @see childByContext
  * */
@@ -44,7 +45,7 @@ fun AppComponentContext.child(
  * @param router The [Router] to use in the child. If not provided, the parent's router will be used.
  * @param messageHandler The [UiMessageHandler] to use in the child. If not provided, the parent's message sender will
  * be used.
- * @return The created [AppComponentContext].
+
  *
  * @see child
  * */
@@ -58,7 +59,8 @@ fun AppComponentContext.childByContext(
     NavigationOwner by this@childByContext,
     UiMessageSenderOwner by this@childByContext,
     DispatchersOwner by this@childByContext,
-    HiltComponentBuilderOwner by this@childByContext {
+    HiltComponentBuilderOwner by this@childByContext,
+    ActivityHolder by this@childByContext {
 
     override val tags: HashMap<String, Any> = HashMap()
 

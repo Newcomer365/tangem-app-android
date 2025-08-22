@@ -3,7 +3,7 @@ package com.tangem.tap.features.home
 import androidx.compose.ui.text.intl.Locale
 
 /**
- * Created by Anton Zhilenkov on 25/03/2022.
+[REDACTED_AUTHOR]
  */
 interface RegionProvider {
     fun getRegion(): String?

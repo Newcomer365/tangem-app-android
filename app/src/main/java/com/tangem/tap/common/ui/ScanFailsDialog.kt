@@ -23,7 +23,7 @@ import com.tangem.wallet.R
 import kotlinx.coroutines.launch
 
 /**
- * Created by Anton Zhilenkov on 28/02/2021.
+[REDACTED_AUTHOR]
  */
 internal object ScanFailsDialog {
 

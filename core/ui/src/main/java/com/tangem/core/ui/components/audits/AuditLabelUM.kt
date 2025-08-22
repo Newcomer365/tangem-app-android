@@ -8,7 +8,7 @@ import com.tangem.core.ui.extensions.TextReference
  * @property text text reference
  * @property type type of label
  *
- * @author Andrew Khokhlov on 01/10/2024
+[REDACTED_AUTHOR]
  */
 data class AuditLabelUM(val text: TextReference, val type: Type) {
 
@@ -22,5 +22,8 @@ data class AuditLabelUM(val text: TextReference, val type: Type) {
 
         /** Blue. Like, "trusted" */
         Permit,
+
+        /** Blue with white text. Like, "best rate" */
+        Info,
     }
 }

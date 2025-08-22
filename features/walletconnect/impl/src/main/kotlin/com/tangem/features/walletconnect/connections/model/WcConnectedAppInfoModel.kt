@@ -1,21 +1,31 @@
 package com.tangem.features.walletconnect.connections.model
 
 import androidx.compose.runtime.Stable
+import com.arkivanov.decompose.router.stack.StackNavigation
+import com.arkivanov.decompose.router.stack.pushNew
 import com.domain.blockaid.models.dapp.CheckDAppResult
 import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
 import com.tangem.core.decompose.ui.UiMessageSender
+import com.tangem.core.ui.extensions.iconResId
+import com.tangem.core.ui.extensions.resourceReference
 import com.tangem.core.ui.extensions.stringReference
 import com.tangem.core.ui.message.SnackbarMessage
 import com.tangem.domain.walletconnect.model.WcSession
 import com.tangem.domain.walletconnect.usecase.WcSessionsUseCase
 import com.tangem.domain.walletconnect.usecase.disconnect.WcDisconnectUseCase
-import com.tangem.features.walletconnect.connections.components.WcConnectedAppInfoComponent
+import com.tangem.features.walletconnect.connections.components.WcConnectedAppInfoContainerComponent
+import com.tangem.features.walletconnect.connections.entity.VerifiedDAppState
 import com.tangem.features.walletconnect.connections.entity.WcConnectedAppInfoUM
+import com.tangem.features.walletconnect.connections.entity.WcNetworkInfoItem
 import com.tangem.features.walletconnect.connections.entity.WcPrimaryButtonConfig
+import com.tangem.features.walletconnect.connections.entity.WcAppInfoSecurityNotification
+import com.tangem.features.walletconnect.connections.model.transformers.WcAppSubtitleConverter
+import com.tangem.features.walletconnect.connections.routes.ConnectedAppInfoRoutes
+import com.tangem.features.walletconnect.impl.R
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
-import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -33,9 +43,11 @@ internal class WcConnectedAppInfoModel @Inject constructor(
     paramsContainer: ParamsContainer,
 ) : Model() {
 
-    private val params = paramsContainer.require<WcConnectedAppInfoComponent.Params>()
+    private val params = paramsContainer.require<WcConnectedAppInfoContainerComponent.Params>()
     val uiState: StateFlow<WcConnectedAppInfoUM?>
     field = MutableStateFlow<WcConnectedAppInfoUM?>(null)
+
+    val stackNavigation = StackNavigation<ConnectedAppInfoRoutes>()
 
     init {
         loadDAppInfo(params.topic)
@@ -54,18 +66,50 @@ internal class WcConnectedAppInfoModel @Inject constructor(
                         appName = session.sdkModel.appMetaData.name,
                         appIcon = session.sdkModel.appMetaData.icons.firstOrNull().orEmpty(),
                         isVerified = session.securityStatus == CheckDAppResult.SAFE,
-                        appSubtitle = session.sdkModel.appMetaData.description,
+                        verifiedDAppState = extractVerifiedState(session),
+                        appSubtitle = WcAppSubtitleConverter.convert(session.sdkModel.appMetaData),
                         walletName = session.wallet.name,
-                        networks = persistentListOf(), // TODO(wc): Nikolai & Doston: Where to find networks???
+                        connectingTime = session.connectingTime,
+                        networks = session.networks
+                            .distinctBy { network -> network.rawId }
+                            .map {
+                                WcNetworkInfoItem.Required(
+                                    id = it.rawId,
+                                    icon = it.iconResId,
+                                    name = it.name,
+                                    symbol = it.currencySymbol,
+                                )
+                            }.toImmutableList(),
                         disconnectButtonConfig = WcPrimaryButtonConfig(
                             showProgress = false,
                             enabled = true,
                             onClick = { disconnect(session) },
                         ),
+                        notification = extractNotificationInfo(session),
                         onDismiss = ::dismiss,
                     )
                 }
             }
+        }
+    }
+
+    private fun extractNotificationInfo(session: WcSession): WcAppInfoSecurityNotification? {
+        return when (session.securityStatus) {
+            CheckDAppResult.SAFE -> null
+            CheckDAppResult.UNSAFE -> WcAppInfoSecurityNotification.SecurityRisk
+            CheckDAppResult.FAILED_TO_VERIFY -> WcAppInfoSecurityNotification.UnknownDomain
+        }
+    }
+
+    private fun extractVerifiedState(session: WcSession): VerifiedDAppState {
+        return if (session.securityStatus == CheckDAppResult.SAFE) {
+            VerifiedDAppState.Verified(
+                onVerifiedClick = {
+                    stackNavigation.pushNew(ConnectedAppInfoRoutes.VerifiedAlert(session.sdkModel.appMetaData.name))
+                },
+            )
+        } else {
+            VerifiedDAppState.Unknown
         }
     }
 
@@ -77,7 +121,7 @@ internal class WcConnectedAppInfoModel @Inject constructor(
         }
         modelScope.launch {
             disconnectUseCase.disconnect(session)
-            messageSender.send(SnackbarMessage(message = stringReference("dApp disconnected")))
+            messageSender.send(SnackbarMessage(message = resourceReference(R.string.wc_dapp_disconnected)))
             dismiss()
         }
     }

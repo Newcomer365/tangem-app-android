@@ -8,7 +8,7 @@ import com.tangem.crypto.hdWallet.bip32.ExtendedPublicKey
 import com.tangem.operations.derivation.ExtendedPublicKeysMap
 
 /**
- * @author Andrew Khokhlov on 20/12/2023
+[REDACTED_AUTHOR]
  */
 internal object DerivedKeysMocks {
 

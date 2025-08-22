@@ -3,12 +3,12 @@ package com.tangem.features.onramp.hottokens
 import com.tangem.core.decompose.factory.ComponentFactory
 import com.tangem.core.ui.decompose.ComposableContentComponent
 import com.tangem.domain.tokens.model.CryptoCurrencyStatus
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWalletId
 
 /**
  * Hot crypto component
  *
- * @author Andrew Khokhlov on 18/01/2025
+[REDACTED_AUTHOR]
  */
 internal interface HotCryptoComponent : ComposableContentComponent {
 

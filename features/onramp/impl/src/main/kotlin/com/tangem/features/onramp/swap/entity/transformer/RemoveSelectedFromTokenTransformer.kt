@@ -8,7 +8,7 @@ import com.tangem.features.onramp.swap.entity.utils.createEmptyExchangeTo
 /**
  * Transformer for removing selected "from" token
  *
- * @author Andrew Khokhlov on 02/11/2024
+[REDACTED_AUTHOR]
  */
 internal object RemoveSelectedFromTokenTransformer : SwapSelectTokensUMTransformer {
 

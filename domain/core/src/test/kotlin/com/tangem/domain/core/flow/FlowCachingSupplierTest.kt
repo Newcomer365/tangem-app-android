@@ -9,7 +9,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
 /**
- * @author Andrew Khokhlov on 12/03/2025
+[REDACTED_AUTHOR]
  */
 internal class FlowCachingSupplierTest {
 

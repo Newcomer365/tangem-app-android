@@ -16,7 +16,7 @@ import com.tangem.core.ui.extensions.resolveReference
 import com.tangem.core.ui.res.TangemTheme
 
 /**
- * @author Andrew Khokhlov on 04/12/2024
+[REDACTED_AUTHOR]
  */
 @Composable
 internal fun MultiCurrencyAction(

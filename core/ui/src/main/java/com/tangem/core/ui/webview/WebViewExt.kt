@@ -6,7 +6,7 @@ import android.webkit.WebView
 /**
  * Applies set of settings to prevent base security issues
  *
- * @author Andrew Khokhlov on 11/12/2024
+[REDACTED_AUTHOR]
  */
 fun WebView.applySafeSettings() {
     settings.apply {

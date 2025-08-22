@@ -16,7 +16,7 @@ import kotlinx.collections.immutable.toImmutableList
 /**
  * Exchanges bottom sheet content
  *
- * @author Andrew Khokhlov on 02/10/2024
+[REDACTED_AUTHOR]
  */
 internal sealed interface ExchangesBottomSheetContent : TangemBottomSheetConfigContent {
 

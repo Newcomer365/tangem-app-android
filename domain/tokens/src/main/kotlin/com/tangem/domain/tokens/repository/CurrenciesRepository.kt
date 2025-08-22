@@ -1,12 +1,13 @@
 package com.tangem.domain.tokens.repository
 
+import com.tangem.domain.card.CardTypesResolver
 import com.tangem.domain.core.error.DataError
-import com.tangem.domain.tokens.model.CryptoCurrency
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.network.Network
 import com.tangem.domain.tokens.model.CryptoCurrencyStatus
 import com.tangem.domain.tokens.model.FeePaidCurrency
-import com.tangem.domain.tokens.model.Network
-import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -49,7 +50,27 @@ interface CurrenciesRepository {
      * @throws DataError.UserWalletError.WrongUserWallet If single-currency user wallet
      * ID provided.
      */
-    suspend fun addCurrencies(userWalletId: UserWalletId, currencies: List<CryptoCurrency>)
+    suspend fun addCurrencies(userWalletId: UserWalletId, currencies: List<CryptoCurrency>): List<CryptoCurrency>
+
+    /**
+     * Saves the given list of cryptocurrencies for a specific multi-currency user wallet.
+     *
+     * @param userWalletId The unique identifier of the user wallet.
+     * @param currencies The list of cryptocurrencies to be saved.
+     */
+    @Deprecated("Tech debt")
+    suspend fun saveNewCurrenciesListCache(userWalletId: UserWalletId, currencies: List<CryptoCurrency>)
+
+    /**
+     * Add currencies to a specific user wallet.
+     *
+     * @param userWalletId The unique identifier of the user wallet.
+     * @param currencies The currencies which must be added.
+     * @throws DataError.UserWalletError.WrongUserWallet If single-currency user wallet
+     * ID provided.
+     */
+    @Deprecated("Tech debt")
+    suspend fun addCurrenciesCache(userWalletId: UserWalletId, currencies: List<CryptoCurrency>): List<CryptoCurrency>
 
     /**
      * Removes currency from a specific user wallet.
@@ -222,12 +243,12 @@ interface CurrenciesRepository {
     /**
      * Determines whether the currency sending is blocked by network pending transaction
      *
+     * @param userWalletId         the unique identifier of the user wallet
      * @param cryptoCurrencyStatus currency status
-     * @param coinStatus main currency status in [cryptoCurrencyStatus] network
      */
-    fun isSendBlockedByPendingTransactions(
+    suspend fun isSendBlockedByPendingTransactions(
+        userWalletId: UserWalletId,
         cryptoCurrencyStatus: CryptoCurrencyStatus,
-        coinStatus: CryptoCurrencyStatus?,
     ): Boolean
 
     /**
@@ -251,4 +272,18 @@ interface CurrenciesRepository {
     fun getAllWalletsCryptoCurrencies(currencyRawId: CryptoCurrency.RawID): Flow<Map<UserWallet, List<CryptoCurrency>>>
 
     fun isNetworkFeeZero(userWalletId: UserWalletId, network: Network): Boolean
+
+    /**
+     * Synchronizes local tokens with remote data for a specific user wallet.
+     * This method ensures that the local token list matches the remote state by fetching
+     * the token data from the local cache and push it to backend.
+     *
+     * @param userWalletId The unique identifier of the user wallet to sync tokens for.
+     * @throws Exception if the sync request to the backend fails
+     */
+    @Throws
+    suspend fun syncTokens(userWalletId: UserWalletId)
+
+    @Throws
+    fun getCardTypesResolver(userWalletId: UserWalletId): CardTypesResolver?
 }

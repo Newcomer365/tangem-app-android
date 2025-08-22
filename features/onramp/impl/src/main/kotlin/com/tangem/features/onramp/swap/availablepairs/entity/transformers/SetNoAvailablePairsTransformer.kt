@@ -12,7 +12,7 @@ import com.tangem.features.onramp.tokenlist.entity.utils.addHeader
 import kotlinx.collections.immutable.persistentListOf
 
 /**
- * @author Andrew Khokhlov on 12/12/2024
+[REDACTED_AUTHOR]
  */
 internal class SetNoAvailablePairsTransformer(
     private val appCurrency: AppCurrency,

@@ -16,7 +16,7 @@ import com.tangem.utils.coroutines.CoroutineDispatcherProvider
  *                                  by Public-API inline function. Don't use it directly.
  * @property preferencesDataStore DataStore<Preferences> instance
  *
- * @author Andrew Khokhlov on 24/10/2023
+[REDACTED_AUTHOR]
  */
 class AppPreferencesStore(
     val moshi: Moshi,

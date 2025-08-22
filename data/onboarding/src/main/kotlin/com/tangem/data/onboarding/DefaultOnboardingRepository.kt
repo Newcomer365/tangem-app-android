@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
  *
  * @property appPreferencesStore app preferences store
  *
- * @author Andrew Khokhlov on 18/02/2024
+[REDACTED_AUTHOR]
  */
 internal class DefaultOnboardingRepository(
     private val appPreferencesStore: AppPreferencesStore,

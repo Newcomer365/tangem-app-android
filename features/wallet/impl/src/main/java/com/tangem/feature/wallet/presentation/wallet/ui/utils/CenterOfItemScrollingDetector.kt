@@ -13,7 +13,7 @@ import kotlin.math.abs
  * @property lazyListState lazy list state
  * @property onIndexChange lambda be invoked when index is changed
  *
- * @author Andrew Khokhlov on 01/07/2023
+[REDACTED_AUTHOR]
  */
 internal class CenterOfItemScrollingDetector(
     initialIndex: Int,

@@ -7,8 +7,8 @@ import com.tangem.common.CompletionResult
 import com.tangem.domain.redux.ReduxStateHolder
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
 import com.tangem.domain.wallets.models.SelectWalletError
-import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
 
 /**
  * Use case for selecting wallet
@@ -16,7 +16,7 @@ import com.tangem.domain.wallets.models.UserWalletId
  * @property userWalletsListManager user wallets list manager
  * @property reduxStateHolder       redux state holder
  *
- * @author Andrew Khokhlov on 08/08/2023
+[REDACTED_AUTHOR]
  */
 class SelectWalletUseCase(
     private val userWalletsListManager: UserWalletsListManager,

@@ -5,7 +5,7 @@ import com.tangem.datasource.local.config.issuers.models.Issuer
 /**
  * Storage for list of Twins [Issuer]
  *
- * @author Andrew Khokhlov on 27/09/2024
+[REDACTED_AUTHOR]
  */
 interface IssuersConfigStorage {
 

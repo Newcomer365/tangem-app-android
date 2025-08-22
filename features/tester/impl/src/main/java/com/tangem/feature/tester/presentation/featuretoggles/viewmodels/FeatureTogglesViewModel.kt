@@ -27,7 +27,7 @@ import javax.inject.Inject
  * @property featureTogglesManager manager for getting information about the availability of feature toggles
  * @property appVersionProvider    app version provider
  *
- * @author Andrew Khokhlov on 08/02/2023
+[REDACTED_AUTHOR]
  */
 @HiltViewModel
 internal class FeatureTogglesViewModel @Inject constructor(

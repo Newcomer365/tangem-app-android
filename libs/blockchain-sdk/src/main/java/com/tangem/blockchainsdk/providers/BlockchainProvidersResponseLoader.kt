@@ -16,7 +16,7 @@ import javax.inject.Singleton
  * @property blockchainProvidersStorage blockchain providers storage
  * @property dispatchers                dispatchers
  *
- * @author Andrew Khokhlov on 15/04/2024
+[REDACTED_AUTHOR]
  */
 @Singleton
 internal class BlockchainProvidersResponseLoader @Inject constructor(

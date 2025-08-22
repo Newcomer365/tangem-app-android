@@ -1,6 +1,6 @@
 package com.tangem.utils.extensions
 
 /**
- * @author Anton Zhilenkov on 16.04.2023.
+[REDACTED_AUTHOR]
  */
 fun Int.isEven(): Boolean = this % 2 == 0

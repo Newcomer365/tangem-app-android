@@ -38,6 +38,7 @@ dependencyResolutionManagement {
         mavenLocal {
             content {
                 includeGroupAndSubgroups("com.tangem.tangem-sdk-kotlin")
+                includeGroupAndSubgroups("com.tangem.tangem-hot-sdk-kotlin")
                 includeGroupAndSubgroups("com.tangem.vico")
                 includeModule("com.tangem", "blstlib")
                 includeModule("com.tangem", "blockchain")
@@ -53,6 +54,15 @@ dependencyResolutionManagement {
                 password = properties.getProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
             }
             content { includeGroupAndSubgroups("com.tangem.tangem-sdk-kotlin") }
+        }
+        maven {
+            // setting any repository from tangem project allows maven search all packages in the project
+            url = uri("https://maven.pkg.github.com/tangem/tangem-hot-sdk-kotlin")
+            credentials {
+                username = properties.getProperty("gpr.user") ?: System.getenv("GITHUB_ACTOR")
+                password = properties.getProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
+            }
+            content { includeGroupAndSubgroups("com.tangem.tangem-hot-sdk-kotlin") }
         }
         maven {
             // setting any repository from tangem project allows maven search all packages in the project
@@ -118,6 +128,7 @@ dependencyResolutionManagement {
             }
         }
         maven("https://jitpack.io")
+        maven("https://maven.sumsub.com/repository/maven-public/")
     }
 
     versionCatalogs {
@@ -134,6 +145,7 @@ dependencyResolutionManagement {
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 include(":app")
+include(":plugins:detekt-rules")
 
 // region Core modules
 include(":core:analytics")
@@ -144,8 +156,6 @@ include(":core:navigation")
 include(":core:res")
 include(":core:ui")
 include(":core:utils")
-include(":core:deep-links")
-include(":core:deep-links:global")
 include(":core:decompose")
 include(":core:pagination")
 include(":core:error")
@@ -184,6 +194,8 @@ include(":features:swap:domain")
 include(":features:swap:domain:models")
 include(":features:swap:domain:api")
 include(":features:swap:impl")
+include(":features:swap-v2:api")
+include(":features:swap-v2:impl")
 
 include(":features:tester:api")
 include(":features:tester:impl")
@@ -194,8 +206,6 @@ include(":features:wallet:impl")
 include(":features:tokendetails:api")
 include(":features:tokendetails:impl")
 
-include(":features:send:api")
-include(":features:send:impl")
 include(":features:send-v2:api")
 include(":features:send-v2:impl")
 
@@ -213,6 +223,9 @@ include(":features:details:impl")
 
 include(":features:disclaimer:api")
 include(":features:disclaimer:impl")
+
+include(":features:usedesk:api")
+include(":features:usedesk:impl")
 
 include(":features:push-notifications:api")
 include(":features:push-notifications:impl")
@@ -240,6 +253,19 @@ include(":features:nft:impl")
 
 include(":features:walletconnect:api")
 include(":features:walletconnect:impl")
+
+include(":features:hot-wallet:api")
+include(":features:hot-wallet:impl")
+
+//TODO disable for release because of the permissions
+// include(":features:kyc:api")
+// include(":features:kyc:impl")
+
+include(":features:create-wallet-selection:api")
+include(":features:create-wallet-selection:impl")
+
+include(":features:welcome:api")
+include(":features:welcome:impl")
 // endregion Feature modules
 
 // region Domain modules
@@ -250,6 +276,7 @@ include(":domain:legacy")
 include(":domain:card")
 include(":domain:core")
 include(":domain:demo")
+include(":domain:demo:models")
 include(":domain:settings")
 include(":domain:tokens")
 include(":domain:tokens:models")
@@ -270,6 +297,7 @@ include(":domain:visa")
 include(":domain:visa:models")
 include(":domain:onboarding")
 include(":domain:feedback")
+include(":domain:feedback:models")
 include(":domain:qr-scanning")
 include(":domain:qr-scanning:models")
 include(":domain:staking")
@@ -292,6 +320,13 @@ include(":domain:blockaid")
 include(":domain:blockaid:models")
 include(":domain:notifications")
 include(":domain:notifications:models")
+include(":domain:notifications:toggles")
+include(":domain:express")
+include(":domain:express:models")
+include(":domain:swap")
+include(":domain:swap:models")
+include(":domain:wallet-manager")
+include(":domain:wallet-manager:models")
 // endregion Domain modules
 
 // region Data modules
@@ -321,4 +356,7 @@ include(":data:onramp")
 include(":data:quotes")
 include(":data:notifications")
 include(":data:blockaid")
+include(":data:swap")
+include(":data:express")
+include(":data:wallet-manager")
 // endregion Data modules

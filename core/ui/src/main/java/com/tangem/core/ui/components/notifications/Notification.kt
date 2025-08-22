@@ -57,7 +57,11 @@ fun Notification(
     titleColor: Color = TangemTheme.colors.text.primary1,
     subtitleColor: Color = TangemTheme.colors.text.tertiary,
     containerColor: Color? = null,
-    iconTint: Color? = null,
+    iconTint: Color? = when (config.iconTint) {
+        NotificationConfig.IconTint.Unspecified -> null
+        NotificationConfig.IconTint.Accent -> TangemTheme.colors.icon.accent
+        NotificationConfig.IconTint.Attention -> TangemTheme.colors.icon.attention
+    },
     iconSize: Dp = 20.dp,
     isEnabled: Boolean = true,
 ) {
@@ -146,7 +150,7 @@ private fun MainContent(
             tint = iconTint,
             modifier = Modifier
                 .size(size = iconSize)
-                .align(alignment = Alignment.CenterVertically),
+                .align(alignment = Alignment.Top),
         )
 
         SpacerW(width = TangemTheme.dimens.spacing10)
@@ -207,11 +211,14 @@ internal fun TextsBlock(
             SpacerH(height = TangemTheme.dimens.spacing2)
         }
 
-        Text(
-            text = subtitle.resolveReference(),
-            color = subtitleColor,
-            style = TangemTheme.typography.caption2,
-        )
+        val subtitleText = subtitle.resolveReference()
+        if (subtitleText.isNotEmpty()) {
+            Text(
+                text = subtitleText,
+                color = subtitleColor,
+                style = TangemTheme.typography.caption2,
+            )
+        }
     }
 }
 

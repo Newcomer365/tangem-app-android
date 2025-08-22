@@ -1,32 +1,33 @@
 package com.tangem.feature.swap
 
-import com.tangem.blockchainsdk.utils.ExcludedBlockchains
+import com.tangem.data.common.currency.ResponseCryptoCurrenciesFactory
 import com.tangem.data.common.currency.UserTokensResponseFactory
 import com.tangem.datasource.local.preferences.AppPreferencesStore
 import com.tangem.datasource.local.preferences.PreferencesKeys
 import com.tangem.datasource.local.preferences.utils.getObjectList
 import com.tangem.datasource.local.preferences.utils.getObjectListSync
-import com.tangem.datasource.local.preferences.utils.getObjectMapSync
-import com.tangem.domain.tokens.model.CryptoCurrency
-import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.datasource.local.preferences.utils.getObjectMap
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.feature.swap.converters.SavedSwapTransactionListConverter
 import com.tangem.feature.swap.domain.SwapTransactionRepository
 import com.tangem.feature.swap.domain.models.domain.*
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import com.tangem.utils.extensions.addOrReplace
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.withContext
 
 internal class DefaultSwapTransactionRepository(
     private val appPreferencesStore: AppPreferencesStore,
     private val dispatchers: CoroutineDispatcherProvider,
-    excludedBlockchains: ExcludedBlockchains,
+    responseCryptoCurrenciesFactory: ResponseCryptoCurrenciesFactory,
 ) : SwapTransactionRepository {
 
-    private val converter = SavedSwapTransactionListConverter(excludedBlockchains)
+    private val converter by lazy(LazyThreadSafetyMode.NONE) {
+        SavedSwapTransactionListConverter(responseCryptoCurrenciesFactory = responseCryptoCurrenciesFactory)
+    }
     private val userTokensResponseFactory = UserTokensResponseFactory()
 
     override suspend fun storeTransaction(
@@ -79,35 +80,35 @@ internal class DefaultSwapTransactionRepository(
         }
     }
 
-    override suspend fun getTransactions(
+    override fun getTransactions(
         userWallet: UserWallet,
         cryptoCurrencyId: CryptoCurrency.ID,
     ): Flow<List<SavedSwapTransactionListModel>?> {
-        return withContext(dispatchers.io) {
-            val txStatuses = appPreferencesStore.getObjectMapSync<ExchangeStatusModel>(
-                key = PreferencesKeys.SWAP_TRANSACTIONS_STATUSES_KEY,
-            )
-            appPreferencesStore.getObjectList<SavedSwapTransactionListModelInner>(
+        return combine(
+            flow = appPreferencesStore.getObjectList<SavedSwapTransactionListModelInner>(
                 key = PreferencesKeys.SWAP_TRANSACTIONS_KEY,
-            ).map { savedTransactions ->
-                val currencyTxs = savedTransactions
-                    ?.filter {
-                        it.userWalletId == userWallet.walletId.stringValue &&
-                            (
-                                it.toCryptoCurrencyId == cryptoCurrencyId.value ||
-                                    it.fromCryptoCurrencyId == cryptoCurrencyId.value
-                                )
-                    }
+            ),
+            flow2 = appPreferencesStore.getObjectMap<ExchangeStatusModel>(
+                key = PreferencesKeys.SWAP_TRANSACTIONS_STATUSES_KEY,
+            ),
+        ) { savedTransactions, txStatuses ->
+            val currencyTxs = savedTransactions?.filter {
+                it.userWalletId == userWallet.walletId.stringValue &&
+                    (
+                        it.toCryptoCurrencyId == cryptoCurrencyId.value ||
+                            it.fromCryptoCurrencyId == cryptoCurrencyId.value
+                        )
+            }
 
-                currencyTxs?.mapNotNull {
-                    converter.convertBack(
-                        value = it,
-                        scanResponse = userWallet.scanResponse,
-                        txStatuses = txStatuses,
-                    )
-                }
-            }.flowOn(dispatchers.io)
+            currencyTxs?.mapNotNull {
+                converter.convertBack(
+                    value = it,
+                    userWallet = userWallet,
+                    txStatuses = txStatuses,
+                )
+            }
         }
+            .flowOn(dispatchers.default)
     }
 
     override suspend fun removeTransaction(

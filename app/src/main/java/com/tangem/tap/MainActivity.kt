@@ -19,19 +19,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import arrow.core.getOrElse
 import com.tangem.common.routing.AppRoute
+import com.tangem.common.routing.deeplink.DeeplinkConst.WEBLINK_KEY
+import com.tangem.common.routing.deeplink.PayloadToDeeplinkConverter
 import com.tangem.common.routing.entity.SerializableIntent
 import com.tangem.core.analytics.api.AnalyticsEventHandler
 import com.tangem.core.decompose.context.AppComponentContext
 import com.tangem.core.decompose.di.RootAppComponentContext
-import com.tangem.core.deeplink.DeepLinksRegistry
-import com.tangem.core.navigation.email.EmailSender
-import com.tangem.core.ui.UiDependencies
+import com.tangem.core.navigation.url.UrlOpener
 import com.tangem.data.balancehiding.DefaultDeviceFlipDetector
 import com.tangem.data.card.sdk.CardSdkOwner
 import com.tangem.domain.apptheme.model.AppThemeMode
@@ -47,7 +48,8 @@ import com.tangem.domain.tokens.GetPolkadotCheckHasImmortalUseCase
 import com.tangem.domain.tokens.GetPolkadotCheckHasResetUseCase
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
 import com.tangem.feature.wallet.presentation.wallet.analytics.WalletScreenAnalyticsEvent
-import com.tangem.features.pushnotifications.api.utils.PUSH_PERMISSION
+import com.tangem.features.tester.api.TesterMenuLauncher
+import com.tangem.features.walletconnect.components.WalletConnectFeatureToggles
 import com.tangem.google.GoogleServicesHelper
 import com.tangem.operations.backup.BackupService
 import com.tangem.sdk.api.BackupServiceHolder
@@ -63,12 +65,14 @@ import com.tangem.tap.features.intentHandler.handlers.BackgroundScanIntentHandle
 import com.tangem.tap.features.intentHandler.handlers.OnPushClickedIntentHandler
 import com.tangem.tap.features.intentHandler.handlers.WalletConnectLinkIntentHandler
 import com.tangem.tap.features.main.MainViewModel
-import com.tangem.tap.proxy.AppStateHolder
 import com.tangem.tap.proxy.redux.DaggerGraphAction
 import com.tangem.tap.routing.component.RoutingComponent
 import com.tangem.tap.routing.configurator.AppRouterConfig
+import com.tangem.tap.routing.utils.DeepLinkFactory
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import com.tangem.utils.coroutines.FeatureCoroutineExceptionHandler
+import com.tangem.utils.extensions.uriValidate
+import com.tangem.wallet.BuildConfig
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -94,9 +98,6 @@ val mainScope = CoroutineScope(mainCoroutineContext)
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity(), ActivityResultCallbackHolder {
 
-    @Inject
-    lateinit var appStateHolder: AppStateHolder
-
     /** Router for opening tester menu */
     @Inject
     lateinit var cardSdkOwner: CardSdkOwner
@@ -112,9 +113,6 @@ class MainActivity : AppCompatActivity(), ActivityResultCallbackHolder {
 
     @Inject
     lateinit var walletConnectInteractor: WalletConnectInteractor
-
-    @Inject
-    lateinit var deepLinksRegistry: DeepLinksRegistry
 
     @Inject
     lateinit var settingsRepository: SettingsRepository
@@ -133,9 +131,6 @@ class MainActivity : AppCompatActivity(), ActivityResultCallbackHolder {
 
     @Inject
     lateinit var userWalletsListManager: UserWalletsListManager
-
-    @Inject
-    lateinit var emailSender: EmailSender
 
     @Inject
     @RootAppComponentContext
@@ -166,10 +161,19 @@ class MainActivity : AppCompatActivity(), ActivityResultCallbackHolder {
     lateinit var dispatchers: CoroutineDispatcherProvider
 
     @Inject
-    internal lateinit var uiDependencies: UiDependencies
+    internal lateinit var defaultDeviceFlipDetector: DefaultDeviceFlipDetector
 
     @Inject
-    internal lateinit var defaultDeviceFlipDetector: DefaultDeviceFlipDetector
+    internal lateinit var deeplinkFactory: DeepLinkFactory
+
+    @Inject
+    internal lateinit var walletConnectFeatureToggles: WalletConnectFeatureToggles
+
+    @Inject
+    internal lateinit var urlOpener: UrlOpener
+
+    @Inject
+    internal lateinit var testerMenuLauncher: TesterMenuLauncher
 
     internal val viewModel: MainViewModel by viewModels()
 
@@ -223,13 +227,12 @@ class MainActivity : AppCompatActivity(), ActivityResultCallbackHolder {
         sendStakingUnsubmittedHashes()
         checkGoogleServicesAvailability()
 
-        if (intent != null && savedInstanceState == null) {
-            // handle intent only on start, not on recreate
-            deepLinksRegistry.launch(intent)
-        }
-
         lifecycle.addObserver(WindowObscurationObserver)
         lifecycle.addObserver(defaultDeviceFlipDetector)
+
+        if (BuildConfig.TESTER_MENU_ENABLED) {
+            lifecycle.addObserver(testerMenuLauncher.launchOnShakeObserver)
+        }
     }
 
     private fun setRootContent() {
@@ -333,7 +336,9 @@ class MainActivity : AppCompatActivity(), ActivityResultCallbackHolder {
         intentProcessor.removeAll()
         // workaround: kill process when activity destroy to avoid state when lock() wallets
         // and navigation to unlock screen was skipped because system kills activity but not process
-        android.os.Process.killProcess(android.os.Process.myPid())
+        if (BuildConfig.BUILD_TYPE != MOCKED_BUILD_TYPE) {
+            android.os.Process.killProcess(android.os.Process.myPid())
+        }
         super.onDestroy()
     }
 
@@ -341,7 +346,10 @@ class MainActivity : AppCompatActivity(), ActivityResultCallbackHolder {
         val hasSavedWalletsProvider = { userWalletsListManager.hasUserWallets }
         intentProcessor.addHandler(OnPushClickedIntentHandler(analyticsEventsHandler))
         intentProcessor.addHandler(BackgroundScanIntentHandler(hasSavedWalletsProvider, lifecycleScope))
-        intentProcessor.addHandler(WalletConnectLinkIntentHandler())
+
+        if (!walletConnectFeatureToggles.isRedesignedWalletConnectEnabled) {
+            intentProcessor.addHandler(WalletConnectLinkIntentHandler())
+        }
     }
 
     private fun updateAppTheme(appThemeMode: AppThemeMode) {
@@ -374,7 +382,7 @@ class MainActivity : AppCompatActivity(), ActivityResultCallbackHolder {
         }
 
         if (intent != null) {
-            deepLinksRegistry.launch(intent)
+            handleDeepLink(intent = intent, isFromOnNewIntent = true)
         }
     }
 
@@ -407,7 +415,7 @@ class MainActivity : AppCompatActivity(), ActivityResultCallbackHolder {
 
     private fun navigateToInitialScreenIfNeeded(intentWhichStartedActivity: Intent?) {
         val backStack = appRouterConfig.stack ?: emptyList()
-        // TODO move inital navigation to navigation component (https://tangem.atlassian.net/browse/AND-7872)
+        // TODO move inital navigation to navigation component ([REDACTED_JIRA])
         val isOnlyInitialRoute = backStack.all { it is AppRoute.Initial }
         val isOnInitialScreen = backStack.all { it is AppRoute.Welcome || it is AppRoute.Home }
         val isNotScannedBefore = store.state.globalState.scanResponse == null
@@ -438,12 +446,11 @@ class MainActivity : AppCompatActivity(), ActivityResultCallbackHolder {
         } else {
             lifecycleScope.launch {
                 val shouldShowTos = !cardRepository.isTangemTOSAccepted()
-                val shouldShowInitialPush = shouldInitiallyAskPermissionUseCase(PUSH_PERMISSION).getOrElse { false }
 
-                val route = when {
-                    shouldShowTos -> AppRoute.Disclaimer(isTosAccepted = false)
-                    shouldShowInitialPush -> AppRoute.PushNotification
-                    else -> AppRoute.Home
+                val route = if (shouldShowTos) {
+                    AppRoute.Disclaimer(isTosAccepted = false)
+                } else {
+                    AppRoute.Home
                 }
 
                 store.dispatchNavigationAction { replaceAll(route) }
@@ -455,7 +462,31 @@ class MainActivity : AppCompatActivity(), ActivityResultCallbackHolder {
             }
         }
 
+        if (intent != null) {
+            handleDeepLink(intent = intent, isFromOnNewIntent = false)
+        }
+
         viewModel.checkForUnfinishedBackup()
+    }
+
+    private fun handleDeepLink(intent: Intent, isFromOnNewIntent: Boolean) {
+        val deepLinkExtras = PayloadToDeeplinkConverter.convertBundle(intent.extras)?.toUri()
+        val webLink = intent.getStringExtra(WEBLINK_KEY)
+
+        val receivedDeepLink = intent.data ?: deepLinkExtras
+
+        when {
+            receivedDeepLink != null -> {
+                deeplinkFactory.handleDeeplink(
+                    deeplinkUri = receivedDeepLink,
+                    coroutineScope = lifecycleScope,
+                    isFromOnNewIntent = isFromOnNewIntent,
+                )
+            }
+            webLink?.uriValidate() == true -> {
+                urlOpener.openUrl(webLink)
+            }
+        }
     }
 
     private fun observePolkadotAccountHealthCheck() {
@@ -505,5 +536,6 @@ class MainActivity : AppCompatActivity(), ActivityResultCallbackHolder {
 
     companion object {
         private const val APP_THEME_LOAD_TIMEOUT = 2
+        private const val MOCKED_BUILD_TYPE = "mocked"
     }
 }

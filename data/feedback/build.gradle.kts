@@ -30,14 +30,18 @@ dependencies {
     // endregion
 
     // region Core modules
+    implementation(projects.core.configToggles)
     implementation(projects.core.datasource)
     implementation(projects.core.navigation)
     implementation(projects.core.utils)
+
     // endregion
 
 
     implementation(projects.domain.feedback)
+    implementation(projects.domain.feedback.models)
     implementation(projects.domain.legacy)
+    implementation(projects.domain.card)
     implementation(projects.domain.models)
     implementation(projects.domain.wallets)
     implementation(projects.domain.wallets.models)

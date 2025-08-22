@@ -12,7 +12,7 @@ import com.tangem.utils.converter.Converter
  *
  * @property alreadyAddedNetworks set of already added networks
  *
- * @author Andrew Khokhlov on 28/08/2024
+[REDACTED_AUTHOR]
  */
 internal class BlockchainRowUMConverter(
     private val alreadyAddedNetworks: Set<String>,

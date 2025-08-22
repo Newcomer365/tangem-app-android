@@ -9,7 +9,7 @@ import com.tangem.tap.common.extensions.removeContext
 import com.tangem.tap.common.extensions.setContext
 
 /**
- * @author Andrew Khokhlov on 31/07/2024
+[REDACTED_AUTHOR]
  */
 internal class DefaultAnalyticsContextProxy : AnalyticsContextProxy {
 

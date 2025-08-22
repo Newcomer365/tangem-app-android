@@ -50,6 +50,7 @@ internal class YieldBalancesConverter(
                 ?.firstOrNull { it.type == StakingActionType.CLAIM_REWARDS }
 
             InnerYieldBalanceState.Data(
+                integrationId = yieldBalance?.integrationId,
                 reward = YieldReward(
                     rewardsCrypto = cryptoRewardsValue.format { crypto(cryptoCurrency) },
                     rewardsFiat = fiatRewardsValue.format {
@@ -77,7 +78,7 @@ internal class YieldBalancesConverter(
         .toPersistentList()
 
     private fun getRewardBlockType(): RewardBlockType {
-        val blockchainId = cryptoCurrencyStatus.currency.network.id.value
+        val blockchainId = cryptoCurrencyStatus.currency.network.rawId
         val yieldBalance = cryptoCurrencyStatus.value.yieldBalance as? YieldBalance.Data
         val rewards = yieldBalance?.balance?.items
             ?.filter { it.type == BalanceType.REWARDS && !it.amount.isZero() }

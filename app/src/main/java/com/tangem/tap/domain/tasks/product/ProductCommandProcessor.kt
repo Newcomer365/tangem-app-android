@@ -5,7 +5,7 @@ import com.tangem.common.core.CardSession
 import com.tangem.domain.models.scan.CardDTO
 
 /**
- * Created by Anton Zhilenkov on 28/09/2021.
+[REDACTED_AUTHOR]
  */
 interface ProductCommandProcessor<T> {
     fun proceed(card: CardDTO, session: CardSession, callback: (result: CompletionResult<T>) -> Unit)

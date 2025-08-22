@@ -5,7 +5,7 @@ import java.util.Locale
 /**
  * User country
  *
- * @author Andrew Khokhlov on 12/09/2024
+[REDACTED_AUTHOR]
  */
 sealed class UserCountry(open val code: String) {
 

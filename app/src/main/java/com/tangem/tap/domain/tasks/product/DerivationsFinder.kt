@@ -5,15 +5,12 @@ import com.tangem.blockchain.common.Blockchain
 import com.tangem.blockchain.common.derivation.DerivationStyle
 import com.tangem.blockchainsdk.utils.fromNetworkId
 import com.tangem.crypto.hdWallet.DerivationPath
-import com.tangem.datasource.api.tangemTech.models.UserTokensResponse
-import com.tangem.datasource.local.preferences.AppPreferencesStore
-import com.tangem.datasource.local.preferences.PreferencesKeys
-import com.tangem.datasource.local.preferences.utils.getObjectSyncOrNull
-import com.tangem.domain.common.DerivationStyleProvider
-import com.tangem.domain.common.TapWorkarounds.useOldStyleDerivation
+import com.tangem.datasource.local.token.UserTokensResponseStore
+import com.tangem.domain.card.DerivationStyleProvider
+import com.tangem.domain.card.common.TapWorkarounds.useOldStyleDerivation
 import com.tangem.domain.models.scan.CardDTO
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.wallets.builder.UserWalletIdBuilder
-import com.tangem.domain.wallets.models.UserWalletId
 import com.tangem.tap.features.demo.DemoHelper
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import kotlinx.coroutines.withContext
@@ -25,7 +22,7 @@ internal data class BlockchainToDerive(
 
 // FIXME: May be move to DI, currently unnecessary
 internal class DerivationsFinder(
-    private val appPreferencesStore: AppPreferencesStore,
+    private val userTokensResponseStore: UserTokensResponseStore,
     private val dispatchers: CoroutineDispatcherProvider,
 ) {
 
@@ -67,10 +64,7 @@ internal class DerivationsFinder(
     }
 
     private suspend fun getBlockchains(userWalletId: UserWalletId): MutableSet<BlockchainToDerive> {
-        val responseTokens = appPreferencesStore.getObjectSyncOrNull<UserTokensResponse>(
-            key = PreferencesKeys.getUserTokensKey(userWalletId.stringValue),
-        )
-            ?.tokens
+        val responseTokens = userTokensResponseStore.getSyncOrNull(userWalletId = userWalletId)?.tokens
             ?: return hashSetOf()
 
         return responseTokens.asSequence()

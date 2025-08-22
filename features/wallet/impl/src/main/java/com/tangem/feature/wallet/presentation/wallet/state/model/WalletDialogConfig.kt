@@ -1,12 +1,12 @@
 package com.tangem.feature.wallet.presentation.wallet.state.model
 
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWalletId
 import kotlinx.serialization.Serializable
 
 /**
  * Wallet dialog config. Used to show Decompose dialogs
  *
- * @author Andrew Khokhlov on 07/02/2025
+[REDACTED_AUTHOR]
  */
 @Serializable
 internal sealed interface WalletDialogConfig {
@@ -16,4 +16,7 @@ internal sealed interface WalletDialogConfig {
 
     @Serializable
     data object AskForBiometry : WalletDialogConfig
+
+    @Serializable
+    data object AskForPushNotifications : WalletDialogConfig
 }

@@ -8,7 +8,7 @@ import com.squareup.moshi.JsonClass
  *
  * @property isOrderingAvailable ordering availability
  *
- * @author Andrew Khokhlov on 15/06/2023
+[REDACTED_AUTHOR]
  */
 @JsonClass(generateAdapter = true)
 data class ShopResponse(

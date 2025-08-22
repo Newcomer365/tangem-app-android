@@ -7,41 +7,43 @@ import com.tangem.common.core.TangemError
 import com.tangem.common.core.TangemSdkError
 import com.tangem.common.extensions.hexToBytes
 import com.tangem.common.extensions.toHexString
+import com.tangem.common.ui.bottomsheet.receive.TokenReceiveBottomSheetConfig
+import com.tangem.core.analytics.Analytics
 import com.tangem.core.analytics.api.AnalyticsEventHandler
 import com.tangem.core.analytics.models.AnalyticsParam
 import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
 import com.tangem.core.decompose.ui.UiMessageSender
-import com.tangem.core.navigation.url.UrlOpener
-import com.tangem.core.ui.components.bottomsheets.TangemBottomSheetConfig
-import com.tangem.common.ui.bottomsheet.receive.TokenReceiveBottomSheetConfig
-import com.tangem.core.analytics.Analytics
 import com.tangem.core.navigation.share.ShareManager
+import com.tangem.core.navigation.url.UrlOpener
 import com.tangem.core.ui.clipboard.ClipboardManager
+import com.tangem.core.ui.components.bottomsheets.TangemBottomSheetConfig
 import com.tangem.core.ui.extensions.resourceReference
 import com.tangem.core.ui.extensions.toWrappedList
 import com.tangem.core.ui.format.bigdecimal.crypto
 import com.tangem.core.ui.format.bigdecimal.format
 import com.tangem.datasource.local.config.issuers.IssuersConfigStorage
+import com.tangem.domain.card.common.util.twinsIsTwinned
 import com.tangem.domain.card.repository.CardRepository
 import com.tangem.domain.common.TwinCardNumber
 import com.tangem.domain.common.getTwinCardNumber
-import com.tangem.domain.common.util.twinsIsTwinned
 import com.tangem.domain.feedback.SendFeedbackEmailUseCase
 import com.tangem.domain.feedback.models.FeedbackEmailType
+import com.tangem.domain.models.network.Network
 import com.tangem.domain.models.scan.ScanResponse
 import com.tangem.domain.onboarding.SaveTwinsOnboardingShownUseCase
 import com.tangem.domain.onramp.GetLegacyTopUpUrlUseCase
 import com.tangem.domain.tokens.FetchCurrencyStatusUseCase
-import com.tangem.domain.tokens.GetPrimaryCurrencyStatusUpdatesUseCase
+import com.tangem.domain.tokens.GetSingleCryptoCurrencyStatusUseCase
+import com.tangem.domain.tokens.TokensFeatureToggles
 import com.tangem.domain.tokens.model.CryptoCurrencyStatus
-import com.tangem.domain.tokens.model.Network
 import com.tangem.domain.tokens.model.analytics.TokenReceiveAnalyticsEvent
-import com.tangem.domain.wallets.builder.UserWalletBuilder
+import com.tangem.domain.tokens.wallet.WalletBalanceFetcher
+import com.tangem.domain.wallets.builder.ColdUserWalletBuilder
 import com.tangem.domain.wallets.builder.UserWalletIdBuilder
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.features.onboarding.v2.common.analytics.OnboardingEvent
 import com.tangem.features.onboarding.v2.common.ui.interruptBackupDialog
 import com.tangem.features.onboarding.v2.impl.R
@@ -70,14 +72,14 @@ import javax.inject.Inject
 internal class OnboardingTwinModel @Inject constructor(
     override val dispatchers: CoroutineDispatcherProvider,
     paramsContainer: ParamsContainer,
-    private val userWalletBuilderFactory: UserWalletBuilder.Factory,
+    private val coldUserWalletBuilderFactory: ColdUserWalletBuilder.Factory,
     private val userWalletsListManager: UserWalletsListManager,
     private val analyticsEventHandler: AnalyticsEventHandler,
     private val saveTwinsOnboardingShownUseCase: SaveTwinsOnboardingShownUseCase,
     private val tangemSdkManager: TangemSdkManager,
     private val issuersConfigStorage: IssuersConfigStorage,
     private val cardRepository: CardRepository,
-    private val getPrimaryCurrencyStatusUpdatesUseCase: GetPrimaryCurrencyStatusUpdatesUseCase,
+    private val getSingleCryptoCurrencyStatusUseCase: GetSingleCryptoCurrencyStatusUseCase,
     private val fetchCurrencyStatusUseCase: FetchCurrencyStatusUseCase,
     private val getLegacyTopUpUrlUseCase: GetLegacyTopUpUrlUseCase,
     private val urlOpener: UrlOpener,
@@ -85,6 +87,8 @@ internal class OnboardingTwinModel @Inject constructor(
     private val sendFeedbackEmailUseCase: SendFeedbackEmailUseCase,
     private val clipboardManager: ClipboardManager,
     private val shareManager: ShareManager,
+    private val tokensFeatureToggles: TokensFeatureToggles,
+    private val walletBalanceFetcher: WalletBalanceFetcher,
 ) : Model() {
 
     private val params = paramsContainer.require<OnboardingTwinComponent.Params>()
@@ -319,7 +323,7 @@ internal class OnboardingTwinModel @Inject constructor(
     }
 
     private suspend fun setTopUpState(scanResponse: ScanResponse) = coroutineScope {
-        val userWallet = userWalletBuilderFactory.create(scanResponse).build() ?: run {
+        val userWallet = coldUserWalletBuilderFactory.create(scanResponse).build() ?: run {
             Timber.e("User wallet not created")
             setLoading(false)
             return@coroutineScope
@@ -329,24 +333,26 @@ internal class OnboardingTwinModel @Inject constructor(
 
         cardRepository.finishCardActivation(params.scanResponse.card.cardId)
 
-        fetchCurrencyStatusUseCase.invoke(
-            userWalletId = userWallet.walletId,
-            refresh = true,
-        ).onLeft {
-            Timber.e("Unable to fetch currency status: $it")
-            setLoading(false)
+        if (tokensFeatureToggles.isWalletBalanceFetcherEnabled) {
+            walletBalanceFetcher(params = WalletBalanceFetcher.Params(userWalletId = userWallet.walletId))
+        } else {
+            fetchCurrencyStatusUseCase.invoke(userWalletId = userWallet.walletId, refresh = true)
         }
+            .onLeft {
+                Timber.e("Unable to fetch currency status: $it")
+                setLoading(false)
+            }
 
-        val cryptoCurrencyStatus =
-            getPrimaryCurrencyStatusUpdatesUseCase.invoke(userWallet.walletId).firstOrNull()?.getOrNull()
-                ?: run {
-                    setLoading(false)
-                    Timber.e("Unable to get currency status")
-                    return@coroutineScope
-                }
+        val cryptoCurrencyStatus = getSingleCryptoCurrencyStatusUseCase.invokeSingleWallet(userWallet.walletId)
+            .firstOrNull()?.getOrNull()
+            ?: run {
+                setLoading(false)
+                Timber.e("Unable to get currency status")
+                return@coroutineScope
+            }
 
         launch {
-            getPrimaryCurrencyStatusUpdatesUseCase.invoke(userWallet.walletId)
+            getSingleCryptoCurrencyStatusUseCase.invokeSingleWallet(userWallet.walletId)
                 .collect {
                     it.onRight { status ->
                         applyCryptoCurrencyStatusToState(status)
@@ -431,10 +437,12 @@ internal class OnboardingTwinModel @Inject constructor(
             it.copy(isLoading = true)
         }
         modelScope.launch {
-            fetchCurrencyStatusUseCase(
-                userWalletId = userWallet.walletId,
-                refresh = true,
-            )
+            if (tokensFeatureToggles.isWalletBalanceFetcherEnabled) {
+                walletBalanceFetcher(params = WalletBalanceFetcher.Params(userWalletId = userWallet.walletId))
+                    .onLeft(Timber::e)
+            } else {
+                fetchCurrencyStatusUseCase(userWalletId = userWallet.walletId, refresh = true)
+            }
         }
     }
 
@@ -442,7 +450,7 @@ internal class OnboardingTwinModel @Inject constructor(
         setLoading(true)
 
         modelScope.launch {
-            val userWallet = userWalletBuilderFactory.create(params.scanResponse).build() ?: run {
+            val userWallet = coldUserWalletBuilderFactory.create(params.scanResponse).build() ?: run {
                 Timber.e("User wallet not created")
                 setLoading(false)
                 return@launch

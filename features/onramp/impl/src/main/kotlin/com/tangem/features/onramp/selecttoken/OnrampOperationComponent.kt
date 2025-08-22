@@ -2,12 +2,12 @@ package com.tangem.features.onramp.selecttoken
 
 import com.tangem.core.decompose.factory.ComponentFactory
 import com.tangem.core.ui.decompose.ComposableContentComponent
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWalletId
 
 /**
  * Base operation component
  *
- * @author Andrew Khokhlov on 22/10/2024
+[REDACTED_AUTHOR]
  */
 internal interface OnrampOperationComponent : ComposableContentComponent {
 

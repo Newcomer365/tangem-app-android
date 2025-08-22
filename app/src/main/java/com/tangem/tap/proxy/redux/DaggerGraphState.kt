@@ -13,6 +13,7 @@ import com.tangem.datasource.connection.NetworkConnectionManager
 import com.tangem.datasource.local.config.environment.EnvironmentConfigStorage
 import com.tangem.datasource.local.config.issuers.IssuersConfigStorage
 import com.tangem.datasource.local.preferences.AppPreferencesStore
+import com.tangem.datasource.local.token.UserTokensResponseStore
 import com.tangem.domain.appcurrency.repository.AppCurrencyRepository
 import com.tangem.domain.apptheme.repository.AppThemeModeRepository
 import com.tangem.domain.balancehiding.repositories.BalanceHidingRepository
@@ -27,13 +28,11 @@ import com.tangem.domain.onboarding.WasTwinsOnboardingShownUseCase
 import com.tangem.domain.onboarding.repository.OnboardingRepository
 import com.tangem.domain.settings.repositories.SettingsRepository
 import com.tangem.domain.walletmanager.WalletManagersFacade
-import com.tangem.domain.wallets.builder.UserWalletBuilder
+import com.tangem.domain.wallets.builder.ColdUserWalletBuilder
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
 import com.tangem.domain.wallets.repository.WalletsRepository
 import com.tangem.features.onboarding.v2.OnboardingV2FeatureToggles
-import com.tangem.features.onramp.OnrampFeatureToggles
 import com.tangem.operations.attestation.CardArtworksProvider
-import com.tangem.operations.attestation.OnlineCardVerifier
 import com.tangem.tap.domain.scanCard.CardScanningFeatureToggles
 import com.tangem.tap.domain.walletconnect2.domain.LegacyWalletConnectRepository
 import com.tangem.tap.domain.walletconnect2.domain.WalletConnectInteractor
@@ -67,7 +66,6 @@ data class DaggerGraphState(
     val shareManager: ShareManager? = null,
     val appRouter: AppRouter? = null,
     val transactionSignerFactory: TransactionSignerFactory? = null,
-    val onrampFeatureToggles: OnrampFeatureToggles? = null,
     val environmentConfigStorage: EnvironmentConfigStorage? = null,
     val onboardingV2FeatureToggles: OnboardingV2FeatureToggles? = null,
     val onboardingRepository: OnboardingRepository? = null,
@@ -76,7 +74,7 @@ data class DaggerGraphState(
     val clipboardManager: ClipboardManager? = null,
     val settingsManager: SettingsManager? = null,
     val uiMessageSender: UiMessageSender? = null,
-    val onlineCardVerifier: OnlineCardVerifier? = null,
     val cardArworksProvider: CardArtworksProvider? = null,
-    val userWalletBuilderFactory: UserWalletBuilder.Factory? = null,
+    val coldUserWalletBuilderFactory: ColdUserWalletBuilder.Factory? = null,
+    val userTokensResponseStore: UserTokensResponseStore? = null,
 ) : StateType

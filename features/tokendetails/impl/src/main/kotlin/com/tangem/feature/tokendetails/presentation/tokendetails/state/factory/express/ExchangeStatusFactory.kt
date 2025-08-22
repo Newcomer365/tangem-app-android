@@ -5,14 +5,12 @@ import com.tangem.core.analytics.api.AnalyticsEventHandler
 import com.tangem.datasource.local.swaptx.ExpressAnalyticsStatus
 import com.tangem.datasource.local.swaptx.SwapTransactionStatusStore
 import com.tangem.domain.appcurrency.model.AppCurrency
-import com.tangem.domain.quotes.QuotesRepositoryV2
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.quote.QuoteStatus
+import com.tangem.domain.quotes.QuotesRepository
 import com.tangem.domain.tokens.AddCryptoCurrenciesUseCase
-import com.tangem.domain.tokens.TokensFeatureToggles
-import com.tangem.domain.tokens.model.CryptoCurrency
-import com.tangem.domain.tokens.model.Quote
 import com.tangem.domain.tokens.model.analytics.TokenExchangeAnalyticsEvent
-import com.tangem.domain.tokens.repository.QuotesRepository
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.feature.swap.domain.SwapTransactionRepository
 import com.tangem.feature.swap.domain.api.SwapRepository
 import com.tangem.feature.swap.domain.models.domain.*
@@ -35,8 +33,6 @@ internal class ExchangeStatusFactory @AssistedInject constructor(
     private val swapTransactionRepository: SwapTransactionRepository,
     private val swapRepository: SwapRepository,
     private val quotesRepository: QuotesRepository,
-    private val quotesRepositoryV2: QuotesRepositoryV2,
-    private val tokensFeatureToggles: TokensFeatureToggles,
     private val addCryptoCurrenciesUseCase: AddCryptoCurrenciesUseCase,
     private val swapTransactionStatusStore: SwapTransactionStatusStore,
     private val analyticsEventsHandler: AnalyticsEventHandler,
@@ -56,7 +52,7 @@ internal class ExchangeStatusFactory @AssistedInject constructor(
         )
     }
 
-    suspend operator fun invoke(): Flow<PersistentList<ExchangeUM>> {
+    operator fun invoke(): Flow<PersistentList<ExchangeUM>> {
         return swapTransactionRepository.getTransactions(
             userWallet = userWallet,
             cryptoCurrencyId = cryptoCurrency.id,
@@ -65,12 +61,12 @@ internal class ExchangeStatusFactory @AssistedInject constructor(
                 val quotes = savedTransactions
                     ?.flatMap { setOf(it.fromCryptoCurrency.id, it.toCryptoCurrency.id) }
                     ?.toSet()
-                    ?.getQuotesOrEmpty(true)
+                    ?.getQuotesOrEmpty()
                     ?: emptySet()
 
                 getExchangeStatusState(
                     savedTransactions = savedTransactions,
-                    quotes = quotes,
+                    quoteStatuses = quotes,
                 )
             }
     }
@@ -159,7 +155,7 @@ internal class ExchangeStatusFactory @AssistedInject constructor(
 
     private fun getExchangeStatusState(
         savedTransactions: List<SavedSwapTransactionListModel>?,
-        quotes: Set<Quote>,
+        quoteStatuses: Set<QuoteStatus>,
     ): PersistentList<ExchangeUM> {
         if (savedTransactions == null) {
             return persistentListOf()
@@ -167,7 +163,7 @@ internal class ExchangeStatusFactory @AssistedInject constructor(
 
         return swapTransactionsStateConverter.convert(
             savedTransactions = savedTransactions,
-            quotes = quotes,
+            quoteStatuses = quoteStatuses,
         )
     }
 
@@ -191,18 +187,12 @@ internal class ExchangeStatusFactory @AssistedInject constructor(
         }
     }
 
-    private suspend fun Set<CryptoCurrency.ID>.getQuotesOrEmpty(refresh: Boolean): Set<Quote> {
-        return try {
-            val rawIds = mapNotNull { it.rawCurrencyId }.toSet()
+    private suspend fun Set<CryptoCurrency.ID>.getQuotesOrEmpty(): Set<QuoteStatus> {
+        val rawIds = mapNotNull { it.rawCurrencyId }.toSet()
 
-            if (tokensFeatureToggles.isQuotesLoadingRefactoringEnabled) {
-                quotesRepositoryV2.getMultiQuoteSyncOrNull(currenciesIds = rawIds).orEmpty()
-            } else {
-                quotesRepository.getQuotesSync(rawIds, refresh)
-            }
-        } catch (t: Throwable) {
-            emptySet()
-        }
+        return runCatching { quotesRepository.getMultiQuoteSyncOrNull(currenciesIds = rawIds) }
+            .getOrNull()
+            .orEmpty()
     }
 
     @AssistedFactory

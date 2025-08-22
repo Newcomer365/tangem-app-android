@@ -6,9 +6,9 @@ import com.tangem.core.ui.extensions.stringReference
 import com.tangem.core.ui.extensions.wrappedList
 import com.tangem.core.ui.format.bigdecimal.crypto
 import com.tangem.core.ui.format.bigdecimal.format
-import com.tangem.domain.common.util.cardTypesResolver
-import com.tangem.domain.common.util.getCardsCount
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.card.common.util.cardTypesResolver
+import com.tangem.domain.card.common.util.getCardsCount
+import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.feature.wallet.impl.R
 import com.tangem.feature.wallet.presentation.wallet.state.model.WalletAdditionalInfo
 import java.math.BigDecimal
@@ -16,7 +16,7 @@ import java.math.BigDecimal
 /**
  * Wallet additional info factory
  *
- * @author Andrew Khokhlov on 31/07/2023
+[REDACTED_AUTHOR]
  */
 internal object WalletAdditionalInfoFactory {
 
@@ -29,14 +29,31 @@ internal object WalletAdditionalInfoFactory {
      * @param currencyAmount    amount of currency
      */
     fun resolve(wallet: UserWallet, currencyAmount: BigDecimal? = null): WalletAdditionalInfo {
-        return if (wallet.isMultiCurrency) {
-            wallet.resolveMultiCurrencyInfo()
-        } else {
-            wallet.resolveSingleCurrencyInfo(currencyAmount)
+        return when (wallet) {
+            is UserWallet.Cold -> {
+                if (wallet.isMultiCurrency) {
+                    wallet.resolveMultiCurrencyInfo()
+                } else {
+                    wallet.resolveSingleCurrencyInfo(currencyAmount)
+                }
+            }
+            is UserWallet.Hot -> wallet.resolveAdditionalInfo()
         }
     }
 
-    private fun UserWallet.resolveMultiCurrencyInfo(): WalletAdditionalInfo {
+    private fun UserWallet.Hot.resolveAdditionalInfo(): WalletAdditionalInfo {
+        return WalletAdditionalInfo(
+            hideable = false,
+            content = TextReference.Res(R.string.hw_mobile_wallet) +
+                when {
+                    isLocked -> DIVIDER + TextReference.Res(R.string.common_locked)
+                    backedUp.not() -> DIVIDER + TextReference.Res(R.string.hw_backup_no_backup)
+                    else -> TextReference.Str("")
+                },
+        )
+    }
+
+    private fun UserWallet.Cold.resolveMultiCurrencyInfo(): WalletAdditionalInfo {
         return if (isLocked) {
             WalletAdditionalInfo(
                 hideable = false,
@@ -54,7 +71,7 @@ internal object WalletAdditionalInfoFactory {
         }
     }
 
-    private fun UserWallet.resolveWallet2Info(): WalletAdditionalInfo {
+    private fun UserWallet.Cold.resolveWallet2Info(): WalletAdditionalInfo {
         return if (isImported) {
             WalletAdditionalInfo(
                 hideable = false,
@@ -93,7 +110,7 @@ internal object WalletAdditionalInfoFactory {
         )
     }
 
-    private fun UserWallet.resolveSingleCurrencyInfo(currencyAmount: BigDecimal?): WalletAdditionalInfo {
+    private fun UserWallet.Cold.resolveSingleCurrencyInfo(currencyAmount: BigDecimal?): WalletAdditionalInfo {
         return if (isLocked) {
             WalletAdditionalInfo(hideable = false, content = TextReference.Res(R.string.common_locked))
         } else {

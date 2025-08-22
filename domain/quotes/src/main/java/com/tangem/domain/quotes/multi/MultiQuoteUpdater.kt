@@ -3,7 +3,7 @@ package com.tangem.domain.quotes.multi
 /**
  * Updater of quotes
  *
- * @author Andrew Khokhlov on 09/04/2025
+[REDACTED_AUTHOR]
  */
 interface MultiQuoteUpdater {
 

@@ -4,7 +4,7 @@ import com.tangem.core.analytics.models.AnalyticsEvent
 import com.tangem.tap.features.details.redux.walletconnect.WalletConnectAction.OpenSession.SourceType
 
 /**
- * Created by Anton Zhilenkov on 28.09.2022.
+[REDACTED_AUTHOR]
  */
 internal sealed class WalletConnect(
     event: String,

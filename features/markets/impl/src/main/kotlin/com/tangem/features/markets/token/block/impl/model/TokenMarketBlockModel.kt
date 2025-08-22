@@ -88,9 +88,9 @@ internal class TokenMarketBlockModel @Inject constructor(
                     state.value = state.value.copy(
                         currentPrice = BigDecimalFormatter.formatFiatPriceUncapped(
                             fiatAmount = res.fiatRate,
-                            // TODO get currency from quotes use case AND-8022
+                            // TODO get currency from quotes use case [REDACTED_TASK_KEY]
                             fiatCurrencyCode = currentAppCurrency.value.code,
-                            // TODO get currency from quotes use case AND-8022
+                            // TODO get currency from quotes use case [REDACTED_TASK_KEY]
                             fiatCurrencySymbol = currentAppCurrency.value.symbol,
                         ),
                         h24Percent = res.priceChange.format { percent() },
@@ -107,7 +107,7 @@ internal class TokenMarketBlockModel @Inject constructor(
                 tokenId = tokenId,
                 tokenSymbol = params.cryptoCurrency.symbol,
                 interval = PriceChangeInterval.H24,
-                appCurrency = currentAppCurrency.value, // TODO get currency from quotes use case AND-8022
+                appCurrency = currentAppCurrency.value, // TODO get currency from quotes use case [REDACTED_TASK_KEY]
                 preview = true,
             )
 

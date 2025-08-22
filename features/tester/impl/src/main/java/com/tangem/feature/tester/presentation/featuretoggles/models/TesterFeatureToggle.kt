@@ -6,7 +6,7 @@ package com.tangem.feature.tester.presentation.featuretoggles.models
  * @property name      name
  * @property isEnabled availability
  *
- * @author Andrew Khokhlov on 07/02/2023
+[REDACTED_AUTHOR]
  */
 internal data class TesterFeatureToggle(
     val name: String,

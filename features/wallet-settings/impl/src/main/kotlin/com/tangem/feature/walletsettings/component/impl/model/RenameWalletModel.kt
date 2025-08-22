@@ -34,7 +34,7 @@ import javax.inject.Inject
  * @property renameWalletUseCase use case for renaming the wallet by id
  * @property uiMessageSender     UI message sender
  *
- * @author Andrew Khokhlov on 10/02/2025
+[REDACTED_AUTHOR]
  */
 @ModelScoped
 internal class RenameWalletModel @Inject constructor(

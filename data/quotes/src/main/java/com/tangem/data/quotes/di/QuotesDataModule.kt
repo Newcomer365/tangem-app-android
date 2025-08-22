@@ -1,18 +1,77 @@
 package com.tangem.data.quotes.di
 
-import com.tangem.data.quotes.DefaultQuotesRepositoryV2
-import com.tangem.domain.quotes.QuotesRepositoryV2
-import dagger.Binds
+import android.content.Context
+import androidx.datastore.core.DataStoreFactory
+import androidx.datastore.dataStoreFile
+import com.squareup.moshi.Moshi
+import com.tangem.data.quotes.multi.DefaultMultiQuoteUpdater
+import com.tangem.data.quotes.repository.DefaultQuotesRepository
+import com.tangem.data.quotes.store.DefaultQuotesStatusesStore
+import com.tangem.data.quotes.store.QuotesStatusesStore
+import com.tangem.datasource.api.tangemTech.models.QuotesResponse
+import com.tangem.datasource.appcurrency.AppCurrencyResponseStore
+import com.tangem.datasource.di.NetworkMoshi
+import com.tangem.datasource.local.datastore.RuntimeSharedStore
+import com.tangem.datasource.utils.MoshiDataStoreSerializer
+import com.tangem.datasource.utils.mapWithStringKeyTypes
+import com.tangem.domain.quotes.QuotesRepository
+import com.tangem.domain.quotes.multi.MultiQuoteStatusFetcher
+import com.tangem.domain.quotes.multi.MultiQuoteUpdater
+import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-internal interface QuotesDataModule {
+internal object QuotesDataModule {
 
-    @Binds
     @Singleton
-    fun bindQuotesRepositoryV2(impl: DefaultQuotesRepositoryV2): QuotesRepositoryV2
+    @Provides
+    fun provideQuotesStoreV2(
+        @NetworkMoshi moshi: Moshi,
+        @ApplicationContext context: Context,
+        dispatchers: CoroutineDispatcherProvider,
+    ): QuotesStatusesStore {
+        return DefaultQuotesStatusesStore(
+            runtimeStore = RuntimeSharedStore(),
+            persistenceDataStore = DataStoreFactory.create(
+                serializer = MoshiDataStoreSerializer(
+                    moshi = moshi,
+                    types = mapWithStringKeyTypes<QuotesResponse.Quote>(),
+                    defaultValue = emptyMap(),
+                ),
+                produceFile = { context.dataStoreFile(fileName = "quotes") },
+                scope = CoroutineScope(context = dispatchers.io + SupervisorJob()),
+            ),
+            dispatchers = dispatchers,
+        )
+    }
+
+    @Singleton
+    @Provides
+    fun providesQuotesRepository(quotesStatusesStore: QuotesStatusesStore): QuotesRepository {
+        return DefaultQuotesRepository(quotesStatusesStore = quotesStatusesStore)
+    }
+
+    @Singleton
+    @Provides
+    fun bindMultiQuoteUpdater(
+        appCurrencyResponseStore: AppCurrencyResponseStore,
+        quotesStatusesStore: QuotesStatusesStore,
+        multiQuoteStatusFetcher: MultiQuoteStatusFetcher,
+        dispatchers: CoroutineDispatcherProvider,
+    ): MultiQuoteUpdater {
+        return DefaultMultiQuoteUpdater(
+            appCurrencyResponseStore = appCurrencyResponseStore,
+            quotesStatusesStore = quotesStatusesStore,
+            multiQuoteStatusFetcher = multiQuoteStatusFetcher,
+            dispatchers = dispatchers,
+        )
+    }
 }

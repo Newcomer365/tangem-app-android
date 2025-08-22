@@ -21,13 +21,17 @@ import com.tangem.core.ui.components.SecondaryButton
 import com.tangem.core.ui.components.bottomsheets.TangemBottomSheetConfig
 import com.tangem.core.ui.components.bottomsheets.modal.TangemModalBottomSheet
 import com.tangem.core.ui.components.bottomsheets.modal.TangemModalBottomSheetTitle
+import com.tangem.core.ui.components.notifications.Notification
 import com.tangem.core.ui.extensions.resourceReference
 import com.tangem.core.ui.extensions.stringResourceSafe
+import com.tangem.core.ui.extensions.wrappedList
+import com.tangem.core.ui.res.TangemColorPalette
 import com.tangem.core.ui.res.TangemTheme
 import com.tangem.core.ui.res.TangemThemePreview
-import com.tangem.features.walletconnect.connections.entity.WcConnectedAppInfoUM
-import com.tangem.features.walletconnect.connections.entity.WcNetworkInfoItem
-import com.tangem.features.walletconnect.connections.entity.WcPrimaryButtonConfig
+import com.tangem.core.ui.utils.DateTimeFormatters
+import com.tangem.core.ui.utils.toDateFormatWithTodayYesterday
+import com.tangem.core.ui.utils.toTimeFormat
+import com.tangem.features.walletconnect.connections.entity.*
 import com.tangem.features.walletconnect.impl.R
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
@@ -43,7 +47,16 @@ internal fun WcConnectedAppInfoBS(state: WcConnectedAppInfoUM) {
         containerColor = TangemTheme.colors.background.tertiary,
         title = {
             TangemModalBottomSheetTitle(
-                title = resourceReference(R.string.wc_wallet_connect),
+                title = resourceReference(R.string.wc_connected_app_title),
+                subtitle = state.connectingTime?.let { timestamp ->
+                    resourceReference(
+                        R.string.send_date_format,
+                        wrappedList(
+                            timestamp.toDateFormatWithTodayYesterday(DateTimeFormatters.dateFormatter),
+                            timestamp.toTimeFormat(),
+                        ),
+                    )
+                },
                 endIconRes = R.drawable.ic_close_24,
                 onEndClick = state.onDismiss,
             )
@@ -72,6 +85,28 @@ private fun WcConnectedAppInfoBSContent(state: WcConnectedAppInfoUM, modifier: M
                 .padding(top = 8.dp)
                 .then(blocksModifier),
         )
+        state.notification?.let { notification ->
+            val (containerColor, titleColor, iconTint) = when (notification) {
+                WcAppInfoSecurityNotification.SecurityRisk -> Triple(
+                    TangemColorPalette.Amaranth.copy(alpha = 0.1F),
+                    TangemTheme.colors.text.warning,
+                    TangemTheme.colors.icon.warning,
+                )
+                WcAppInfoSecurityNotification.UnknownDomain -> Triple(
+                    null,
+                    TangemTheme.colors.text.primary1,
+                    TangemTheme.colors.icon.attention,
+                )
+            }
+            Notification(
+                modifier = Modifier.padding(top = TangemTheme.dimens.spacing14),
+                config = notification.config,
+                containerColor = containerColor,
+                titleColor = titleColor,
+                subtitleColor = TangemTheme.colors.text.primary1,
+                iconTint = iconTint,
+            )
+        }
         NetworksBlock(
             networks = state.networks,
             modifier = Modifier
@@ -97,7 +132,7 @@ private fun AppInfoFirstBlock(state: WcConnectedAppInfoUM, modifier: Modifier = 
             iconUrl = state.appIcon,
             title = state.appName,
             subtitle = state.appSubtitle,
-            isVerified = state.isVerified,
+            verifiedDAppState = state.verifiedDAppState,
         )
         HorizontalDivider(thickness = 1.dp, color = TangemTheme.colors.stroke.primary)
         Row(
@@ -134,7 +169,7 @@ private fun AppInfoFirstBlock(state: WcConnectedAppInfoUM, modifier: Modifier = 
 }
 
 @Composable
-private fun NetworksBlock(networks: ImmutableList<WcNetworkInfoItem>, modifier: Modifier = Modifier) {
+private fun NetworksBlock(networks: ImmutableList<WcNetworkInfoItem.Required>, modifier: Modifier = Modifier) {
     Column(modifier = modifier) {
         Text(
             modifier = Modifier
@@ -159,18 +194,25 @@ private fun WcConnectedAppInfoBS_Preview() {
             state = WcConnectedAppInfoUM(
                 appName = "React App",
                 appIcon = "",
+                verifiedDAppState = VerifiedDAppState.Verified {},
                 isVerified = true,
                 appSubtitle = "react-app.walletconnect.com",
                 walletName = "Tangem 2.0",
+                connectingTime = System.currentTimeMillis(),
                 networks = persistentListOf(
-                    WcNetworkInfoItem(
+                    WcNetworkInfoItem.Required(
                         id = "1",
                         icon = R.drawable.img_optimism_22,
                         name = "img_optimism_22img_optimism_22",
                         symbol = "optimism",
                     ),
-                    WcNetworkInfoItem(id = "2", icon = R.drawable.img_bsc_22, name = "img_bsc_22", symbol = "bsc"),
-                    WcNetworkInfoItem(
+                    WcNetworkInfoItem.Required(
+                        id = "2",
+                        icon = R.drawable.img_bsc_22,
+                        name = "img_bsc_22",
+                        symbol = "bsc",
+                    ),
+                    WcNetworkInfoItem.Required(
                         id = "3",
                         icon = R.drawable.img_solana_22,
                         name = "img_solana_22",

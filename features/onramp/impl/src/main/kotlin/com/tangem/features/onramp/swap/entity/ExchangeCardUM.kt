@@ -6,7 +6,7 @@ import com.tangem.core.ui.extensions.TextReference
 /**
  * Exchange card UI model
  *
- * @author Andrew Khokhlov on 30/10/2024
+[REDACTED_AUTHOR]
  */
 internal sealed interface ExchangeCardUM {
 

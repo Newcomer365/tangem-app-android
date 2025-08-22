@@ -11,7 +11,7 @@ import timber.log.Timber
 /**
  * Converts [BlockchainProvidersResponse] to [BlockchainProviderTypes] and vice versa
  *
- * @author Andrew Khokhlov on 11/04/2024
+[REDACTED_AUTHOR]
  */
 internal object BlockchainProviderTypesConverter :
     TwoWayConverter<BlockchainProvidersResponse, BlockchainProviderTypes> {

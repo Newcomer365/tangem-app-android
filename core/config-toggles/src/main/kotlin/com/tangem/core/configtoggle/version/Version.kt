@@ -8,7 +8,7 @@ import timber.log.Timber
  *
  * @param value version value as string
  *
- * @author Andrew Khokhlov on 17/02/2023
+[REDACTED_AUTHOR]
  */
 internal class Version private constructor(value: String) : Comparable<Version> {
 

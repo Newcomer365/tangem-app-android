@@ -4,7 +4,7 @@ import com.tangem.core.analytics.models.AnalyticsEvent
 import com.tangem.tap.common.extensions.filterNotNull
 
 /**
- * Created by Anton Zhilenkov on 28.09.2022.
+[REDACTED_AUTHOR]
  */
 sealed class Shop(
     event: String,

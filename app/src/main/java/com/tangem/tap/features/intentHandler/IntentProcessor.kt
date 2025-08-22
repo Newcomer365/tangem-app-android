@@ -4,7 +4,7 @@ import android.content.Intent
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * @author Anton Zhilenkov on 04.06.2023.
+[REDACTED_AUTHOR]
  */
 // TODO: fixme: close it with the combined interfaces IntentHandler and IntentHandlerHolder
 class IntentProcessor {

@@ -1,6 +1,7 @@
 package com.tangem.features.send.v2.common
 
 import com.tangem.core.decompose.navigation.Route
+import com.tangem.features.send.v2.api.subcomponents.destination.DestinationRoute
 import kotlinx.serialization.Serializable
 
 internal sealed class CommonSendRoute : Route {
@@ -18,9 +19,14 @@ internal sealed class CommonSendRoute : Route {
     }
 
     @Serializable
+    data object ConfirmSuccess : CommonSendRoute() {
+        override val isEditMode: Boolean = false
+    }
+
+    @Serializable
     data class Destination(
         override val isEditMode: Boolean,
-    ) : CommonSendRoute()
+    ) : CommonSendRoute(), DestinationRoute
 
     @Serializable
     data class Amount(

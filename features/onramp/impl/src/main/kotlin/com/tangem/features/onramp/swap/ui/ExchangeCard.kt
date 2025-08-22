@@ -38,7 +38,7 @@ import com.tangem.features.onramp.swap.entity.ExchangeCardUM
  * @param isBalanceHidden is balance hidden
  * @param modifier        modifier
  *
- * @author Andrew Khokhlov on 30/10/2024
+[REDACTED_AUTHOR]
  */
 @Composable
 internal fun ExchangeCard(state: ExchangeCardUM, isBalanceHidden: Boolean, modifier: Modifier = Modifier) {

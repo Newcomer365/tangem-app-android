@@ -13,7 +13,7 @@ import java.lang.reflect.ParameterizedType
  * @property defaultValue default value
  * @property adapter      moshi adapter
  *
- * @author Andrew Khokhlov on 17/02/2025
+[REDACTED_AUTHOR]
  */
 class MoshiDataStoreSerializer<T>(
     override val defaultValue: T,

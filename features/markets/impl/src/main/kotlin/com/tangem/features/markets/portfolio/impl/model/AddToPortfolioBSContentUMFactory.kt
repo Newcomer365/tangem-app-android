@@ -8,9 +8,10 @@ import com.tangem.core.ui.components.rows.model.BlockchainRowUM
 import com.tangem.domain.markets.TokenMarketInfo
 import com.tangem.domain.markets.TokenMarketParams
 import com.tangem.domain.models.ArtworkModel
-import com.tangem.domain.tokens.model.TotalFiatBalance
-import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.TotalFiatBalance
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
+import com.tangem.domain.models.wallet.isMultiCurrency
 import com.tangem.features.markets.portfolio.impl.loader.PortfolioData
 import com.tangem.features.markets.portfolio.impl.ui.state.AddToPortfolioBSContentUM
 import com.tangem.features.markets.portfolio.impl.ui.state.WalletSelectorBSContentUM
@@ -26,9 +27,11 @@ import kotlinx.collections.immutable.toImmutableList
  * @property onAnotherWalletSelect                   callback is invoked when wallet is selected
  * @property onContinueClick                  callback is invoked when continue button is clicked
  *
- * @author Andrew Khokhlov on 28/08/2024
+[REDACTED_AUTHOR]
  */
+@Suppress("LongParameterList")
 internal class AddToPortfolioBSContentUMFactory(
+    private val addToPortfolioManager: AddToPortfolioManager,
     private val token: TokenMarketParams,
     private val onAddToPortfolioVisibilityChange: (Boolean) -> Unit,
     private val onWalletSelectorVisibilityChange: (Boolean) -> Unit,
@@ -40,7 +43,7 @@ internal class AddToPortfolioBSContentUMFactory(
     /**
      * Create [TangemBottomSheetConfig]
      *
-     * @param currentState         current state if it is already created
+
      * @param portfolioData        portfolio data
      * @param portfolioUIData      portfolio bottom sheet visibility model
      * @param selectedWallet       selected wallet
@@ -66,9 +69,10 @@ internal class AddToPortfolioBSContentUMFactory(
                         artwork = artworks[selectedWallet.walletId],
                     ),
                     selectNetworkUM = SelectNetworkUMConverter(
-                        networksWithToggle = portfolioUIData.addToPortfolioData.associateWithToggle(
+                        networksWithToggle = addToPortfolioManager.associateWithToggle(
                             userWalletId = selectedWallet.walletId,
                             alreadyAddedNetworkIds = alreadyAddedNetworks,
+                            addToPortfolioData = portfolioUIData.addToPortfolioData,
                         ),
                         alreadyAddedNetworks = alreadyAddedNetworks,
                         onNetworkSwitchClick = onNetworkSwitchClick,
@@ -90,7 +94,7 @@ internal class AddToPortfolioBSContentUMFactory(
                             ),
                         )
                     },
-                    walletSelectorConfig = crateWalletSelectorBSConfig(
+                    walletSelectorConfig = createWalletSelectorBSConfig(
                         isShow = portfolioUIData.portfolioBSVisibilityModel.walletSelectorBSVisibility,
                         portfolioData = portfolioData,
                         selectedWalletId = selectedWallet.walletId,
@@ -120,7 +124,7 @@ internal class AddToPortfolioBSContentUMFactory(
         ).convert(value = this)
     }
 
-    private fun crateWalletSelectorBSConfig(
+    private fun createWalletSelectorBSConfig(
         isShow: Boolean,
         portfolioData: PortfolioData,
         selectedWalletId: UserWalletId,

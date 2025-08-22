@@ -11,7 +11,7 @@ import com.tangem.feature.wallet.impl.R
  * @property cards3ResId image resource id for wallet set with 3 cards
  * @property batchIds    set of unique batch ids for this cobrand
  *
- * @author Andrew Khokhlov on 19/08/2024
+[REDACTED_AUTHOR]
  */
 internal enum class Wallet2CobrandImage(
     @DrawableRes val cards2ResId: Int,
@@ -305,7 +305,7 @@ internal enum class Wallet2CobrandImage(
     USA(
         cards2ResId = R.drawable.ill_usa_card2_120_106,
         cards3ResId = R.drawable.ill_usa_card3_120_106,
-        batchIds = setOf("AF91"),
+        batchIds = setOf("AF91", "AF990017"),
     ),
 
     VeChain(

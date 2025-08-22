@@ -5,7 +5,7 @@ package com.tangem.utils.detekt
  *
  * @property description description of why I shouldn't remove it
  *
- * @author Andrew Khokhlov on 16/01/2023
+[REDACTED_AUTHOR]
  */
 @Target(
     AnnotationTarget.CLASS,

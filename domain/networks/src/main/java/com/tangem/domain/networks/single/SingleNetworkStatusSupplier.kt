@@ -1,7 +1,7 @@
 package com.tangem.domain.networks.single
 
 import com.tangem.domain.core.flow.FlowCachingSupplier
-import com.tangem.domain.tokens.model.NetworkStatus
+import com.tangem.domain.models.network.NetworkStatus
 
 /**
  * Supplier of network status for selected wallet [SingleNetworkStatusProducer.Params]
@@ -9,7 +9,7 @@ import com.tangem.domain.tokens.model.NetworkStatus
  * @property factory    factory for creating [SingleNetworkStatusProducer]
  * @property keyCreator key creator
  *
- * @author Andrew Khokhlov on 21/03/2025
+[REDACTED_AUTHOR]
  */
 abstract class SingleNetworkStatusSupplier(
     override val factory: SingleNetworkStatusProducer.Factory,

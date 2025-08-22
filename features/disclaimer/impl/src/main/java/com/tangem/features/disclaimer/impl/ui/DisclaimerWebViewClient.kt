@@ -12,7 +12,7 @@ import timber.log.Timber
  *
  * @property onLoadingFinished lambda be invoked when client will get a result of loading (content or error)
  *
- * @author Andrew Khokhlov on 03/02/2025
+[REDACTED_AUTHOR]
  */
 internal class DisclaimerWebViewClient(
     private val onLoadingFinished: () -> Unit,

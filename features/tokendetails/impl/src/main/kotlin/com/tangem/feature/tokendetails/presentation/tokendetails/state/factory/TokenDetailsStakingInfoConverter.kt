@@ -24,6 +24,7 @@ import com.tangem.lib.crypto.BlockchainUtils.isStakingRewardUnavailable
 import com.tangem.utils.Provider
 import com.tangem.utils.converter.Converter
 import com.tangem.utils.isNullOrZero
+import timber.log.Timber
 import java.math.BigDecimal
 
 internal class TokenDetailsStakingInfoConverter(
@@ -45,6 +46,7 @@ internal class TokenDetailsStakingInfoConverter(
         state: TokenDetailsState,
         stakingAvailability: StakingAvailability,
     ): StakingBlockUM? {
+        Timber.i("Define staking block for [${status.currency.id.value}] with availability:\n$stakingAvailability")
         return when (stakingAvailability) {
             StakingAvailability.TemporaryUnavailable -> StakingBlockUM.TemporaryUnavailable
             StakingAvailability.Unavailable -> null
@@ -55,10 +57,19 @@ internal class TokenDetailsStakingInfoConverter(
     private fun getStakingInfoBlock(status: CryptoCurrencyStatus, state: TokenDetailsState): StakingBlockUM? {
         val yieldBalance = status.value.yieldBalance as? YieldBalance.Data
 
-        val stakingCryptoAmount = yieldBalance?.getTotalStakingBalance(status.currency.network.id.value)
+        val stakingCryptoAmount = yieldBalance?.getTotalStakingBalance(status.currency.network.rawId)
         val pendingBalances = yieldBalance?.balance?.items ?: emptyList()
 
         val iconState = state.tokenInfoBlockState.iconState
+
+        Timber.i(
+            """
+            getStakingInfoBlock:
+            – yieldBalance: $yieldBalance
+            – stakingCryptoAmount: $stakingCryptoAmount
+            – stakingEntryInfo: $stakingEntryInfo
+            """.trimIndent(),
+        )
 
         return when {
             stakingCryptoAmount.isNullOrZero() && stakingEntryInfo != null -> {
@@ -143,7 +154,7 @@ internal class TokenDetailsStakingInfoConverter(
     }
 
     private fun getRewardText(status: CryptoCurrencyStatus, stakingRewardAmount: BigDecimal?): TextReference {
-        val blockchainId = status.currency.network.id.value
+        val blockchainId = status.currency.network.rawId
         val rewardBlockType = when {
             isStakingRewardUnavailable(blockchainId) -> RewardBlockType.RewardUnavailable
             stakingRewardAmount.isNullOrZero() -> RewardBlockType.NoRewards

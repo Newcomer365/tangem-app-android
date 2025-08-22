@@ -3,10 +3,11 @@ package com.tangem.domain.markets
 import com.tangem.blockchain.common.Blockchain
 import com.tangem.blockchainsdk.utils.ExcludedBlockchains
 import com.tangem.blockchainsdk.utils.fromNetworkId
-import com.tangem.domain.common.extensions.supportedBlockchains
-import com.tangem.domain.common.util.cardTypesResolver
+import com.tangem.domain.card.common.extensions.supportedBlockchains
+import com.tangem.domain.card.common.util.cardTypesResolver
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
-import com.tangem.domain.wallets.models.UserWalletId
 
 class FilterAvailableNetworksForWalletUseCase(
     private val userWalletsListManager: UserWalletsListManager,
@@ -25,14 +26,21 @@ class FilterAvailableNetworksForWalletUseCase(
             it.walletId == userWalletId
         } ?: return networks.toSet()
 
-        val supportedBlockchains = userWallet.scanResponse.card.supportedBlockchains(
-            cardTypesResolver = userWallet.scanResponse.cardTypesResolver,
-            excludedBlockchains = excludedBlockchains,
-        )
+        return when (userWallet) {
+            is UserWallet.Cold -> {
+                val supportedBlockchains = userWallet.scanResponse.card.supportedBlockchains(
+                    cardTypesResolver = userWallet.scanResponse.cardTypesResolver,
+                    excludedBlockchains = excludedBlockchains,
+                )
 
-        return networks.filter {
-            val blockchain = Blockchain.fromNetworkId(it.networkId)
-            supportedBlockchains.contains(blockchain)
-        }.toSet()
+                networks.filter {
+                    val blockchain = Blockchain.fromNetworkId(it.networkId)
+                    supportedBlockchains.contains(blockchain)
+                }.toSet()
+            }
+            is UserWallet.Hot -> {
+                networks.toSet() // TODO [REDACTED_TASK_KEY]
+            }
+        }
     }
 }

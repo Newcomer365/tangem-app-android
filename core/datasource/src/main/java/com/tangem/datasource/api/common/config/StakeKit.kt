@@ -8,7 +8,7 @@ import com.tangem.utils.ProviderSuspend
  *
  * @property stakeKitAuthProvider StakeKit auth provider
  *
- * @author Andrew Khokhlov on 14/08/2024
+[REDACTED_AUTHOR]
  */
 internal class StakeKit(
     private val stakeKitAuthProvider: StakeKitAuthProvider,

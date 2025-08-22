@@ -3,15 +3,15 @@ package com.tangem.features.managetokens.utils
 import arrow.core.getOrElse
 import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.domain.managetokens.CheckIsCurrencyNotAddedUseCase
-import com.tangem.domain.managetokens.CreateCurrencyUseCase
+import com.tangem.domain.managetokens.CreateCryptoCurrencyUseCase
 import com.tangem.domain.managetokens.FindTokenUseCase
 import com.tangem.domain.managetokens.ValidateTokenFormUseCase
 import com.tangem.domain.managetokens.model.AddCustomTokenForm
 import com.tangem.domain.managetokens.model.exceptoin.CustomTokenFormValidationException
 import com.tangem.domain.managetokens.model.exceptoin.FindTokenException
-import com.tangem.domain.tokens.model.CryptoCurrency
-import com.tangem.domain.tokens.model.Network
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.network.Network
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.utils.coroutines.JobHolder
 import com.tangem.utils.coroutines.saveInAndJoin
 import kotlinx.coroutines.coroutineScope
@@ -23,7 +23,7 @@ import javax.inject.Inject
 @ModelScoped
 internal class CustomCurrencyValidator @Inject constructor(
     private val validateTokenFormUseCase: ValidateTokenFormUseCase,
-    private val createCustomCurrencyUseCase: CreateCurrencyUseCase,
+    private val createCryptoCurrencyUseCase: CreateCryptoCurrencyUseCase,
     private val findTokenUseCase: FindTokenUseCase,
     private val checkIsCurrencyNotAddedUseCase: CheckIsCurrencyNotAddedUseCase,
 ) {
@@ -164,7 +164,7 @@ internal class CustomCurrencyValidator @Inject constructor(
         derivationPath: Network.DerivationPath,
         validatedForm: AddCustomTokenForm.Validated.All?,
     ) {
-        val currency = createCustomCurrencyUseCase(
+        val currency = createCryptoCurrencyUseCase(
             userWalletId = userWalletId,
             networkId = networkId,
             derivationPath = derivationPath,

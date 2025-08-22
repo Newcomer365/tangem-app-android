@@ -2,7 +2,8 @@ package com.tangem.domain.wallets.usecase
 
 import com.tangem.domain.models.scan.CardDTO
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -13,7 +14,6 @@ import kotlinx.coroutines.flow.map
  */
 class IsNeedToBackupUseCase(private val userWalletsListManager: UserWalletsListManager) {
 
-    // TODO: Обернуть в Either
     operator fun invoke(id: UserWalletId): Flow<Boolean> {
         return userWalletsListManager.userWallets
             .map { wallets ->
@@ -21,7 +21,7 @@ class IsNeedToBackupUseCase(private val userWalletsListManager: UserWalletsListM
                 if (wallet == null) {
                     false
                 } else {
-                    wallet.scanResponse.card.backupStatus is CardDTO.BackupStatus.NoBackup
+                    wallet is UserWallet.Cold && wallet.scanResponse.card.backupStatus is CardDTO.BackupStatus.NoBackup
                 }
             }
     }

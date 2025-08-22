@@ -4,8 +4,10 @@ import arrow.core.getOrElse
 import com.arkivanov.decompose.router.slot.SlotNavigation
 import com.arkivanov.decompose.router.slot.activate
 import com.tangem.common.routing.AppRoute
+import com.tangem.core.analytics.api.AnalyticsEventHandler
 import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
+import com.tangem.core.decompose.model.ParamsContainer
 import com.tangem.core.decompose.navigation.Router
 import com.tangem.core.decompose.ui.UiMessageSender
 import com.tangem.core.ui.components.appbar.models.TopAppBarButtonUM
@@ -13,14 +15,18 @@ import com.tangem.core.ui.components.dropdownmenu.TangemDropdownMenuItem
 import com.tangem.core.ui.extensions.resourceReference
 import com.tangem.core.ui.message.DialogMessage
 import com.tangem.core.ui.message.EventMessageAction
+import com.tangem.core.ui.message.SnackbarMessage
 import com.tangem.core.ui.res.TangemTheme
+import com.tangem.domain.qrscanning.models.QrResultSource
 import com.tangem.domain.qrscanning.models.SourceType
 import com.tangem.domain.qrscanning.usecases.ListenToQrScanningUseCase
-import com.tangem.domain.walletconnect.model.WcSession
+import com.tangem.domain.walletconnect.WcAnalyticEvents
 import com.tangem.domain.walletconnect.WcPairService
 import com.tangem.domain.walletconnect.model.WcPairRequest
+import com.tangem.domain.walletconnect.model.WcSession
 import com.tangem.domain.walletconnect.usecase.WcSessionsUseCase
 import com.tangem.domain.walletconnect.usecase.disconnect.WcDisconnectUseCase
+import com.tangem.features.walletconnect.connections.components.WcConnectionsComponent
 import com.tangem.features.walletconnect.connections.entity.WcConnectionsState
 import com.tangem.features.walletconnect.connections.entity.WcConnectionsTopAppBarConfig
 import com.tangem.features.walletconnect.connections.model.transformers.WcSessionsTransformer
@@ -31,7 +37,6 @@ import com.tangem.utils.transformer.update
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import timber.log.Timber
 import javax.inject.Inject
 
 @Suppress("LongParameterList")
@@ -44,31 +49,47 @@ internal class WcConnectionsModel @Inject constructor(
     private val wcDisconnectUseCase: WcDisconnectUseCase,
     private val wcPairService: WcPairService,
     override val dispatchers: CoroutineDispatcherProvider,
+    analytics: AnalyticsEventHandler,
+    paramsContainer: ParamsContainer,
 ) : Model() {
 
+    private val params = paramsContainer.require<WcConnectionsComponent.Params>()
     val uiState: StateFlow<WcConnectionsState>
     field = MutableStateFlow<WcConnectionsState>(getInitialState())
     val bottomSheetNavigation: SlotNavigation<WcConnectionsBottomSheetConfig> = SlotNavigation()
 
     init {
+        analytics.send(WcAnalyticEvents.ScreenOpened)
         listenQrUpdates()
         listenWcSessions()
     }
 
     private fun listenQrUpdates() {
-        listenToQrScanningUseCase(SourceType.WALLET_CONNECT)
+        listenToQrScanningUseCase.listen(SourceType.WALLET_CONNECT)
             .getOrElse { emptyFlow() }
-            .onEach { wcUrl -> wcPairService.pair(WcPairRequest(wcUrl, WcPairRequest.Source.QR)) }
+            .onEach { result ->
+                val source = when (result.resultSource) {
+                    QrResultSource.CLIPBOARD -> WcPairRequest.Source.CLIPBOARD
+                    QrResultSource.CAMERA,
+                    QrResultSource.GALLERY,
+                    -> WcPairRequest.Source.QR
+                }
+                wcPairService.pair(
+                    WcPairRequest(
+                        userWalletId = params.userWalletId,
+                        uri = result.qrCode,
+                        source = source,
+                    ),
+                )
+            }
             .launchIn(modelScope)
     }
 
     private fun listenWcSessions() {
         wcSessionsUseCase.invoke()
             .conflate()
-            .onEach { Timber.tag("ddk9499").d("listenWcSessions before: ${it.size}") }
             .distinctUntilChanged()
             .onEach { sessionsMap ->
-                Timber.tag("ddk9499").d("listenWcSessions after: ${sessionsMap.size}")
                 uiState.update(
                     WcSessionsTransformer(
                         sessionsMap = sessionsMap,
@@ -103,7 +124,10 @@ internal class WcConnectionsModel @Inject constructor(
     }
 
     private fun disconnectAllSessions() {
-        modelScope.launch { wcDisconnectUseCase.disconnectAll() }
+        modelScope.launch {
+            wcDisconnectUseCase.disconnectAll()
+            uiMessageSender.send(SnackbarMessage(message = resourceReference(R.string.wc_all_dapps_disconnected)))
+        }
     }
 
     private fun getInitialState(): WcConnectionsState {

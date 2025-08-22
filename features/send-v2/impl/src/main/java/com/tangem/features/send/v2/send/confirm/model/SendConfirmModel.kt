@@ -6,7 +6,10 @@ import arrow.core.getOrElse
 import com.tangem.blockchain.common.AmountType
 import com.tangem.blockchain.common.TransactionData
 import com.tangem.common.routing.AppRouter
+import com.tangem.common.ui.amountScreen.converters.AmountReduceByTransformer
 import com.tangem.common.ui.amountScreen.models.AmountState
+import com.tangem.common.ui.navigationButtons.NavigationButton
+import com.tangem.common.ui.navigationButtons.NavigationUM
 import com.tangem.core.analytics.api.AnalyticsEventHandler
 import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
@@ -15,45 +18,51 @@ import com.tangem.core.decompose.navigation.Router
 import com.tangem.core.navigation.share.ShareManager
 import com.tangem.core.navigation.url.UrlOpener
 import com.tangem.core.ui.extensions.resourceReference
+import com.tangem.core.ui.extensions.stringReference
 import com.tangem.core.ui.extensions.wrappedList
 import com.tangem.domain.feedback.GetCardInfoUseCase
 import com.tangem.domain.feedback.SaveBlockchainErrorUseCase
 import com.tangem.domain.feedback.SendFeedbackEmailUseCase
 import com.tangem.domain.feedback.models.BlockchainErrorInfo
 import com.tangem.domain.feedback.models.FeedbackEmailType
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.wallet.requireColdWallet
 import com.tangem.domain.settings.IsSendTapHelpEnabledUseCase
 import com.tangem.domain.settings.NeverShowTapHelpUseCase
 import com.tangem.domain.tokens.AddCryptoCurrenciesUseCase
 import com.tangem.domain.tokens.IsAmountSubtractAvailableUseCase
-import com.tangem.domain.tokens.model.CryptoCurrency
 import com.tangem.domain.transaction.usecase.CreateTransferTransactionUseCase
 import com.tangem.domain.transaction.usecase.SendTransactionUseCase
 import com.tangem.domain.txhistory.usecase.GetExplorerTransactionUrlUseCase
 import com.tangem.domain.utils.convertToSdkAmount
+import com.tangem.features.send.v2.api.SendNotificationsComponent
+import com.tangem.features.send.v2.api.SendNotificationsComponent.Params.NotificationData
+import com.tangem.features.send.v2.api.callbacks.FeeSelectorModelCallback
+import com.tangem.features.send.v2.api.entity.FeeNonce
+import com.tangem.features.send.v2.api.params.FeeSelectorParams.FeeStateConfiguration
+import com.tangem.features.send.v2.api.subcomponents.destination.entity.DestinationUM
+import com.tangem.features.send.v2.api.subcomponents.feeSelector.FeeSelectorReloadTrigger
+import com.tangem.features.send.v2.api.subcomponents.notifications.SendNotificationsUpdateListener
+import com.tangem.features.send.v2.api.subcomponents.notifications.SendNotificationsUpdateTrigger
 import com.tangem.features.send.v2.common.CommonSendRoute
 import com.tangem.features.send.v2.common.SendBalanceUpdater
 import com.tangem.features.send.v2.common.SendConfirmAlertFactory
 import com.tangem.features.send.v2.common.analytics.CommonSendAnalyticEvents
 import com.tangem.features.send.v2.common.analytics.CommonSendAnalyticEvents.SendScreenSource
 import com.tangem.features.send.v2.common.ui.state.ConfirmUM
-import com.tangem.features.send.v2.common.ui.state.NavigationUM
 import com.tangem.features.send.v2.impl.R
 import com.tangem.features.send.v2.send.analytics.SendAnalyticHelper
 import com.tangem.features.send.v2.send.confirm.SendConfirmComponent
-import com.tangem.features.send.v2.send.confirm.model.transformers.SendConfirmInitialStateTransformer
-import com.tangem.features.send.v2.send.confirm.model.transformers.SendConfirmSendingStateTransformer
-import com.tangem.features.send.v2.send.confirm.model.transformers.SendConfirmSentStateTransformer
-import com.tangem.features.send.v2.send.confirm.model.transformers.SendConfirmationNotificationsTransformer
-import com.tangem.features.send.v2.send.ui.state.ButtonsUM
+import com.tangem.features.send.v2.send.confirm.model.transformers.*
 import com.tangem.features.send.v2.send.ui.state.SendUM
-import com.tangem.features.send.v2.subcomponents.destination.ui.state.DestinationUM
+import com.tangem.features.send.v2.subcomponents.amount.SendAmountReduceTrigger
 import com.tangem.features.send.v2.subcomponents.fee.SendFeeCheckReloadListener
 import com.tangem.features.send.v2.subcomponents.fee.SendFeeCheckReloadTrigger
+import com.tangem.features.send.v2.subcomponents.fee.SendFeeData
+import com.tangem.features.send.v2.subcomponents.fee.SendFeeReloadTrigger
 import com.tangem.features.send.v2.subcomponents.fee.model.checkAndCalculateSubtractedAmount
 import com.tangem.features.send.v2.subcomponents.fee.ui.state.FeeSelectorUM
 import com.tangem.features.send.v2.subcomponents.fee.ui.state.FeeUM
-import com.tangem.features.send.v2.subcomponents.notifications.NotificationsUpdateTrigger
-import com.tangem.features.send.v2.subcomponents.notifications.model.NotificationData
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import com.tangem.utils.extensions.orZero
 import com.tangem.utils.extensions.stripZeroPlainString
@@ -61,7 +70,9 @@ import com.tangem.utils.transformer.update
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.math.BigDecimal
 import javax.inject.Inject
+import com.tangem.features.send.v2.api.entity.FeeSelectorUM as FeeSelectorUMRedesigned
 
 @Suppress("LongParameterList", "LargeClass")
 @Stable
@@ -84,13 +95,17 @@ internal class SendConfirmModel @Inject constructor(
     private val isAmountSubtractAvailableUseCase: IsAmountSubtractAvailableUseCase,
     private val sendFeeCheckReloadTrigger: SendFeeCheckReloadTrigger,
     private val sendFeeCheckReloadListener: SendFeeCheckReloadListener,
-    private val notificationsUpdateTrigger: NotificationsUpdateTrigger,
+    private val notificationsUpdateTrigger: SendNotificationsUpdateTrigger,
+    private val notificationsUpdateListener: SendNotificationsUpdateListener,
     private val alertFactory: SendConfirmAlertFactory,
     private val sendAnalyticHelper: SendAnalyticHelper,
     private val urlOpener: UrlOpener,
     private val shareManager: ShareManager,
+    private val feeSelectorReloadTrigger: FeeSelectorReloadTrigger,
+    private val feeReloadTrigger: SendFeeReloadTrigger,
+    private val sendAmountReduceTrigger: SendAmountReduceTrigger,
     sendBalanceUpdaterFactory: SendBalanceUpdater.Factory,
-) : Model(), SendConfirmClickIntents {
+) : Model(), SendConfirmClickIntents, FeeSelectorModelCallback, SendNotificationsComponent.ModelCallback {
 
     private val params: SendConfirmComponent.Params = paramsContainer.require()
 
@@ -113,6 +128,8 @@ internal class SendConfirmModel @Inject constructor(
         get() = uiState.value.feeUM as? FeeUM.Content
     private val feeSelectorUM
         get() = feeUM?.feeSelectorUM as? FeeSelectorUM.Content
+    private val feeUMV2
+        get() = uiState.value.feeSelectorUM as? FeeSelectorUMRedesigned.Content
 
     val confirmData: ConfirmData
         get() = ConfirmData(
@@ -120,13 +137,14 @@ internal class SendConfirmModel @Inject constructor(
             enteredMemo = destinationUM?.memoTextField?.value,
             reduceAmountBy = amountState?.reduceAmountBy.orZero(),
             isIgnoreReduce = amountState?.isIgnoreReduce == true,
-            enteredDestination = destinationUM?.addressTextField?.value,
+            enteredDestination = destinationUM?.addressTextField?.actualAddress,
             fee = feeSelectorUM?.selectedFee,
             feeError = (feeUM?.feeSelectorUM as? FeeSelectorUM.Error)?.error,
         )
 
     private var sendIdleTimer: Long = 0L
     private var isAmountSubtractAvailable = false
+    internal var feeStateConfiguration: FeeStateConfiguration = FeeStateConfiguration.None
 
     init {
         modelScope.launch {
@@ -158,6 +176,44 @@ internal class SendConfirmModel @Inject constructor(
     fun onDestinationResult(destinationUM: DestinationUM) {
         _uiState.update { it.copy(destinationUM = destinationUM) }
         updateConfirmNotifications()
+    }
+
+    override fun onFeeReload() {
+        modelScope.launch {
+            if (uiState.value.isRedesignEnabled) {
+                feeSelectorReloadTrigger.triggerUpdate()
+            } else {
+                feeReloadTrigger.triggerUpdate(
+                    feeData = SendFeeData(
+                        amount = confirmData.enteredAmount,
+                        destinationAddress = confirmData.enteredDestination,
+                    ),
+                )
+            }
+        }
+    }
+
+    override fun onAmountReduceTo(reduceTo: BigDecimal) {
+        modelScope.launch {
+            sendAmountReduceTrigger.triggerReduceTo(reduceTo)
+        }
+    }
+
+    override fun onAmountReduceBy(reduceBy: BigDecimal, reduceByDiff: BigDecimal) {
+        modelScope.launch {
+            sendAmountReduceTrigger.triggerReduceBy(
+                AmountReduceByTransformer.ReduceByData(
+                    reduceAmountBy = reduceBy,
+                    reduceAmountByDiff = reduceByDiff,
+                ),
+            )
+        }
+    }
+
+    override fun onAmountIgnore() {
+        modelScope.launch {
+            sendAmountReduceTrigger.triggerIgnoreReduce()
+        }
     }
 
     override fun showEditDestination() {
@@ -255,7 +311,7 @@ internal class SendConfirmModel @Inject constructor(
         saveBlockchainErrorUseCase(
             error = BlockchainErrorInfo(
                 errorMessage = errorMessage,
-                blockchainId = cryptoCurrency.network.id.value,
+                blockchainId = cryptoCurrency.network.rawId,
                 derivationPath = cryptoCurrency.network.derivationPath.value,
                 destinationAddress = confirmData.enteredDestination.orEmpty(),
                 tokenSymbol = if (amount?.type is AmountType.Token) {
@@ -269,7 +325,8 @@ internal class SendConfirmModel @Inject constructor(
             ),
         )
 
-        val cardInfo = getCardInfoUseCase(userWallet.scanResponse).getOrNull() ?: return
+        val cardInfo =
+            getCardInfoUseCase(userWallet.requireColdWallet().scanResponse).getOrNull() ?: return // TODO [REDACTED_TASK_KEY]
 
         modelScope.launch {
             sendFeedbackEmailUseCase(type = FeedbackEmailType.TransactionSendingProblem(cardInfo = cardInfo))
@@ -286,7 +343,9 @@ internal class SendConfirmModel @Inject constructor(
                     it.copy(
                         confirmUM = SendConfirmInitialStateTransformer(
                             isShowTapHelp = isShowTapHelp,
+                            walletName = stringReference(userWallet.name),
                         ).transform(uiState.value.confirmUM),
+                        confirmData = confirmData,
                     )
                 }
                 updateConfirmNotifications()
@@ -295,16 +354,25 @@ internal class SendConfirmModel @Inject constructor(
     }
 
     private fun subscribeOnNotificationsUpdateTrigger() {
-        notificationsUpdateTrigger.hasErrorFlow
+        notificationsUpdateListener.hasErrorFlow
             .onEach { hasError ->
                 _uiState.update {
-                    val feeUM = it.feeUM as? FeeUM.Content
-                    val feeSelectorUM = feeUM?.feeSelectorUM as? FeeSelectorUM.Content
-                    it.copy(
-                        confirmUM = (it.confirmUM as? ConfirmUM.Content)?.copy(
-                            isPrimaryButtonEnabled = !hasError && feeSelectorUM != null,
-                        ) ?: it.confirmUM,
-                    )
+                    if (_uiState.value.isRedesignEnabled) {
+                        val feeUM = it.feeSelectorUM as? FeeSelectorUMRedesigned.Content
+                        it.copy(
+                            confirmUM = (it.confirmUM as? ConfirmUM.Content)?.copy(
+                                isPrimaryButtonEnabled = !hasError && feeUM != null,
+                            ) ?: it.confirmUM,
+                        )
+                    } else {
+                        val feeUM = it.feeUM as? FeeUM.Content
+                        val feeSelectorUM = feeUM?.feeSelectorUM as? FeeSelectorUM.Content
+                        it.copy(
+                            confirmUM = (it.confirmUM as? ConfirmUM.Content)?.copy(
+                                isPrimaryButtonEnabled = !hasError && feeSelectorUM != null,
+                            ) ?: it.confirmUM,
+                        )
+                    }
                 }
             }
             .launchIn(modelScope)
@@ -312,9 +380,19 @@ internal class SendConfirmModel @Inject constructor(
 
     private fun verifyAndSendTransaction() {
         val amountValue = amountState?.amountTextField?.cryptoAmount?.value ?: return
-        val destination = destinationUM?.addressTextField?.value ?: return
+        val destination = destinationUM?.addressTextField?.actualAddress ?: return
         val memo = destinationUM?.memoTextField?.value
-        val fee = feeSelectorUM?.selectedFee
+        val isRedesignEnabled = uiState.value.isRedesignEnabled
+        val fee = if (isRedesignEnabled) {
+            feeUMV2?.selectedFeeItem?.fee
+        } else {
+            feeSelectorUM?.selectedFee
+        }
+        val nonce = if (isRedesignEnabled) {
+            (feeUMV2?.feeNonce as? FeeNonce.Nonce)?.nonce
+        } else {
+            feeSelectorUM?.nonce
+        }
         val feeValue = fee?.amount?.value ?: return
 
         val receivingAmount = checkAndCalculateSubtractedAmount(
@@ -330,6 +408,7 @@ internal class SendConfirmModel @Inject constructor(
                 amount = receivingAmount.convertToSdkAmount(cryptoCurrency),
                 fee = fee,
                 memo = memo,
+                nonce = nonce,
                 destination = destination,
                 userWalletId = userWallet.walletId,
                 network = cryptoCurrency.network,
@@ -370,6 +449,7 @@ internal class SendConfirmModel @Inject constructor(
                     CommonSendAnalyticEvents.TransactionError(
                         categoryName = analyticsCategoryName,
                         token = cryptoCurrency.symbol,
+                        blockchain = cryptoCurrency.network.name,
                     ),
                 )
             },
@@ -378,6 +458,10 @@ internal class SendConfirmModel @Inject constructor(
                 addTokenToWalletIfNeeded()
                 sendBalanceUpdater.scheduleUpdates()
                 sendAnalyticHelper.sendSuccessAnalytics(cryptoCurrency, uiState.value)
+                if (uiState.value.isRedesignEnabled) {
+                    params.callback.onResult(uiState.value)
+                    params.onSendTransaction()
+                }
             },
         )
     }
@@ -437,37 +521,65 @@ internal class SendConfirmModel @Inject constructor(
             )
             _uiState.update {
                 it.copy(
-                    confirmUM = SendConfirmationNotificationsTransformer(
-                        feeUM = uiState.value.feeUM,
-                        amountUM = uiState.value.amountUM,
-                        analyticsEventHandler = analyticsEventHandler,
-                        cryptoCurrency = cryptoCurrencyStatus.currency,
-                        appCurrency = appCurrency,
-                        analyticsCategoryName = params.analyticsCategoryName,
-                    ).transform(uiState.value.confirmUM),
+                    confirmUM = if (uiState.value.isRedesignEnabled) {
+                        SendConfirmationNotificationsTransformerV2(
+                            feeSelectorUM = uiState.value.feeSelectorUM,
+                            amountUM = uiState.value.amountUM,
+                            analyticsEventHandler = analyticsEventHandler,
+                            cryptoCurrency = cryptoCurrencyStatus.currency,
+                            appCurrency = appCurrency,
+                            analyticsCategoryName = params.analyticsCategoryName,
+                        ).transform(uiState.value.confirmUM)
+                    } else {
+                        SendConfirmationNotificationsTransformer(
+                            feeUM = uiState.value.feeUM,
+                            amountUM = uiState.value.amountUM,
+                            analyticsEventHandler = analyticsEventHandler,
+                            cryptoCurrency = cryptoCurrencyStatus.currency,
+                            appCurrency = appCurrency,
+                            analyticsCategoryName = params.analyticsCategoryName,
+                        ).transform(uiState.value.confirmUM)
+                    },
                 )
             }
         }
     }
 
+    @Suppress("LongMethod")
     private fun configConfirmNavigation() {
         combine(
             flow = uiState,
             flow2 = params.currentRoute,
             transform = { state, route -> state to route },
-        ).filter { it.second is CommonSendRoute.Confirm }.onEach { (state, _) ->
+        ).filter {
+            it.second is CommonSendRoute.Confirm
+        }.onEach { (state, _) ->
             val amountUM = state.amountUM as? AmountState.Data
             val confirmUM = state.confirmUM
-            val isReadyToSend = confirmUM is ConfirmUM.Content && !confirmUM.isSending
             params.callback.onResult(
                 state.copy(
                     navigationUM = NavigationUM.Content(
-                        title = resourceReference(
-                            id = R.string.send_summary_title,
-                            formatArgs = wrappedList(params.cryptoCurrencyStatus.currency.name),
-                        ),
-                        subtitle = amountUM?.title,
-                        backIconRes = R.drawable.ic_close_24,
+                        title = if (state.isRedesignEnabled) {
+                            stringReference("")
+                        } else {
+                            resourceReference(
+                                id = R.string.send_summary_title,
+                                formatArgs = wrappedList(params.cryptoCurrencyStatus.currency.name),
+                            )
+                        },
+                        subtitle = if (uiState.value.isRedesignEnabled) {
+                            null
+                        } else {
+                            amountUM?.title
+                        },
+                        backIconRes = if (state.isRedesignEnabled) {
+                            when (confirmUM) {
+                                is ConfirmUM.Success -> R.drawable.ic_close_24
+                                else -> R.drawable.ic_back_24
+                            }
+                        } else {
+                            R.drawable.ic_close_24
+                        },
                         backIconClick = {
                             analyticsEventHandler.send(
                                 CommonSendAnalyticEvents.CloseButtonClicked(
@@ -479,44 +591,59 @@ internal class SendConfirmModel @Inject constructor(
                             )
                             appRouter.pop()
                         },
-                        primaryButton = ButtonsUM.PrimaryButtonUM(
-                            text = when (confirmUM) {
-                                is ConfirmUM.Success -> resourceReference(R.string.common_close)
-                                is ConfirmUM.Content -> if (confirmUM.isSending) {
-                                    resourceReference(R.string.send_sending)
-                                } else {
-                                    resourceReference(R.string.common_send)
-                                }
-                                else -> resourceReference(R.string.common_send)
-                            },
-                            iconResId = R.drawable.ic_tangem_24.takeIf { isReadyToSend },
-                            isEnabled = confirmUM.isPrimaryButtonEnabled,
-                            isHapticClick = isReadyToSend,
-                            onClick = {
-                                when (confirmUM) {
-                                    is ConfirmUM.Success -> appRouter.pop()
-                                    is ConfirmUM.Content -> if (confirmUM.isSending) {
-                                        return@PrimaryButtonUM
-                                    } else {
-                                        onSendClick()
-                                    }
-                                    else -> return@PrimaryButtonUM
-                                }
-                            },
-                        ),
+                        primaryButton = primaryButtonUM(),
                         prevButton = null,
-                        secondaryPairButtonsUM = ButtonsUM.SecondaryPairButtonsUM(
-                            leftText = resourceReference(R.string.common_explore),
-                            leftIconResId = R.drawable.ic_web_24,
-                            onLeftClick = ::onExploreClick,
-                            rightText = resourceReference(R.string.common_share),
-                            rightIconResId = R.drawable.ic_share_24,
-                            onRightClick = ::onShareClick,
-                        ).takeIf { confirmUM is ConfirmUM.Success },
+                        secondaryPairButtonsUM = (
+                            NavigationButton(
+                                textReference = resourceReference(R.string.common_explore),
+                                iconRes = R.drawable.ic_web_24,
+                                onClick = ::onExploreClick,
+                            ) to NavigationButton(
+                                textReference = resourceReference(R.string.common_share),
+                                iconRes = R.drawable.ic_share_24,
+                                onClick = ::onShareClick,
+                            )
+                            ).takeIf { confirmUM is ConfirmUM.Success },
                     ),
                 ),
             )
         }.launchIn(modelScope)
+    }
+
+    private fun primaryButtonUM(): NavigationButton {
+        val confirmUM = uiState.value.confirmUM
+        val isReadyToSend = confirmUM is ConfirmUM.Content && !confirmUM.isSending
+        return NavigationButton(
+            textReference = when (confirmUM) {
+                is ConfirmUM.Success -> resourceReference(R.string.common_close)
+                is ConfirmUM.Content -> if (confirmUM.isSending) {
+                    resourceReference(R.string.send_sending)
+                } else {
+                    resourceReference(R.string.common_send)
+                }
+                else -> resourceReference(R.string.common_send)
+            },
+            iconRes = R.drawable.ic_tangem_24.takeIf { isReadyToSend },
+            isEnabled = confirmUM.isPrimaryButtonEnabled,
+            isHapticClick = isReadyToSend,
+            onClick = {
+                when (confirmUM) {
+                    is ConfirmUM.Success -> appRouter.pop()
+                    is ConfirmUM.Content -> if (confirmUM.isSending) {
+                        return@NavigationButton
+                    } else {
+                        onSendClick()
+                    }
+                    else -> return@NavigationButton
+                }
+            },
+        )
+    }
+
+    override fun onFeeResult(feeSelectorUM: FeeSelectorUMRedesigned) {
+        sendIdleTimer = SystemClock.elapsedRealtime()
+        _uiState.update { it.copy(feeSelectorUM = feeSelectorUM) }
+        updateConfirmNotifications()
     }
 
     private companion object {

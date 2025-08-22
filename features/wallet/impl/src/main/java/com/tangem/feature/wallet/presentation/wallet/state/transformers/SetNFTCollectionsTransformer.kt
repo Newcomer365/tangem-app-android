@@ -1,7 +1,7 @@
 package com.tangem.feature.wallet.presentation.wallet.state.transformers
 
 import com.tangem.domain.nft.models.*
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.feature.wallet.presentation.wallet.state.model.WalletNFTItemUM
 import com.tangem.feature.wallet.presentation.wallet.state.model.WalletState
 import kotlinx.collections.immutable.toPersistentList
@@ -52,8 +52,24 @@ internal class SetNFTCollectionsTransformer(
                     .toPersistentList()
             },
             collectionsCount = collections.size,
-            assetsCount = collections
-                .sumOf { it.count },
+            allAssetsCount = collections.sumOf { it.count },
+            noCollectionAssetsCount = collections.sumOf { collection ->
+                when (val collectionId = collection.id) {
+                    is NFTCollection.Identifier.Solana ->
+                        collection
+                            .count
+                            .takeIf { collectionId.collectionAddress == null }
+                            ?: 0
+                    is NFTCollection.Identifier.TON ->
+                        collection
+                            .count
+                            .takeIf { collectionId.contractAddress == null }
+                            ?: 0
+                    is NFTCollection.Identifier.EVM,
+                    is NFTCollection.Identifier.Unknown,
+                    -> 0
+                }
+            },
             isFlickering = false,
             onItemClick = onItemClick,
         )

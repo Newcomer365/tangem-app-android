@@ -5,9 +5,9 @@ import com.tangem.datasource.api.stakekit.models.response.model.YieldBalanceWrap
 import com.tangem.datasource.local.datastore.RuntimeSharedStore
 import com.tangem.datasource.local.token.converter.YieldBalanceConverter
 import com.tangem.domain.models.StatusSource
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.staking.model.StakingID
 import com.tangem.domain.staking.model.stakekit.YieldBalance
-import com.tangem.domain.wallets.models.UserWalletId
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import com.tangem.utils.extensions.addOrReplace
 import kotlinx.coroutines.CoroutineScope
@@ -15,7 +15,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 internal typealias WalletIdWithWrappers = Map<String, Set<YieldBalanceWrapperDTO>>
@@ -28,7 +28,7 @@ internal typealias WalletIdWithBalances = Map<UserWalletId, Set<YieldBalance>>
  * @property persistenceStore persistence store
  * @param dispatchers
  *
- * @author Andrew Khokhlov on 16/04/2025
+[REDACTED_AUTHOR]
  */
 internal class DefaultYieldsBalancesStore(
     private val runtimeStore: RuntimeSharedStore<WalletIdWithBalances>,
@@ -55,7 +55,7 @@ internal class DefaultYieldsBalancesStore(
     }
 
     override fun get(userWalletId: UserWalletId): Flow<Set<YieldBalance>> {
-        return runtimeStore.get().mapNotNull { it[userWalletId] }
+        return runtimeStore.get().map { it[userWalletId].orEmpty() }
     }
 
     override suspend fun getSyncOrNull(userWalletId: UserWalletId, stakingId: StakingID): YieldBalance? {
@@ -109,8 +109,15 @@ internal class DefaultYieldsBalancesStore(
     private suspend fun storeInPersistence(userWalletId: UserWalletId, values: Set<YieldBalanceWrapperDTO>) {
         persistenceStore.updateData { current ->
             current.toMutableMap().apply {
-                this[userWalletId.stringValue] = current[userWalletId.stringValue]
-                    ?.addOrReplace(items = values) { old, new -> old.getStakingId() == new.getStakingId() }
+                this[userWalletId.stringValue] = this[userWalletId.stringValue]
+                    ?.addOrReplace(items = values) { old, new ->
+                        val oldId = old.getStakingId()
+                        val newId = new.getStakingId()
+
+                        if (oldId == null || newId == null) return@addOrReplace false
+
+                        oldId == newId
+                    }
                     ?: values
             }
         }

@@ -34,7 +34,7 @@ import kotlinx.collections.immutable.ImmutableList
  * @param state    state
  * @param modifier modifier
  *
- * @author Andrew Khokhlov on 18/10/2024
+[REDACTED_AUTHOR]
  */
 @Composable
 internal fun TokenList(state: TokenListUM, modifier: Modifier = Modifier) {

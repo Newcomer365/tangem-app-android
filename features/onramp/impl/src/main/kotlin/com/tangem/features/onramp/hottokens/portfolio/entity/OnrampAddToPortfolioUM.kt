@@ -15,7 +15,7 @@ import com.tangem.features.onramp.impl.R
  * @property currencyIconState currency icon state
  * @property addButtonUM       add button UM
  *
- * @author Andrew Khokhlov on 18/01/2025
+[REDACTED_AUTHOR]
  */
 data class OnrampAddToPortfolioUM(
     val walletName: String,

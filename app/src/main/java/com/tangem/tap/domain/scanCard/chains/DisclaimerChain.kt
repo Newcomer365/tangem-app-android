@@ -35,7 +35,7 @@ internal class DisclaimerChain(
         } else {
             disclaimerWillShow()
 
-            // TODO: https://tangem.atlassian.net/browse/AND-8484
+            // TODO: [REDACTED_JIRA]
             store.dispatchNavigationAction {
                 push(route = AppRoute.Disclaimer(isTosAccepted = false))
             }

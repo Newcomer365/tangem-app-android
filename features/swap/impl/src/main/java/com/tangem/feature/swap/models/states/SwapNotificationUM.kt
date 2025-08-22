@@ -7,7 +7,7 @@ import com.tangem.core.ui.extensions.TextReference
 import com.tangem.core.ui.extensions.networkIconResId
 import com.tangem.core.ui.extensions.resourceReference
 import com.tangem.core.ui.extensions.wrappedList
-import com.tangem.domain.tokens.model.CryptoCurrency
+import com.tangem.domain.models.currency.CryptoCurrency
 import com.tangem.feature.swap.domain.models.ExpressDataError
 import com.tangem.feature.swap.utils.getExpressErrorMessage
 import com.tangem.feature.swap.utils.getExpressErrorTitle
@@ -97,6 +97,12 @@ internal object SwapNotificationUM {
                 formatArgs = wrappedList(amount),
             ),
             subtitle = resourceReference(R.string.warning_express_wrong_amount_description),
+            iconResId = R.drawable.ic_alert_circle_24,
+        )
+
+        data object FCAWarningList : Error(
+            title = resourceReference(R.string.warning_express_providers_fca_warning_title),
+            subtitle = resourceReference(R.string.warning_express_providers_fca_warning_description),
             iconResId = R.drawable.ic_alert_circle_24,
         )
     }

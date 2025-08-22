@@ -3,7 +3,7 @@ package com.tangem.feature.tokendetails.presentation.tokendetails.analytics
 import com.tangem.core.analytics.api.AnalyticsEventHandler
 import com.tangem.core.analytics.models.AnalyticsEvent
 import com.tangem.core.analytics.models.AnalyticsParam
-import com.tangem.domain.tokens.model.CryptoCurrency
+import com.tangem.domain.models.currency.CryptoCurrency
 import com.tangem.domain.tokens.model.analytics.TokenSwapPromoAnalyticsEvent
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.TokenDetailsState
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.components.TokenDetailsNotification
@@ -51,9 +51,9 @@ internal class TokenDetailsNotificationsAnalyticsSender(
             is TokenDetailsNotification.RentInfo,
             is TokenDetailsNotification.NetworkShutdown,
             is TokenDetailsNotification.HederaAssociateWarning,
+            is TokenDetailsNotification.RequiredTrustlineWarning,
             is TokenDetailsNotification.KoinosMana,
             is TokenDetailsNotification.MigrationMaticToPol,
-            is TokenDetailsNotification.TokensInBeta,
             is TokenDetailsNotification.UsedOutdatedData,
             -> null
         }

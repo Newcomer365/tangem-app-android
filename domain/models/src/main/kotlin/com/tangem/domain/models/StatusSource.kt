@@ -3,7 +3,7 @@ package com.tangem.domain.models
 /**
  * Source of the status of any loaded data
  *
- * @author Andrew Khokhlov on 19/02/2025
+[REDACTED_AUTHOR]
  */
 enum class StatusSource {
 

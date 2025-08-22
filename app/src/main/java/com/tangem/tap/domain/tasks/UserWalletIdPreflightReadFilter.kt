@@ -4,14 +4,14 @@ import com.tangem.common.card.Card
 import com.tangem.common.core.SessionEnvironment
 import com.tangem.common.core.TangemSdkError
 import com.tangem.domain.models.scan.CardDTO
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.wallets.builder.UserWalletIdBuilder
-import com.tangem.domain.wallets.models.UserWalletId
 import com.tangem.operations.preflightread.PreflightReadFilter
 
 /**
  * [PreflightReadFilter] for checking if card has expected user wallet id
  *
- * @author Andrew Khokhlov on 28/05/2024
+[REDACTED_AUTHOR]
  */
 class UserWalletIdPreflightReadFilter(private val expectedUserWalletId: UserWalletId) : PreflightReadFilter {
 

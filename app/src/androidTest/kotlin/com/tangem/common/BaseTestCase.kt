@@ -1,66 +1,102 @@
 package com.tangem.common
 
 import android.Manifest
+import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.printToLog
+import androidx.test.core.app.ActivityScenario
+import androidx.test.espresso.intent.Intents
 import androidx.test.rule.GrantPermissionRule
-import com.atiurin.ultron.core.compose.config.UltronComposeConfig
-import com.atiurin.ultron.core.compose.createUltronComposeRule
-import com.atiurin.ultron.core.compose.listeners.ComposDebugListener
-import com.atiurin.ultron.core.config.UltronCommonConfig
-import com.atiurin.ultron.core.config.UltronConfig
-import com.atiurin.ultron.core.test.UltronTest
-import com.tangem.datasource.local.preferences.AppPreferencesStore
-import com.tangem.sdk.api.TangemSdkManager
+import com.kaspersky.components.alluresupport.interceptors.step.ScreenshotStepInterceptor
+import com.kaspersky.components.alluresupport.withForcedAllureSupport
+import com.kaspersky.components.composesupport.config.addComposeSupport
+import com.kaspersky.kaspresso.kaspresso.Kaspresso
+import com.kaspersky.kaspresso.testcases.api.testcase.TestCase
+import com.tangem.common.allure.FailedStepScreenshotInterceptor
+import com.tangem.common.rules.ApiEnvironmentRule
+import com.tangem.datasource.api.common.config.managers.ApiConfigsManager
 import com.tangem.tap.MainActivity
 import dagger.hilt.android.testing.HiltAndroidRule
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
-import org.junit.BeforeClass
 import org.junit.Rule
+import org.junit.rules.RuleChain
+import org.junit.rules.TestRule
 import javax.inject.Inject
 
-abstract class BaseTestCase : UltronTest() {
-    @Inject
-    lateinit var tangemSdkManager: TangemSdkManager
+abstract class BaseTestCase : TestCase(
+    kaspressoBuilder = Kaspresso.Builder.withForcedAllureSupport(
+        shouldRecordVideo = false
+    ).apply {
+        stepWatcherInterceptors = stepWatcherInterceptors.filter {
+            it !is ScreenshotStepInterceptor
+        }.toMutableList()
+        stepWatcherInterceptors.addAll(
+            listOf(
+                FailedStepScreenshotInterceptor(screenshots)
+            )
+        )
+    }.addComposeSupport()
+) {
 
     @Inject
-    lateinit var appPreferencesStore: AppPreferencesStore
+    lateinit var apiConfigsManager: ApiConfigsManager
 
-    @get:Rule(order = 0)
-    val grantPermissionRule: GrantPermissionRule = GrantPermissionRule.grant(
+    private val hiltRule = HiltAndroidRule(this)
+    private val apiEnvironmentRule = ApiEnvironmentRule()
+    private val permissionRule = GrantPermissionRule.grant(
         Manifest.permission.POST_NOTIFICATIONS,
-        Manifest.permission.CAMERA
+        Manifest.permission.CAMERA,
     )
-    @get:Rule(order = 1)
-    val hiltRule = HiltAndroidRule(this)
 
-    @get:Rule (order = 2)
-    val injectionRule = ApplicationInjectionExecutionRule()
+    /**
+     * It is important to use `ComposeRule` without specifying an activity to ensure that the initialization order of
+     * all test rules is fully controlled.
+     */
+    val composeTestRule = createEmptyComposeRule()
 
-    @get:Rule(order = 3)
-    val composeRule = createUltronComposeRule<MainActivity>()
+    @Rule
+    @JvmField
+    val ruleChain: TestRule = RuleChain
+        .outerRule(hiltRule)
+        .around(ApplicationInjectionExecutionRule())
+        .around(permissionRule)
+        .around(apiEnvironmentRule)
+        .around(composeTestRule)
 
-    override val beforeTest: () -> Unit = {
+    /**
+     * Initialization order is important:
+     * – DI dependencies must be injected first,
+     * – then the API environment should be set up,
+     * – and only after that the activity should be launched.
+     */
+    protected fun setupHooks(
+        additionalBeforeSection: () -> Unit = {},
+        additionalAfterSection: () -> Unit = {},
+    ) = before {
         hiltRule.inject()
-        runBlocking {
-            delay(INIT_DELAY)
-        }
+        apiEnvironmentRule.setup(apiConfigsManager)
+        ActivityScenario.launch(MainActivity::class.java)
+        Intents.init()
+        additionalBeforeSection()
+    }.after {
+        additionalAfterSection()
+        Intents.release()
     }
 
-    override val afterTest: () -> Unit = {
-        runBlocking {
-            appPreferencesStore.editData { prefs -> prefs.clear() }
-        }
-    }
-
-    companion object {
-        @BeforeClass
-        @JvmStatic
-        fun config() {
-            UltronConfig.applyRecommended()
-            UltronComposeConfig.applyRecommended()
-            UltronCommonConfig.addListener(ComposDebugListener())
-        }
-
-        private const val INIT_DELAY = 2000L
+    /**
+     * Prints the Compose semantics tree to logcat for debugging UI tests.
+     *
+     * @param useUnmergedTree When true, shows unmerged tree with all individual nodes.
+     *                        Use for accessing inner elements of compound components.
+     *                        Default: false (merged tree - accessibility view).
+     * @param tag             Log tag for filtering in logcat. Default: "SEMANTIC_TREE".
+     * @param maxDepth        Maximum nesting level to print. Use to avoid log overflow.
+     *                        Default: Int.MAX_VALUE (unlimited depth).
+     */
+    fun printSemanticTree(
+        useUnmergedTree: Boolean = false,
+        tag: String = "SEMANTIC_TREE",
+        maxDepth: Int = Int.MAX_VALUE)
+    {
+        composeTestRule.onRoot(useUnmergedTree = useUnmergedTree).printToLog(tag, maxDepth)
     }
 }

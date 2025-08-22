@@ -5,7 +5,7 @@ import arrow.core.raise.either
 import arrow.core.raise.ensureNotNull
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
 import com.tangem.domain.wallets.models.GetUserWalletError
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.models.wallet.UserWallet
 
 /**
  * Use case for getting selected wallet.
@@ -13,7 +13,7 @@ import com.tangem.domain.wallets.models.UserWallet
  *
  * @property userWalletsListManager user wallets list manager
  *
- * @author Andrew Khokhlov on 08/08/2023
+[REDACTED_AUTHOR]
  */
 class GetSelectedWalletSyncUseCase(private val userWalletsListManager: UserWalletsListManager) {
 

@@ -3,7 +3,7 @@ package com.tangem.tap.common.toggleWidget
 import android.view.View
 
 /**
- * Created by Anton Zhilenkov on 07/07/2020.
+[REDACTED_AUTHOR]
  */
 interface WidgetState
 

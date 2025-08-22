@@ -4,7 +4,7 @@ import org.rekotlin.Middleware
 import timber.log.Timber
 
 /**
- * Created by Anton Zhilenkov on 31/08/2020.
+[REDACTED_AUTHOR]
  */
 val logMiddleware: Middleware<AppState> = { _, _ ->
     { nextDispatch ->

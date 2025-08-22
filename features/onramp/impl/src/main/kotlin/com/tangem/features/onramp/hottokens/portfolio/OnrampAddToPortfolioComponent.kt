@@ -3,13 +3,13 @@ package com.tangem.features.onramp.hottokens.portfolio
 import com.tangem.core.decompose.factory.ComponentFactory
 import com.tangem.core.ui.components.currency.icon.CurrencyIconState
 import com.tangem.core.ui.decompose.ComposableBottomSheetComponent
-import com.tangem.domain.tokens.model.CryptoCurrency
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.wallet.UserWalletId
 
 /**
  * Onramp bottom sheet component for adding token to portfolio
  *
- * @author Andrew Khokhlov on 18/01/2025
+[REDACTED_AUTHOR]
  */
 interface OnrampAddToPortfolioComponent : ComposableBottomSheetComponent {
 

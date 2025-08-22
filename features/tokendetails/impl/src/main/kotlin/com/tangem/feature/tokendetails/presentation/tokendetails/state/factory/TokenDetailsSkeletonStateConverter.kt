@@ -9,12 +9,12 @@ import com.tangem.core.ui.extensions.TextReference
 import com.tangem.core.ui.extensions.networkIconResId
 import com.tangem.core.ui.extensions.resourceReference
 import com.tangem.core.ui.res.TangemTheme
-import com.tangem.domain.card.NetworkHasDerivationUseCase
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.network.Network
 import com.tangem.domain.staking.GetStakingIntegrationIdUseCase
-import com.tangem.domain.tokens.model.CryptoCurrency
-import com.tangem.domain.tokens.model.Network
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.wallets.usecase.GetUserWalletUseCase
+import com.tangem.domain.wallets.usecase.NetworkHasDerivationUseCase
 import com.tangem.feature.tokendetails.presentation.tokendetails.model.TokenDetailsClickIntents
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.*
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.components.TokenDetailsActionButton
@@ -98,9 +98,9 @@ internal class TokenDetailsSkeletonStateConverter(
     private fun MutableList<TangemDropdownMenuItem>.addGenerateXPubMenuItem(cryptoCurrency: CryptoCurrency) {
         val userWallet = getUserWalletUseCase(userWalletId).getOrNull() ?: return
 
-        val isBitcoin = isBitcoin(cryptoCurrency.network.id.value)
+        val isBitcoin = isBitcoin(cryptoCurrency.network.rawId)
         val hasDerivations = networkHasDerivationUseCase(
-            scanResponse = userWallet.scanResponse,
+            userWallet = userWallet,
             network = cryptoCurrency.network,
         ).getOrElse { false }
 

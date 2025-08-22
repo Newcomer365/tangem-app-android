@@ -7,7 +7,7 @@ import com.tangem.domain.onramp.repositories.HotCryptoRepository
  *
  * @property hotCryptoRepository hot crypto repository
  *
- * @author Andrew Khokhlov on 11/02/2025
+[REDACTED_AUTHOR]
  */
 class FetchHotCryptoUseCase(
     private val hotCryptoRepository: HotCryptoRepository,

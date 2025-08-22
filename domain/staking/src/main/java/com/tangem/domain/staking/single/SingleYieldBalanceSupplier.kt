@@ -10,7 +10,7 @@ import com.tangem.domain.staking.model.stakekit.YieldBalance
  * @property factory    factory for creating [SingleYieldBalanceProducer]
  * @property keyCreator key creator
  *
- * @author Andrew Khokhlov on 17/04/2025
+[REDACTED_AUTHOR]
  */
 abstract class SingleYieldBalanceSupplier(
     override val factory: FlowProducer.Factory<SingleYieldBalanceProducer.Params, SingleYieldBalanceProducer>,

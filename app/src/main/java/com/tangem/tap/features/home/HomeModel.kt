@@ -11,16 +11,17 @@ import com.tangem.core.analytics.models.AnalyticsParam
 import com.tangem.core.analytics.models.Basic
 import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
+import com.tangem.core.decompose.navigation.Router
 import com.tangem.core.navigation.url.UrlOpener
 import com.tangem.domain.card.ScanCardProcessor
 import com.tangem.domain.card.repository.CardSdkConfigRepository
-import com.tangem.domain.common.util.cardTypesResolver
+import com.tangem.domain.card.common.util.cardTypesResolver
 import com.tangem.domain.models.scan.ScanResponse
 import com.tangem.domain.settings.repositories.SettingsRepository
 import com.tangem.domain.settings.usercountry.GetUserCountryUseCase
 import com.tangem.domain.settings.usercountry.models.UserCountry
 import com.tangem.domain.tokens.TokensAction
-import com.tangem.domain.wallets.builder.UserWalletBuilder
+import com.tangem.domain.wallets.builder.ColdUserWalletBuilder
 import com.tangem.domain.wallets.usecase.SaveWalletUseCase
 import com.tangem.tap.common.analytics.converters.ParamCardCurrencyConverter
 import com.tangem.tap.common.analytics.events.IntroductionProcess
@@ -53,7 +54,8 @@ internal class HomeModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val urlOpener: UrlOpener,
     private val analyticsEventHandler: AnalyticsEventHandler,
-    private val userWalletBuilderFactory: UserWalletBuilder.Factory,
+    private val coldUserWalletBuilderFactory: ColdUserWalletBuilder.Factory,
+    private val router: Router,
     getUserCountryUseCase: GetUserCountryUseCase,
 ) : Model() {
 
@@ -69,6 +71,14 @@ internal class HomeModel @Inject constructor(
             }
             .flowOn(dispatchers.io)
             .launchIn(modelScope)
+    }
+
+    fun onCreateNewWalletScreen() {
+        router.push(AppRoute.CreateWalletSelection)
+    }
+
+    fun onAddExistingWalletScreen() {
+        router.push(AppRoute.AddExistingWallet)
     }
 
     fun onScanClick() {
@@ -117,7 +127,7 @@ internal class HomeModel @Inject constructor(
     }
 
     private suspend fun proceedWithScanResponse(scanResponse: ScanResponse) {
-        val userWallet = userWalletBuilderFactory.create(scanResponse = scanResponse).build()
+        val userWallet = coldUserWalletBuilderFactory.create(scanResponse = scanResponse).build()
 
         if (userWallet == null) {
             Timber.e("User wallet not created")

@@ -18,11 +18,8 @@ import com.tangem.core.ui.R
 import com.tangem.core.ui.extensions.resourceReference
 import com.tangem.core.ui.extensions.toWrappedList
 import com.tangem.core.ui.message.dialog.Dialogs
-import com.tangem.datasource.api.tangemTech.models.UserTokensResponse
-import com.tangem.datasource.local.preferences.PreferencesKeys
-import com.tangem.datasource.local.preferences.utils.getObjectSyncOrNull
 import com.tangem.domain.common.extensions.withMainContext
-import com.tangem.domain.common.util.twinsIsTwinned
+import com.tangem.domain.card.common.util.twinsIsTwinned
 import com.tangem.domain.feedback.models.FeedbackEmailType
 import com.tangem.domain.models.scan.ScanResponse
 import com.tangem.domain.wallets.builder.UserWalletIdBuilder
@@ -133,7 +130,7 @@ internal class LegacyScanProcessor @Inject constructor(
         }
     }
 
-    // TODO: https://tangem.atlassian.net/browse/AND-8484
+    // TODO: [REDACTED_JIRA]
     @Suppress("UnusedPrivateMember")
     private suspend inline fun showDisclaimerIfNeed(
         scanResponse: ScanResponse,
@@ -258,10 +255,10 @@ internal class LegacyScanProcessor @Inject constructor(
             onSuccess()
             return
         }
-        val appPrefStoreStore = store.inject(DaggerGraphState::appPreferencesStore)
-        val tokens = appPrefStoreStore.getObjectSyncOrNull<UserTokensResponse>(
-            key = PreferencesKeys.getUserTokensKey(userWalletId.stringValue),
-        )
+
+        val userTokensResponseStore = store.inject(DaggerGraphState::userTokensResponseStore)
+        val tokens = userTokensResponseStore.getSyncOrNull(userWalletId = userWalletId)
+
         if (scanResponse.card.isAccessCodeSet && tokens == null) {
             store.dispatchDialogShow(
                 AppDialog.WalletAlreadyWasUsedDialog(

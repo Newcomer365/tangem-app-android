@@ -5,6 +5,6 @@ import com.tangem.utils.transformer.Transformer
 /**
  * Base [SwapSelectTokensUM] transformer
  *
- * @author Andrew Khokhlov on 02/11/2024
+[REDACTED_AUTHOR]
  */
 internal interface SwapSelectTokensUMTransformer : Transformer<SwapSelectTokensUM>

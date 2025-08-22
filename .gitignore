@@ -8,7 +8,10 @@
 local.properties
 
 # Google services
-app/google-services.json
+
+app/src/debug/google-services.json
+app/src/internal/google-services.json
+app/src/external/google-services.json
 
 # Gradle generated files
 .gradle

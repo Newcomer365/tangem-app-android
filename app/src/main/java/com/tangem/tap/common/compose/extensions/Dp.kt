@@ -6,7 +6,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 
 /**
- * Created by Anton Zhilenkov on 06/06/2022.
+[REDACTED_AUTHOR]
  */
 @Composable
 fun Dp.toPx(): Float {

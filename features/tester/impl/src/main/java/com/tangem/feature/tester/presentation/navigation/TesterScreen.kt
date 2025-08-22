@@ -3,7 +3,7 @@ package com.tangem.feature.tester.presentation.navigation
 /**
  * Tester feature screens
  *
- * @author Andrew Khokhlov on 07/02/2023
+[REDACTED_AUTHOR]
  */
 internal enum class TesterScreen {
     MENU,
@@ -12,4 +12,5 @@ internal enum class TesterScreen {
     TESTER_ACTIONS,
     EXCLUDED_BLOCKCHAINS,
     BLOCKCHAIN_PROVIDERS,
+    TEST_PUSHES,
 }

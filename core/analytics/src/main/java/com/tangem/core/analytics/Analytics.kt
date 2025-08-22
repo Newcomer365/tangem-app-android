@@ -1,5 +1,7 @@
 package com.tangem.core.analytics
 
+import com.tangem.common.extensions.calculateSha256
+import com.tangem.common.extensions.toHexString
 import com.tangem.core.analytics.api.*
 import com.tangem.core.analytics.models.AnalyticsEvent
 import com.tangem.core.analytics.models.ExceptionAnalyticsEvent
@@ -11,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
 /**
- * Created by Anton Zhilenkov on 27.10.2022.
+[REDACTED_AUTHOR]
  */
 interface GlobalAnalyticsEventHandler :
     AnalyticsEventHandler,
@@ -19,7 +21,8 @@ interface GlobalAnalyticsEventHandler :
     AnalyticsFilterHolder,
     ParamsInterceptorHolder,
     AnalyticsErrorHandler,
-    AnalyticsExceptionHandler
+    AnalyticsExceptionHandler,
+    AnalyticsUserIdHandler
 
 object Analytics : GlobalAnalyticsEventHandler {
 
@@ -55,6 +58,26 @@ object Analytics : GlobalAnalyticsEventHandler {
 
     override fun removeParamsInterceptor(interceptorId: String): ParamsInterceptor? {
         return paramsInterceptors.remove(interceptorId)
+    }
+
+    override fun setUserId(userId: String) {
+        analyticsScope.launch {
+            val userIdHash = userId.calculateSha256().toHexString()
+
+            analyticsMutex.withLock {
+                analyticsHandlers.filterIsInstance<AnalyticsUserIdHandler>()
+                    .forEach { handler -> handler.setUserId(userIdHash) }
+            }
+        }
+    }
+
+    override fun clearUserId() {
+        analyticsScope.launch {
+            analyticsMutex.withLock {
+                analyticsHandlers.filterIsInstance<AnalyticsUserIdHandler>()
+                    .forEach { handler -> handler.clearUserId() }
+            }
+        }
     }
 
     override fun send(event: AnalyticsEvent) {

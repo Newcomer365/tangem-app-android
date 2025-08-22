@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.onEmpty
  * @property yieldsBalancesStore yields balances store
  * @property dispatchers dispatchers
  *
- * @author Andrew Khokhlov on 17/04/2025
+[REDACTED_AUTHOR]
  */
 internal class DefaultMultiYieldBalanceProducer @AssistedInject constructor(
     @Assisted val params: MultiYieldBalanceProducer.Params,

@@ -7,7 +7,7 @@ import java.net.URI
 /**
  * External url validator
  *
- * @author Andrew Khokhlov on 23/12/2024
+[REDACTED_AUTHOR]
  */
 object ExternalUrlValidator {
 

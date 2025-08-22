@@ -5,7 +5,7 @@ import com.tangem.core.configtoggle.feature.FeatureTogglesManager
 /**
  * Add custom token feature toggles
  *
- * @author Andrew Khokhlov on 04/04/2023
+[REDACTED_AUTHOR]
  */
 class CardScanningFeatureToggles internal constructor(
     private val featureTogglesManager: FeatureTogglesManager,

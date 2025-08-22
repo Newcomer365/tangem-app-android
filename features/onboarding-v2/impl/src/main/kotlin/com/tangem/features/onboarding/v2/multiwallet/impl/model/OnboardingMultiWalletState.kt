@@ -1,7 +1,7 @@
 package com.tangem.features.onboarding.v2.multiwallet.impl.model
 
 import com.tangem.domain.models.scan.ScanResponse
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.models.wallet.UserWallet
 
 data class OnboardingMultiWalletState(
     val currentStep: Step,
@@ -9,7 +9,7 @@ data class OnboardingMultiWalletState(
     val isThreeCards: Boolean,
     val currentScanResponse: ScanResponse,
     val startFromFinalize: FinalizeStage?,
-    val resultUserWallet: UserWallet?,
+    val resultUserWallet: UserWallet.Cold?,
 ) {
     enum class FinalizeStage {
         ScanPrimaryCard, ScanBackupFirstCard, ScanBackupSecondCard
@@ -24,6 +24,9 @@ data class OnboardingMultiWalletState(
      *                                    -> [Done]
      *
      * Wallet2/Ring
+     *
+     *             ScanPrimary -> | (BackupService is cleared, no PrimaryCard)
+     *                            |
      * CreateWallet -> SeedPhrase -> AddBackupDevice -> Finalize -> [Done]
      *              |
      *              -> AddBackupDevice -> Finalize -> [Done]

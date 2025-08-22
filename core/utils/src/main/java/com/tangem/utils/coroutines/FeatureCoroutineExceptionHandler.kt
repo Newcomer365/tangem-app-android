@@ -7,7 +7,7 @@ import java.util.logging.Level
 import java.util.logging.Logger
 
 /**
- * Created by Anton Zhilenkov on 30/03/2022.
+[REDACTED_AUTHOR]
  */
 object FeatureCoroutineExceptionHandler {
 

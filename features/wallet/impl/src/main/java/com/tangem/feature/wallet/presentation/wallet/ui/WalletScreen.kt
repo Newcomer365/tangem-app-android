@@ -62,7 +62,8 @@ import com.tangem.core.ui.res.LocalMainBottomSheetColor
 import com.tangem.core.ui.res.LocalWindowSize
 import com.tangem.core.ui.res.TangemTheme
 import com.tangem.core.ui.res.TangemThemePreview
-import com.tangem.core.ui.test.TestTags
+import com.tangem.core.ui.test.MainScreenTestTags
+import com.tangem.core.ui.test.MarketTooltipTestTags
 import com.tangem.core.ui.utils.lineTo
 import com.tangem.core.ui.utils.moveTo
 import com.tangem.core.ui.utils.toPx
@@ -74,7 +75,6 @@ import com.tangem.feature.wallet.impl.R
 import com.tangem.feature.wallet.presentation.common.preview.WalletScreenPreviewData.walletScreenState
 import com.tangem.feature.wallet.presentation.wallet.state.model.*
 import com.tangem.feature.wallet.presentation.wallet.state.model.holder.TxHistoryStateHolder
-import com.tangem.feature.wallet.presentation.wallet.ui.components.PushNotificationsBottomSheet
 import com.tangem.feature.wallet.presentation.wallet.ui.components.TokenActionsBottomSheet
 import com.tangem.feature.wallet.presentation.wallet.ui.components.WalletsList
 import com.tangem.feature.wallet.presentation.wallet.ui.components.common.*
@@ -178,7 +178,7 @@ private fun WalletContent(
         } ?: PaddingValues(bottom = TangemTheme.dimens.spacing92 + bottomBarHeight)
 
         LazyColumn(
-            modifier = Modifier.testTag(TestTags.MAIN_SCREEN),
+            modifier = Modifier.testTag(MainScreenTestTags.SCREEN_CONTAINER),
             state = listState,
             contentPadding = contentPadding,
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -490,7 +490,9 @@ private fun MarketsTooltip(
 
     val slideOffset = 40.dp.toPx()
     AnimatedVisibility(
-        modifier = modifier.offset { IntOffset(x = 0, y = tooltipOffset.roundToPx()) },
+        modifier = modifier
+            .offset { IntOffset(x = 0, y = tooltipOffset.roundToPx()) }
+            .testTag(MarketTooltipTestTags.CONTAINER),
         visible = visible,
         enter = slideIn(
             animationSpec = spring(
@@ -706,7 +708,6 @@ private fun ShowBottomSheet(bottomSheetConfig: TangemBottomSheetConfig?) {
             is ChooseAddressBottomSheetConfig -> ChooseAddressBottomSheet(config = bottomSheetConfig)
             is BalancesAndLimitsBottomSheetConfig -> BalancesAndLimitsBottomSheet(config = bottomSheetConfig)
             is VisaTxDetailsBottomSheetConfig -> VisaTxDetailsBottomSheet(config = bottomSheetConfig)
-            is PushNotificationsBottomSheetConfig -> PushNotificationsBottomSheet(config = bottomSheetConfig)
             is ExpressStatusBottomSheetConfig -> ExpressStatusBottomSheet(config = bottomSheetConfig)
         }
     }

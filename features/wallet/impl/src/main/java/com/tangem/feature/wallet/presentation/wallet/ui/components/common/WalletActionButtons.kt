@@ -25,7 +25,7 @@ private const val ACTIONS_CONTENT_TYPE = "Actions"
  * @param selectedWalletIndex selected wallet index for creating a unique key
  * @param modifier            modifier
  *
- * @author Andrew Khokhlov on 07/08/2023
+[REDACTED_AUTHOR]
  */
 internal fun LazyListScope.lazyActions(
     actions: ImmutableList<WalletManageButton>,
@@ -48,7 +48,7 @@ internal fun LazyListScope.lazyActions(
  * @param selectedWalletIndex selected wallet index for creating a unique key
  * @param modifier            modifier
  *
- * @author Andrew Khokhlov on 05/11/2024
+[REDACTED_AUTHOR]
  */
 internal fun LazyListScope.actions(
     actions: ImmutableList<WalletManageButton>,

@@ -1,37 +1,22 @@
 package com.tangem.data.visa.converter
 
-import com.tangem.datasource.api.visa.models.response.CardActivationRemoteStateResponse
+import com.tangem.datasource.api.pay.models.response.CardActivationRemoteStateResponse
 import com.tangem.domain.visa.model.VisaActivationOrderInfo
 import com.tangem.domain.visa.model.VisaActivationRemoteState
 import com.tangem.utils.converter.Converter
-import kotlinx.coroutines.flow.MutableStateFlow
 
-private const val PIN_CODE_VALIDATION_ERROR = 1000
+private const val PIN_CODE_VALIDATION_ERROR = "pin_entry"
 
 object VisaActivationStatusConverterWithState :
     Converter<CardActivationRemoteStateResponse, VisaActivationRemoteState> {
 
-    private val lastUpdatedAt = MutableStateFlow<String?>(null)
-
     override fun convert(value: CardActivationRemoteStateResponse): VisaActivationRemoteState {
-        // handle pin code error
-        // either we entered pin code before with an error (WasError) or after receiving an error (InProgress)
-        // TODO AND-10751
         val result = value.result
-        if (result.status == Status.PinCodeRequired.stringValue && result.stepChangeCode == PIN_CODE_VALIDATION_ERROR) {
-            return if (lastUpdatedAt.value != result.updatedAt) {
-                lastUpdatedAt.value = result.updatedAt
-
-                VisaActivationRemoteState.AwaitingPinCode(
-                    activationOrderInfo = result.activationOrder!!.convert(),
-                    status = VisaActivationRemoteState.AwaitingPinCode.Status.WasError,
-                )
-            } else {
-                VisaActivationRemoteState.AwaitingPinCode(
-                    activationOrderInfo = result.activationOrder!!.convert(),
-                    status = VisaActivationRemoteState.AwaitingPinCode.Status.InProgress,
-                )
-            }
+        if (result.status == Status.PinCodeRequired.stringValue && result.stepError == PIN_CODE_VALIDATION_ERROR) {
+            return VisaActivationRemoteState.AwaitingPinCode(
+                activationOrderInfo = result.activationOrder!!.convert(),
+                status = VisaActivationRemoteState.AwaitingPinCode.Status.WasError,
+            )
         }
 
         val status = Status.entries.find { it.stringValue == result.status } ?: error(

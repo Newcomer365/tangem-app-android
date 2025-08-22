@@ -13,6 +13,10 @@ android {
     namespace = "com.tangem.data.staking"
 }
 
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
+}
+
 dependencies {
     /** Core modules */
     implementation(projects.core.datasource)
@@ -28,6 +32,8 @@ dependencies {
     implementation(projects.domain.wallets)
     implementation(projects.domain.wallets.models)
     implementation(projects.domain.legacy)
+    implementation(projects.domain.walletManager)
+    implementation(projects.domain.card)
     implementation(projects.domain.models)
 
     /** Feature Api modules */
@@ -64,10 +70,10 @@ dependencies {
     // endregion
 
     testImplementation(deps.test.coroutine)
-    testImplementation(deps.test.junit)
+    testImplementation(deps.test.junit5)
+    testRuntimeOnly(deps.test.junit5.engine)
     testImplementation(deps.test.mockk)
     testImplementation(deps.test.truth)
     testImplementation(tangemDeps.card.core)
     testImplementation(projects.common.test)
 }
-

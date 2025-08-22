@@ -7,7 +7,7 @@ import com.tangem.domain.onboarding.repository.OnboardingRepository
  *
  * @property onboardingRepository onboarding repository
  *
- * @author Andrew Khokhlov on 18/02/2024
+[REDACTED_AUTHOR]
  */
 class SaveTwinsOnboardingShownUseCase(
     private val onboardingRepository: OnboardingRepository,

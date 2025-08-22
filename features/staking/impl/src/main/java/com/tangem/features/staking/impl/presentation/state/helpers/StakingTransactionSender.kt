@@ -26,7 +26,7 @@ import com.tangem.domain.transaction.usecase.IsFeeApproximateUseCase
 import com.tangem.domain.transaction.usecase.SendTransactionUseCase
 import com.tangem.domain.txhistory.usecase.GetExplorerTransactionUrlUseCase
 import com.tangem.domain.utils.convertToSdkAmount
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.features.staking.impl.presentation.state.FeeState
 import com.tangem.features.staking.impl.presentation.state.StakingStateController
 import com.tangem.features.staking.impl.presentation.state.StakingStates
@@ -120,8 +120,8 @@ internal class StakingTransactionSender @AssistedInject constructor(
         onConstructError: (StakingError) -> Unit,
     ) = coroutineScope {
         val isComposePendingActions = isCompositePendingActions(
-            cryptoCurrencyStatus.currency.network.id.value,
-            confirmationState.pendingActions,
+            networkId = cryptoCurrencyStatus.currency.network.rawId,
+            pendingActions = confirmationState.pendingActions,
         )
         if (isComposePendingActions) {
             confirmationState.pendingActions?.map { action ->
@@ -156,7 +156,7 @@ internal class StakingTransactionSender @AssistedInject constructor(
             ?.map { transaction ->
                 async {
                     getConstructedStakingTransactionUseCase(
-                        networkId = cryptoCurrencyStatus.currency.network.id.value,
+                        networkId = cryptoCurrencyStatus.currency.network.rawId,
                         fee = fee,
                         amount = amount.convertToSdkAmount(cryptoCurrencyStatus.currency),
                         transactionId = transaction.id,
@@ -255,7 +255,7 @@ internal class StakingTransactionSender @AssistedInject constructor(
                     networkId = cryptoCurrencyStatus.currency.network.id,
                 ).getOrNull() ?: ""
 
-                balanceUpdater.fullUpdate()
+                balanceUpdater.updateAfterTransaction()
                 onSendSuccess(txUrl)
             },
         )

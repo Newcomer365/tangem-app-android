@@ -7,9 +7,9 @@ import arrow.core.raise.either
 import arrow.core.raise.ensureNotNull
 import com.tangem.domain.managetokens.model.exceptoin.FindTokenException
 import com.tangem.domain.managetokens.repository.CustomTokensRepository
-import com.tangem.domain.tokens.model.CryptoCurrency
-import com.tangem.domain.tokens.model.Network
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.network.Network
+import com.tangem.domain.models.wallet.UserWalletId
 
 class FindTokenUseCase(
     private val repository: CustomTokensRepository,

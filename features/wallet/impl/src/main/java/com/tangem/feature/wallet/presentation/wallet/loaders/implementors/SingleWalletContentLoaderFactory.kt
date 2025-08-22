@@ -7,22 +7,22 @@ import com.tangem.domain.onramp.GetOnrampTransactionsUseCase
 import com.tangem.domain.onramp.OnrampRemoveTransactionUseCase
 import com.tangem.domain.settings.SetWalletWithFundsFoundUseCase
 import com.tangem.domain.tokens.GetCryptoCurrencyActionsUseCase
-import com.tangem.domain.tokens.GetPrimaryCurrencyStatusUpdatesUseCase
+import com.tangem.domain.tokens.GetSingleCryptoCurrencyStatusUseCase
 import com.tangem.domain.txhistory.usecase.GetTxHistoryItemsCountUseCase
 import com.tangem.domain.txhistory.usecase.GetTxHistoryItemsUseCase
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.domain.wallets.usecase.ShouldSaveUserWalletsUseCase
+import com.tangem.feature.wallet.child.wallet.model.intents.WalletClickIntents
 import com.tangem.feature.wallet.presentation.wallet.analytics.utils.WalletWarningsAnalyticsSender
 import com.tangem.feature.wallet.presentation.wallet.domain.GetSingleWalletWarningsFactory
 import com.tangem.feature.wallet.presentation.wallet.state.WalletStateController
-import com.tangem.feature.wallet.child.wallet.model.intents.WalletClickIntents
 import javax.inject.Inject
 
 @ModelScoped
 @Suppress("LongParameterList")
 internal class SingleWalletContentLoaderFactory @Inject constructor(
     private val stateHolder: WalletStateController,
-    private val getPrimaryCurrencyStatusUpdatesUseCase: GetPrimaryCurrencyStatusUpdatesUseCase,
+    private val getSingleCryptoCurrencyStatusUseCase: GetSingleCryptoCurrencyStatusUseCase,
     private val getCryptoCurrencyActionsUseCase: GetCryptoCurrencyActionsUseCase,
     private val getSingleWalletWarningsFactory: GetSingleWalletWarningsFactory,
     private val setWalletWithFundsFoundUseCase: SetWalletWithFundsFoundUseCase,
@@ -36,13 +36,13 @@ internal class SingleWalletContentLoaderFactory @Inject constructor(
     private val walletWarningsAnalyticsSender: WalletWarningsAnalyticsSender,
 ) {
 
-    fun create(userWallet: UserWallet, clickIntents: WalletClickIntents, isRefresh: Boolean): WalletContentLoader {
+    fun create(userWallet: UserWallet.Cold, clickIntents: WalletClickIntents, isRefresh: Boolean): WalletContentLoader {
         return SingleWalletContentLoader(
             userWallet = userWallet,
             clickIntents = clickIntents,
             isRefresh = isRefresh,
             stateHolder = stateHolder,
-            getPrimaryCurrencyStatusUpdatesUseCase = getPrimaryCurrencyStatusUpdatesUseCase,
+            getSingleCryptoCurrencyStatusUseCase = getSingleCryptoCurrencyStatusUseCase,
             getCryptoCurrencyActionsUseCase = getCryptoCurrencyActionsUseCase,
             getSingleWalletWarningsFactory = getSingleWalletWarningsFactory,
             setWalletWithFundsFoundUseCase = setWalletWithFundsFoundUseCase,

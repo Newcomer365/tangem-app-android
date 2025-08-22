@@ -14,7 +14,7 @@ import kotlinx.collections.immutable.toImmutableList
  * @property alreadyAddedNetworks already added networks
  * @property onNetworkSwitchClick callback is called when network switch is clicked
  *
- * @author Andrew Khokhlov on 28/08/2024
+[REDACTED_AUTHOR]
  */
 internal class SelectNetworkUMConverter(
     private val networksWithToggle: Map<TokenMarketInfo.Network, Boolean>,

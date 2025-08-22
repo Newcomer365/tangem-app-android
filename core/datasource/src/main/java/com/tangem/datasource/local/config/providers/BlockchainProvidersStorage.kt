@@ -5,7 +5,7 @@ import com.tangem.datasource.local.config.providers.models.ProviderModel
 /**
  * Blockchain providers storage
  *
- * @author Andrew Khokhlov on 27/09/2024
+[REDACTED_AUTHOR]
  */
 interface BlockchainProvidersStorage {
 

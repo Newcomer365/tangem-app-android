@@ -18,14 +18,15 @@ import com.tangem.datasource.exchangeservice.hotcrypto.HotCryptoResponseStore
 import com.tangem.datasource.local.preferences.AppPreferencesStore
 import com.tangem.datasource.local.preferences.PreferencesKeys
 import com.tangem.datasource.local.preferences.utils.getObject
+import com.tangem.datasource.local.token.UserTokensResponseStore
 import com.tangem.datasource.local.userwallet.UserWalletsStore
-import com.tangem.domain.common.extensions.canHandleBlockchain
-import com.tangem.domain.common.extensions.canHandleToken
-import com.tangem.domain.common.util.cardTypesResolver
+import com.tangem.domain.card.common.extensions.canHandleBlockchain
+import com.tangem.domain.card.common.extensions.canHandleToken
+import com.tangem.domain.card.common.util.cardTypesResolver
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.onramp.model.HotCryptoCurrency
 import com.tangem.domain.onramp.repositories.HotCryptoRepository
-import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.domain.wallets.models.UserWalletId
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import com.tangem.utils.coroutines.JobHolder
 import com.tangem.utils.coroutines.runCatching
@@ -47,7 +48,7 @@ import timber.log.Timber
  * @property dispatchers            dispatchers
  * @property analyticsEventHandler  analytics event handler
  *
- * @author Andrew Khokhlov on 20/01/2025
+[REDACTED_AUTHOR]
  */
 @Suppress("LongParameterList")
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -57,6 +58,7 @@ internal class DefaultHotCryptoRepository(
     private val userWalletsStore: UserWalletsStore,
     private val tangemTechApi: TangemTechApi,
     private val appPreferencesStore: AppPreferencesStore,
+    private val userTokensResponseStore: UserTokensResponseStore,
     private val dispatchers: CoroutineDispatcherProvider,
     private val analyticsEventHandler: AnalyticsEventHandler,
 ) : HotCryptoRepository {
@@ -90,7 +92,7 @@ internal class DefaultHotCryptoRepository(
                     ?: error("UserWalletId [$userWalletId] not found")
 
                 HotCryptoCurrencyConverter(
-                    scanResponse = userWallet.scanResponse,
+                    userWallet = userWallet,
                     imageHost = it.imageHost,
                     excludedBlockchains = excludedBlockchains,
                 )
@@ -102,9 +104,7 @@ internal class DefaultHotCryptoRepository(
     private fun getWalletsWithTokensFlow(): Flow<Map<UserWallet, List<UserTokensResponse.Token>>> {
         return userWalletsStore.userWallets.flatMapLatest { userWallets ->
             val flows = userWallets.map { userWallet ->
-                appPreferencesStore.getObject<UserTokensResponse>(
-                    key = PreferencesKeys.getUserTokensKey(userWallet.walletId.stringValue),
-                )
+                userTokensResponseStore.get(userWalletId = userWallet.walletId)
                     .map { userWallet to it?.tokens.orEmpty() }
             }
 
@@ -168,8 +168,12 @@ internal class DefaultHotCryptoRepository(
         }
     }
 
-    // TODO: https://tangem.atlassian.net/browse/AND-10006
+    // TODO: [REDACTED_JIRA]
     private fun UserWallet.canHandleHotCrypto(hotToken: HotCryptoResponse.Token): Boolean {
+        if (this !is UserWallet.Cold) {
+            return true // TODO [REDACTED_TASK_KEY]
+        }
+
         val isToken = hotToken.contractAddress != null && hotToken.decimalCount != null
         val blockchain = hotToken.networkId?.let { Blockchain.fromNetworkId(it) } ?: return false
 

@@ -1,7 +1,7 @@
 package com.tangem.common.module
 
 /**
- * Created by Anton Zhilenkov on 14/04/2022.
+[REDACTED_AUTHOR]
  * The base object for communication between modules
  */
 @Deprecated("Will be removed")

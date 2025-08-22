@@ -1,30 +1,34 @@
 package com.tangem.data.qrscanning.repository
 
-import com.tangem.blockchain.common.Blockchain
+import com.tangem.blockchainsdk.utils.toBlockchain
 import com.tangem.core.ui.utils.parseBigDecimalOrNull
+import com.tangem.domain.models.currency.CryptoCurrency
 import com.tangem.domain.qrscanning.models.QrResult
+import com.tangem.domain.qrscanning.models.RawQrResult
 import com.tangem.domain.qrscanning.models.SourceType
 import com.tangem.domain.qrscanning.repository.QrScanningEventsRepository
-import com.tangem.domain.tokens.model.CryptoCurrency
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.yield
 import java.math.BigDecimal
 import java.net.URLDecoder
 
 internal class DefaultQrScanningEventsRepository : QrScanningEventsRepository {
 
-    private data class QrScanningEvent(val type: SourceType, val qrCode: String)
+    private data class QrScanningEvent(val qrCode: RawQrResult)
 
     private val scannedEvents = MutableSharedFlow<QrScanningEvent>(replay = 1)
 
-    override suspend fun emitResult(type: SourceType, qrCode: String) {
-        scannedEvents.emit(QrScanningEvent(type, qrCode))
+    override suspend fun emitResult(qrCode: RawQrResult) {
+        scannedEvents.emit(QrScanningEvent(qrCode))
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun subscribeToScanningResults(type: SourceType) = scannedEvents
-        .filter { it.type == type }
+        .filter { it.qrCode.requestSource == type }
         .map { it.qrCode }
         .onEach {
             yield() // if we have more than one sub, we must allow them to collect emitted value
@@ -87,7 +91,7 @@ internal class DefaultQrScanningEventsRepository : QrScanningEventsRepository {
     }
 
     private fun stripSchema(raw: String, currency: CryptoCurrency): String {
-        val qrSchemas = Blockchain.fromId(currency.network.id.value).getShareScheme()
+        val qrSchemas = currency.network.toBlockchain().getShareScheme()
 
         // The most specific (i.e. the most lengthy) prefixes always come first
         qrSchemas

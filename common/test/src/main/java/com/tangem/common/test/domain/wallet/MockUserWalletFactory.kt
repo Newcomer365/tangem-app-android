@@ -1,14 +1,14 @@
 package com.tangem.common.test.domain.wallet
 
 import com.tangem.common.test.domain.card.MockScanResponseFactory
-import com.tangem.domain.common.configs.GenericCardConfig
-import com.tangem.domain.common.util.cardTypesResolver
+import com.tangem.domain.card.common.util.cardTypesResolver
+import com.tangem.domain.card.configs.GenericCardConfig
 import com.tangem.domain.models.scan.ScanResponse
+import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.domain.wallets.builder.UserWalletIdBuilder
-import com.tangem.domain.wallets.models.UserWallet
 
 /**
- * @author Andrew Khokhlov on 28/03/2025
+[REDACTED_AUTHOR]
  */
 object MockUserWalletFactory {
 
@@ -17,10 +17,10 @@ object MockUserWalletFactory {
         derivedKeys = emptyMap(),
     )
 
-    fun create(scanResponse: ScanResponse = defaultScanResponse): UserWallet {
+    fun create(scanResponse: ScanResponse = defaultScanResponse): UserWallet.Cold {
         val userWalletId = UserWalletIdBuilder.scanResponse(scanResponse).build()!!
 
-        return UserWallet(
+        return UserWallet.Cold(
             walletId = userWalletId,
             name = "Wallet 1",
             cardsInWallet = emptySet(),

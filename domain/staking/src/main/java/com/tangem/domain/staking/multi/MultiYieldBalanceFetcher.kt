@@ -1,11 +1,39 @@
 package com.tangem.domain.staking.multi
 
 import com.tangem.domain.core.flow.FlowFetcher
-import com.tangem.domain.staking.fetcher.YieldBalanceFetcherParams
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.network.Network
+import com.tangem.domain.models.wallet.UserWalletId
 
 /**
  * Fetcher of yields balances
  *
- * @author Andrew Khokhlov on 17/04/2025
+[REDACTED_AUTHOR]
  */
-interface MultiYieldBalanceFetcher : FlowFetcher<YieldBalanceFetcherParams.Multi>
+interface MultiYieldBalanceFetcher : FlowFetcher<MultiYieldBalanceFetcher.Params> {
+
+    /**
+     * Params for fetching multiple yield balances
+     *
+     * @property userWalletId             user wallet ID
+     * @property currencyIdWithNetworkMap map of currency ID to network
+     */
+    data class Params(
+        val userWalletId: UserWalletId,
+        val currencyIdWithNetworkMap: Map<CryptoCurrency.ID, Network>,
+    ) {
+
+        override fun toString(): String {
+            val currencyIdWithNetworkMap = currencyIdWithNetworkMap.entries.joinToString {
+                "${it.key.value} - ${it.value}"
+            }
+
+            return """
+                MultiYieldBalanceFetcher.Params(
+                    userWalletId = $userWalletId,
+                    currencyIdWithNetworkMap: $currencyIdWithNetworkMap
+                )
+            """.trimIndent()
+        }
+    }
+}

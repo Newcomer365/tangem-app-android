@@ -1,7 +1,7 @@
 package com.tangem.core.analytics.api
 
 /**
- * Created by Anton Zhilenkov on 23/09/2022.
+[REDACTED_AUTHOR]
  */
 interface EventLogger {
     fun logEvent(event: String, params: Map<String, String> = emptyMap())

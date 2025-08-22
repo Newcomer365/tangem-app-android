@@ -7,60 +7,80 @@ import arrow.core.right
 import com.domain.blockaid.models.dapp.CheckDAppResult
 import com.domain.blockaid.models.dapp.DAppData
 import com.reown.walletkit.client.Wallet
+import com.tangem.core.analytics.api.AnalyticsEventHandler
+import com.tangem.data.walletconnect.utils.WC_TAG
 import com.tangem.data.walletconnect.utils.WcSdkSessionConverter
 import com.tangem.domain.blockaid.BlockAidVerifier
+import com.tangem.domain.walletconnect.WcAnalyticEvents
 import com.tangem.domain.walletconnect.model.*
 import com.tangem.domain.walletconnect.model.sdkcopy.WcAppMetaData
 import com.tangem.domain.walletconnect.repository.WcSessionsManager
 import com.tangem.domain.walletconnect.usecase.pair.WcPairState
 import com.tangem.domain.walletconnect.usecase.pair.WcPairUseCase
-import com.tangem.domain.wallets.models.UserWallet
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.*
+import org.joda.time.DateTime
 import timber.log.Timber
+import java.net.URI
 
-val unsupportedDApps = listOf("dYdX", "dYdX v4", "Apex Pro", "The Sandbox")
-
+@Suppress("LongParameterList")
 internal class DefaultWcPairUseCase @AssistedInject constructor(
     private val sessionsManager: WcSessionsManager,
     private val associateNetworksDelegate: AssociateNetworksDelegate,
     private val caipNamespaceDelegate: CaipNamespaceDelegate,
     private val sdkDelegate: WcPairSdkDelegate,
     private val blockAidVerifier: BlockAidVerifier,
+    private val analytics: AnalyticsEventHandler,
     @Assisted private val pairRequest: WcPairRequest,
 ) : WcPairUseCase {
 
     private val onCallTerminalAction = Channel<TerminalAction>()
 
+    @Suppress("LongMethod")
     override operator fun invoke(): Flow<WcPairState> {
         val (uri: String, source: WcPairRequest.Source) = pairRequest
         return flow {
+            Timber.tag(WC_TAG).i("start pair flow $pairRequest")
+            analytics.send(WcAnalyticEvents.NewPairInitiated(source))
             emit(WcPairState.Loading)
 
-            val sdkSessionProposal = sdkDelegate.pair(uri)
-                .onLeft { emit(WcPairState.Error(it)) }
+            val pairResult = sdkDelegate.pair(uri)
+                .onLeft {
+                    Timber.tag(WC_TAG).e(it, "Failed to call pair $pairRequest")
+                    analytics.send(WcAnalyticEvents.PairFailed(it.code))
+                    emit(WcPairState.Error(it))
+                }
                 .getOrNull() ?: return@flow
+            val (sdkSessionProposal, sdkVerifyContext) = pairResult
 
             // check unsupported dApps, just local constant for now, finish if unsupported
-            if (sdkSessionProposal.name in unsupportedDApps) {
-                Timber.i("Unsupported DApp")
-                val error = WcPairState.Error(WcPairError.UnsupportedDApp)
+            if (UnsupportedDApps.list.any { sdkSessionProposal.url.contains(it, ignoreCase = true) }) {
+                Timber.tag(WC_TAG).i("Unsupported DApp ${sdkSessionProposal.name}")
+                val error = WcPairState.Error(WcPairError.UnsupportedDApp(sdkSessionProposal.name))
                 emit(error)
                 return@flow
             }
 
-            val proposalState = buildProposalState(sdkSessionProposal)
-                .onLeft { emit(WcPairState.Error(it)) }
+            val dAppUri = URI(sdkSessionProposal.url)
+            if (dAppUri.host.isNullOrEmpty()) {
+                emit(WcPairState.Error(WcPairError.InvalidDomainURL))
+                return@flow
+            }
+
+            val proposalState = buildProposalState(sdkSessionProposal, sdkVerifyContext)
+                .onLeft {
+                    analytics.send(WcAnalyticEvents.PairFailed(it.code))
+                    emit(WcPairState.Error(it))
+                }
                 .getOrNull() ?: return@flow
             emit(proposalState)
 
             // wait first terminal action and continue WC pair flow
+            Timber.tag(WC_TAG).i("pair wait terminal action ${sdkSessionProposal.name}")
             val terminalAction = onCallTerminalAction.receiveAsFlow().first()
             val sessionForApprove: WcSessionApprove? = when (terminalAction) {
                 is TerminalAction.Approve -> terminalAction.sessionForApprove
@@ -78,49 +98,94 @@ internal class DefaultWcPairUseCase @AssistedInject constructor(
                 sessionForApprove = sessionForApprove,
                 sdkSessionProposal = sdkSessionProposal,
             ).map { settledSession ->
-                val newSession = settledSession.session.toDomain(
+                val newSession = WcSession(
                     wallet = sessionForApprove.wallet,
+                    sdkModel = WcSdkSessionConverter.convert(settledSession.session),
                     securityStatus = proposalState.dAppSession.securityStatus,
+                    networks = sessionForApprove.network.toSet(),
+                    connectingTime = DateTime.now().millis,
+                    showWalletInfo = proposalState.dAppSession.proposalNetwork.keys.size > 1,
                 )
                 sessionsManager.saveSession(newSession)
+                analytics.send(
+                    WcAnalyticEvents.DAppConnected(
+                        proposalState.dAppSession,
+                        sessionForApprove,
+                    ),
+                )
                 newSession
+            }.onLeft {
+                analytics.send(WcAnalyticEvents.DAppConnectionFailed(it.code))
+                sdkDelegate.rejectSession(sdkSessionProposal.proposerPublicKey)
+                Timber.tag(WC_TAG).e(it, "Failed to approve session ${sdkSessionProposal.name}")
             }
             emit(WcPairState.Approving.Result(sessionForApprove, either))
         }
+            .catch {
+                val pairError: WcPairError = when (it) {
+                    is TimeoutCancellationException -> WcPairError.TimeoutException(it.message.orEmpty())
+                    else -> WcPairError.Unknown(it.message.orEmpty())
+                }
+                emit(WcPairState.Error(pairError))
+            }
+            .onCompletion {
+                if (it != null) {
+                    Timber.tag(WC_TAG).e(it, "Completed with error $pairRequest")
+                } else {
+                    Timber.tag(WC_TAG).i("Completed successfully $pairRequest")
+                }
+            }
     }
 
     override fun approve(sessionForApprove: WcSessionApprove) {
+        analytics.send(WcAnalyticEvents.PairButtonConnect)
         onCallTerminalAction.trySend(TerminalAction.Approve(sessionForApprove))
     }
 
     override fun reject() {
+        analytics.send(WcAnalyticEvents.ButtonCancel(WcAnalyticEvents.ButtonCancel.Type.Connection))
         onCallTerminalAction.trySend(TerminalAction.Reject)
     }
 
     private suspend fun walletKitApproveSession(
         sessionForApprove: WcSessionApprove,
         sdkSessionProposal: Wallet.Model.SessionProposal,
-    ): Either<WcPairError, Wallet.Model.SettledSessionResponse.Result> {
+    ): Either<WcPairError, Wallet.Model.SettledSessionResponse.Result> = try {
         val namespaces = caipNamespaceDelegate.associate(
             sdkSessionProposal,
-            sessionForApprove.wallet,
-            sessionForApprove.network,
+            sessionForApprove,
         )
         val sessionApprove = Wallet.Params.SessionApprove(
             proposerPublicKey = sdkSessionProposal.proposerPublicKey,
             namespaces = namespaces,
         )
-        return sdkDelegate.approve(sessionApprove)
+        sdkDelegate.approve(sessionApprove)
+    } catch (e: Throwable) {
+        Timber.tag(WC_TAG).e(e, "Failed to sdk approve session $pairRequest")
+        WcPairError.ApprovalFailed(e.message.orEmpty()).left()
     }
 
     private suspend fun buildProposalState(
         sessionProposal: Wallet.Model.SessionProposal,
+        verifyContext: Wallet.Model.VerifyContext,
     ): Either<WcPairError, WcPairState.Proposal> = runCatching {
         val proposalNetwork = associateNetworksDelegate.associate(sessionProposal)
-        val verificationInfo = blockAidVerifier.verifyDApp(DAppData(sessionProposal.url)).getOrElse {
-            Timber.e("Failed to verify DApp: ${it.localizedMessage}")
-            CheckDAppResult.FAILED_TO_VERIFY
+        val verificationInfo = when {
+            verifyContext.validation == Wallet.Model.Validation.INVALID -> CheckDAppResult.UNSAFE
+            verifyContext.isScam == true -> CheckDAppResult.UNSAFE
+            else -> blockAidVerifier.verifyDApp(DAppData(sessionProposal.url)).getOrElse {
+                Timber.tag(WC_TAG).e(it, "Failed to verify DApp ${sessionProposal.name}")
+                CheckDAppResult.FAILED_TO_VERIFY
+            }
         }
+        val requestedNetworks = proposalNetwork
+            .values.map { it.available.plus(it.required) }.flatten().toSet()
+        analytics.send(
+            WcAnalyticEvents.PairRequested(
+                network = requestedNetworks,
+                verificationInfo,
+            ),
+        )
         val appMetaData = WcAppMetaData(
             name = sessionProposal.name,
             description = sessionProposal.description,
@@ -134,20 +199,15 @@ internal class DefaultWcPairUseCase @AssistedInject constructor(
             securityStatus = verificationInfo,
         )
         WcPairState.Proposal(dAppSession)
-    }.fold(onSuccess = { it.right() }, onFailure = {
-        when (it) {
-            is WcPairError -> it.left()
-            else -> WcPairError.Unknown(it.localizedMessage.orEmpty()).left()
-        }
-    },)
-
-    private fun Wallet.Model.Session.toDomain(wallet: UserWallet, securityStatus: CheckDAppResult): WcSession {
-        return WcSession(
-            wallet = wallet,
-            sdkModel = WcSdkSessionConverter.convert(this),
-            securityStatus = securityStatus,
-        )
-    }
+    }.fold(
+        onSuccess = { it.right() },
+        onFailure = {
+            when (it) {
+                is WcPairError -> it.left()
+                else -> WcPairError.Unknown(it.localizedMessage.orEmpty()).left()
+            }
+        },
+    )
 
     private sealed interface TerminalAction {
         data class Approve(val sessionForApprove: WcSessionApprove) : TerminalAction

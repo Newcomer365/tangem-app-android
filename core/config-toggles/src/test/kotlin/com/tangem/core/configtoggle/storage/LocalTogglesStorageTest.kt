@@ -15,7 +15,7 @@ import org.junit.Test
 import java.io.IOException
 
 /**
- * @author Andrew Khokhlov on 15/03/2023
+[REDACTED_AUTHOR]
  */
 @SuppressLint("CheckResult")
 internal class LocalTogglesStorageTest {

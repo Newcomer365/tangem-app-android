@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.update
 /**
  * Runtime store
  *
- * @author Andrew Khokhlov on 15/04/2024
+[REDACTED_AUTHOR]
  */
 interface RuntimeStateStore<T> {
 

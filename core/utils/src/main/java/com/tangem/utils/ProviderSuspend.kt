@@ -5,6 +5,6 @@ package com.tangem.utils
  *
  * @param action initialization action
  *
- * @author Nikita Samoilov on 13/01/2025
+[REDACTED_AUTHOR]
  */
 class ProviderSuspend<T>(action: suspend () -> T) : suspend () -> T by action

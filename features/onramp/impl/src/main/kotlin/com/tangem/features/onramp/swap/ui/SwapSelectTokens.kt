@@ -32,7 +32,7 @@ import com.tangem.features.onramp.tokenlist.OnrampTokenListComponent
  * @param selectToTokenListComponent   select "to" token list component
  * @param modifier                     modifier
  *
- * @author Andrew Khokhlov on 30/10/2024
+[REDACTED_AUTHOR]
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

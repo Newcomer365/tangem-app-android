@@ -4,14 +4,17 @@ import arrow.core.Either
 import arrow.core.raise.Raise
 import arrow.core.raise.catch
 import arrow.core.raise.either
+import com.tangem.domain.models.currency.CryptoCurrency
 import com.tangem.domain.tokens.error.CurrencyStatusError
-import com.tangem.domain.tokens.model.CryptoCurrency
 import com.tangem.domain.tokens.repository.CurrenciesRepository
-import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
+import com.tangem.domain.models.wallet.isMultiCurrency
 
 class GetCryptoCurrencyUseCase(
     private val currenciesRepository: CurrenciesRepository,
+    private val multiWalletCryptoCurrenciesSupplier: MultiWalletCryptoCurrenciesSupplier,
+    private val tokensFeatureToggles: TokensFeatureToggles,
 ) {
 
     /**
@@ -52,7 +55,15 @@ class GetCryptoCurrencyUseCase(
     ): CryptoCurrency {
         return catch(
             block = {
-                currenciesRepository.getMultiCurrencyWalletCurrency(userWalletId, id)
+                if (tokensFeatureToggles.isWalletBalanceFetcherEnabled) {
+                    multiWalletCryptoCurrenciesSupplier.getSyncOrNull(
+                        params = MultiWalletCryptoCurrenciesProducer.Params(userWalletId),
+                    )
+                        ?.firstOrNull { it.id.value == id }
+                        ?: error("Unable to find currency with ID: $id")
+                } else {
+                    currenciesRepository.getMultiCurrencyWalletCurrency(userWalletId, id)
+                }
             },
             catch = { raise(CurrencyStatusError.DataError(it)) },
         )

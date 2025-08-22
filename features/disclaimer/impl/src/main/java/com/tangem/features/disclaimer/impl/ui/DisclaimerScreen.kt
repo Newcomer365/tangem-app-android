@@ -15,9 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.isGranted
-import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.web.WebView
 import com.google.accompanist.web.WebViewNavigator
 import com.google.accompanist.web.rememberWebViewNavigator
@@ -32,14 +29,12 @@ import com.tangem.core.ui.extensions.stringResourceSafe
 import com.tangem.core.ui.res.TangemColorPalette
 import com.tangem.core.ui.res.TangemTheme
 import com.tangem.core.ui.res.TangemThemePreview
-import com.tangem.core.ui.test.TestTags.DISCLAIMER_SCREEN_ACCEPT_BUTTON
-import com.tangem.core.ui.test.TestTags.DISCLAIMER_SCREEN_CONTAINER
+import com.tangem.core.ui.test.DisclaimerScreenTestTags
 import com.tangem.core.ui.webview.applySafeSettings
 import com.tangem.features.disclaimer.impl.R
 import com.tangem.features.disclaimer.impl.entity.DisclaimerUM
 import com.tangem.features.disclaimer.impl.entity.DummyDisclaimer
 import com.tangem.features.disclaimer.impl.local.localTermsOfServices
-import com.tangem.features.pushnotifications.api.utils.getPushPermissionOrNull
 import com.tangem.utils.coroutines.JobHolder
 import com.tangem.utils.coroutines.withDebounce
 import java.nio.charset.StandardCharsets
@@ -58,7 +53,7 @@ internal fun DisclaimerScreen(state: DisclaimerUM) {
         modifier = Modifier
             .background(backgroundColor)
             .statusBarsPadding()
-            .testTag(DISCLAIMER_SCREEN_CONTAINER),
+            .testTag(DisclaimerScreenTestTags.SCREEN_CONTAINER),
     ) {
         Column(
             modifier = Modifier
@@ -167,15 +162,11 @@ private fun WebViewNavigator.loadLocalToS() {
     )
 }
 
-@OptIn(ExperimentalPermissionsApi::class)
 @Composable
-private fun BoxScope.DisclaimerButton(onAccept: (Boolean) -> Unit) {
-    val isPermissionGranted = getPushPermissionOrNull()?.let { permission ->
-        rememberPermissionState(permission = permission).status.isGranted
-    } ?: true
+private fun BoxScope.DisclaimerButton(onAccept: () -> Unit) {
     PrimaryButton(
         text = stringResourceSafe(id = R.string.common_accept),
-        onClick = { onAccept(!isPermissionGranted) },
+        onClick = onAccept,
         colors = ButtonColors(
             containerColor = TangemColorPalette.Light4,
             contentColor = TangemColorPalette.Dark6,
@@ -183,7 +174,7 @@ private fun BoxScope.DisclaimerButton(onAccept: (Boolean) -> Unit) {
             disabledContentColor = TangemColorPalette.Dark6,
         ),
         modifier = Modifier
-            .testTag(DISCLAIMER_SCREEN_ACCEPT_BUTTON)
+            .testTag(DisclaimerScreenTestTags.ACCEPT_BUTTON)
             .align(Alignment.BottomCenter)
             .navigationBarsPadding()
             .padding(

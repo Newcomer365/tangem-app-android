@@ -11,7 +11,7 @@ import timber.log.Timber
 /**
  * Component for implementation of flow subscription
  *
- * @author Andrew Khokhlov on 16/11/2023
+[REDACTED_AUTHOR]
  */
 internal abstract class WalletSubscriber {
 

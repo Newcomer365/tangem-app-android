@@ -4,8 +4,8 @@ import com.tangem.core.analytics.models.event.MainScreenAnalyticsEvent.Companion
 import com.tangem.core.ui.components.containers.pullToRefresh.PullToRefreshConfig
 import com.tangem.core.ui.components.marketprice.MarketPriceBlockState
 import com.tangem.core.ui.components.transactions.state.TxHistoryState
-import com.tangem.domain.common.util.cardTypesResolver
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.card.common.util.cardTypesResolver
+import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.feature.wallet.child.wallet.model.intents.WalletClickIntents
 import com.tangem.feature.wallet.presentation.wallet.domain.WalletAdditionalInfoFactory
 import com.tangem.feature.wallet.presentation.wallet.domain.WalletImageResolver
@@ -25,14 +25,39 @@ internal class WalletLoadingStateFactory(
 ) {
 
     fun create(userWallet: UserWallet): WalletState {
-        return userWallet.createStateByWalletType(
-            multiCurrencyCreator = { createLoadingMultiCurrencyContent(userWallet) },
-            singleCurrencyCreator = { createLoadingSingleCurrencyContent(userWallet) },
-            visaWalletCreator = { createLoadingVisaWalletContent(userWallet) },
+        return when (userWallet) {
+            is UserWallet.Cold -> {
+                userWallet.createStateByWalletType(
+                    multiCurrencyCreator = { createLoadingMultiCurrencyContent(userWallet) },
+                    singleCurrencyCreator = { createLoadingSingleCurrencyContent(userWallet) },
+                    visaWalletCreator = { createLoadingVisaWalletContent(userWallet) },
+                )
+            }
+            is UserWallet.Hot -> {
+                createLoadingHotWalletContent(userWallet)
+            }
+        }
+    }
+
+    private fun createLoadingHotWalletContent(userWallet: UserWallet.Hot): WalletState.MultiCurrency.Content {
+        return WalletState.MultiCurrency.Content(
+            pullToRefreshConfig = createPullToRefreshConfig(),
+            walletCardState = WalletCardState.Loading(
+                id = userWallet.walletId,
+                title = userWallet.name,
+                additionalInfo = null, // TODO [REDACTED_TASK_KEY]
+                imageResId = null, // TODO [REDACTED_TASK_KEY]
+                dropDownItems = persistentListOf(),
+            ),
+            buttons = createMultiWalletActions(userWallet),
+            warnings = persistentListOf(),
+            bottomSheetConfig = null,
+            tokensListState = WalletTokensListState.ContentState.Loading,
+            nftState = WalletNFTItemUM.Hidden,
         )
     }
 
-    private fun createLoadingMultiCurrencyContent(userWallet: UserWallet): WalletState.MultiCurrency.Content {
+    private fun createLoadingMultiCurrencyContent(userWallet: UserWallet.Cold): WalletState.MultiCurrency.Content {
         return WalletState.MultiCurrency.Content(
             pullToRefreshConfig = createPullToRefreshConfig(),
             walletCardState = userWallet.toLoadingWalletCardState(),
@@ -44,7 +69,7 @@ internal class WalletLoadingStateFactory(
         )
     }
 
-    private fun createLoadingSingleCurrencyContent(userWallet: UserWallet): WalletState.SingleCurrency.Content {
+    private fun createLoadingSingleCurrencyContent(userWallet: UserWallet.Cold): WalletState.SingleCurrency.Content {
         val currencySymbol = userWallet.scanResponse.cardTypesResolver.getBlockchain().currency
         return WalletState.SingleCurrency.Content(
             pullToRefreshConfig = createPullToRefreshConfig(),
@@ -63,7 +88,7 @@ internal class WalletLoadingStateFactory(
         )
     }
 
-    private fun createLoadingVisaWalletContent(userWallet: UserWallet): WalletState.Visa.Content {
+    private fun createLoadingVisaWalletContent(userWallet: UserWallet.Cold): WalletState.Visa.Content {
         return WalletState.Visa.Content(
             pullToRefreshConfig = createPullToRefreshConfig(),
             walletCardState = userWallet.toLoadingWalletCardState(),
@@ -86,7 +111,7 @@ internal class WalletLoadingStateFactory(
         )
     }
 
-    private fun UserWallet.toLoadingWalletCardState(): WalletCardState {
+    private fun UserWallet.Cold.toLoadingWalletCardState(): WalletCardState {
         return WalletCardState.Loading(
             id = walletId,
             title = name,
@@ -97,14 +122,20 @@ internal class WalletLoadingStateFactory(
     }
 
     private fun createMultiWalletActions(userWallet: UserWallet): PersistentList<WalletManageButton> {
-        val isSingleWalletWithToken = userWallet.scanResponse.cardTypesResolver.isSingleWalletWithToken()
+        val isSingleWalletWithToken =
+            userWallet is UserWallet.Cold && userWallet.scanResponse.cardTypesResolver.isSingleWalletWithToken()
         if (isSingleWalletWithToken) return persistentListOf()
 
         return persistentListOf(
             WalletManageButton.Buy(
                 enabled = true,
                 dimContent = false,
-                onClick = { clickIntents.onMultiWalletBuyClick(userWalletId = userWallet.walletId, WALLET_TYPE) },
+                onClick = {
+                    clickIntents.onMultiWalletBuyClick(
+                        userWalletId = userWallet.walletId,
+                        WALLET_TYPE,
+                    )
+                },
             ),
             WalletManageButton.Swap(
                 enabled = true,
@@ -121,14 +152,24 @@ internal class WalletLoadingStateFactory(
 
     private fun createVisaDimmedButtons(): PersistentList<WalletManageButton> {
         return persistentListOf(
-            WalletManageButton.Receive(enabled = true, dimContent = true, onClick = {}, onLongClick = null),
+            WalletManageButton.Receive(
+                enabled = true,
+                dimContent = true,
+                onClick = {},
+                onLongClick = null,
+            ),
             WalletManageButton.Buy(enabled = true, dimContent = true, onClick = {}),
         )
     }
 
     private fun createDimmedButtons(): PersistentList<WalletManageButton> {
         return persistentListOf(
-            WalletManageButton.Receive(enabled = true, dimContent = true, onClick = {}, onLongClick = null),
+            WalletManageButton.Receive(
+                enabled = true,
+                dimContent = true,
+                onClick = {},
+                onLongClick = null,
+            ),
             WalletManageButton.Send(enabled = true, dimContent = true, onClick = {}),
             WalletManageButton.Buy(enabled = true, dimContent = true, onClick = {}),
             WalletManageButton.Sell(enabled = true, dimContent = true, onClick = {}),

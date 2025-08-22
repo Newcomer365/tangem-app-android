@@ -38,7 +38,7 @@ import kotlinx.collections.immutable.toImmutableList
  *
  * @param config bottom sheet config
  *
- * @author Andrew Khokhlov on 02/10/2024
+[REDACTED_AUTHOR]
  */
 @Composable
 internal fun ExchangesBottomSheet(config: TangemBottomSheetConfig) {

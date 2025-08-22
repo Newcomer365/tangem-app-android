@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.map
  *
  * @property settingsRepository settings repository
  *
- * @author Andrew Khokhlov on 12/09/2024
+[REDACTED_AUTHOR]
  */
 class GetUserCountryUseCase(
     private val settingsRepository: SettingsRepository,

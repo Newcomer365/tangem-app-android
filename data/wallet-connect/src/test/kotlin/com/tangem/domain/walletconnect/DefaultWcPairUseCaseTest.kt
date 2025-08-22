@@ -8,12 +8,14 @@ import com.domain.blockaid.models.dapp.CheckDAppResult
 import com.domain.blockaid.models.dapp.DAppData
 import com.reown.walletkit.client.Wallet
 import com.tangem.common.test.domain.wallet.MockUserWalletFactory
+import com.tangem.core.analytics.api.AnalyticsEventHandler
 import com.tangem.data.walletconnect.pair.AssociateNetworksDelegate
 import com.tangem.data.walletconnect.pair.CaipNamespaceDelegate
 import com.tangem.data.walletconnect.pair.DefaultWcPairUseCase
 import com.tangem.data.walletconnect.pair.WcPairSdkDelegate
 import com.tangem.data.walletconnect.utils.WcSdkSessionConverter
 import com.tangem.domain.blockaid.BlockAidVerifier
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.walletconnect.model.WcPairError
 import com.tangem.domain.walletconnect.model.WcPairRequest
 import com.tangem.domain.walletconnect.model.WcSession
@@ -33,6 +35,7 @@ internal class DefaultWcPairUseCaseTest {
     private val sessionsManager: WcSessionsManager = mockk<WcSessionsManager>()
     private val associateNetworksDelegate: AssociateNetworksDelegate = mockk<AssociateNetworksDelegate>()
     private val caipNamespaceDelegate: CaipNamespaceDelegate = mockk<CaipNamespaceDelegate>()
+    private val analytics: AnalyticsEventHandler = mockk<AnalyticsEventHandler>(relaxed = true)
     private val sdkDelegate: WcPairSdkDelegate = mockk<WcPairSdkDelegate>()
     private val blockAidVerifier: BlockAidVerifier = mockk<BlockAidVerifier>()
 
@@ -44,7 +47,7 @@ internal class DefaultWcPairUseCaseTest {
             pairingTopic = "",
             name = "",
             description = "",
-            url = "",
+            url = "https://react-app.walletconnect.com/",
             icons = listOf(),
             redirect = "",
             requiredNamespaces = mapOf(),
@@ -54,9 +57,17 @@ internal class DefaultWcPairUseCaseTest {
             relayProtocol = "",
             relayData = "",
         )
+    private val sdkVerifyContext: Wallet.Model.VerifyContext
+        get() = Wallet.Model.VerifyContext(
+            id = 9259,
+            origin = "vituperata",
+            validation = Wallet.Model.Validation.VALID,
+            verifyUrl = "https://search.yahoo.com/search?p=id",
+            isScam = false,
+        )
 
-    private val unsupportedDApp = "Apex Pro"
-    private val unsupportedSdkProposal get() = sdkProposal.copy(name = unsupportedDApp)
+    private val unsupportedDAppUrl = "dydx.trade"
+    private val unsupportedSdkProposal get() = sdkProposal.copy(url = unsupportedDAppUrl)
 
     private val sessionForApprove: WcSessionApprove
         get() = WcSessionApprove(
@@ -91,6 +102,9 @@ internal class DefaultWcPairUseCaseTest {
             wallet = sessionForApprove.wallet,
             sdkModel = WcSdkSessionConverter.convert(this),
             securityStatus = CheckDAppResult.SAFE,
+            networks = setOf(),
+            connectingTime = null,
+            showWalletInfo = false,
         )
 
     private fun useCaseFactory() = DefaultWcPairUseCase(
@@ -99,7 +113,8 @@ internal class DefaultWcPairUseCaseTest {
         caipNamespaceDelegate = caipNamespaceDelegate,
         sdkDelegate = sdkDelegate,
         blockAidVerifier = blockAidVerifier,
-        pairRequest = WcPairRequest(url, source),
+        analytics = analytics,
+        pairRequest = WcPairRequest(userWalletId = UserWalletId(""), uri = url, source = source),
     )
 
     @Before
@@ -108,15 +123,14 @@ internal class DefaultWcPairUseCaseTest {
         coEvery {
             caipNamespaceDelegate.associate(
                 sessionProposal = sdkProposal,
-                userWallet = sessionForApprove.wallet,
-                networks = sessionForApprove.network,
+                sessionForApprove = sessionForApprove,
             )
         } returns mapOf()
     }
 
     @Test
     fun `pair, emmit proposal state and wait actions`() = runTest {
-        coEvery { sdkDelegate.pair(url) } returns sdkProposal.right()
+        coEvery { sdkDelegate.pair(url) } returns (sdkProposal to sdkVerifyContext).right()
         coEvery { blockAidVerifier.verifyDApp(any()) } returns Either.catch { CheckDAppResult.SAFE }
 
         val useCase = useCaseFactory()
@@ -137,9 +151,9 @@ internal class DefaultWcPairUseCaseTest {
         val sessionForSave = sdkSession.sessionForSave
         val result = WcPairState.Approving.Result(sessionForApprove, sessionForSave.right())
 
-        coEvery { sdkDelegate.pair(url) } returns sdkProposal.right()
+        coEvery { sdkDelegate.pair(url) } returns (sdkProposal to sdkVerifyContext).right()
         coEvery { sdkDelegate.approve(sdkApprove) } returns sdkApproveSuccess.right()
-        coEvery { sessionsManager.saveSession(sessionForSave) } returns Unit
+        coEvery { sessionsManager.saveSession(any()) } returns Unit
         coEvery { blockAidVerifier.verifyDApp(any()) } returns Either.catch { CheckDAppResult.SAFE }
 
         val useCase = useCaseFactory()
@@ -157,9 +171,12 @@ internal class DefaultWcPairUseCaseTest {
             assertEquals(approveLoading, awaitItem())
             coVerifyOrder {
                 sdkDelegate.approve(sdkApprove)
-                sessionsManager.saveSession(sessionForSave)
+                sessionsManager.saveSession(any())
             }
-            assertEquals(result, awaitItem())
+            val actual: WcPairState = awaitItem()
+            assert(actual is WcPairState.Approving.Result)
+            actual as WcPairState.Approving.Result
+            assertEquals(result.session, actual.session)
             awaitComplete()
         }
     }
@@ -168,7 +185,7 @@ internal class DefaultWcPairUseCaseTest {
     fun `success pair and reject approving`() = runTest {
         val proposerPublicKey = sdkProposal.proposerPublicKey
 
-        coEvery { sdkDelegate.pair(url) } returns sdkProposal.right()
+        coEvery { sdkDelegate.pair(url) } returns (sdkProposal to sdkVerifyContext).right()
         coEvery { sdkDelegate.rejectSession(proposerPublicKey) } returns Unit
         coEvery { blockAidVerifier.verifyDApp(any()) } returns Either.catch { CheckDAppResult.SAFE }
 
@@ -190,8 +207,8 @@ internal class DefaultWcPairUseCaseTest {
 
     @Test
     fun `success pair and reject unsupported dApp`() = runTest {
-        coEvery { sdkDelegate.pair(url) } returns unsupportedSdkProposal.right()
-        val unsupportedDAppError = WcPairState.Error(WcPairError.UnsupportedDApp)
+        coEvery { sdkDelegate.pair(url) } returns (unsupportedSdkProposal to sdkVerifyContext).right()
+        val unsupportedDAppError = WcPairState.Error(WcPairError.UnsupportedDApp(unsupportedSdkProposal.name))
 
         val useCase = useCaseFactory()
         useCase.invoke().test {
@@ -206,7 +223,7 @@ internal class DefaultWcPairUseCaseTest {
 
     @Test
     fun `complete on pair error`() = runTest {
-        val error = WcPairError.ExternalApprovalError("error")
+        val error = WcPairError.PairingFailed("error")
         coEvery { sdkDelegate.pair(url) } returns error.left()
         val errorState = WcPairState.Error(error)
 
@@ -224,9 +241,10 @@ internal class DefaultWcPairUseCaseTest {
     @Test
     fun `complete on approve error`() = runTest {
         val approveLoading = WcPairState.Approving.Loading(sessionForApprove)
-        val error = WcPairError.ExternalApprovalError("error").left()
-        coEvery { sdkDelegate.pair(url) } returns sdkProposal.right()
+        val error = WcPairError.ApprovalFailed("error").left()
+        coEvery { sdkDelegate.pair(url) } returns (sdkProposal to sdkVerifyContext).right()
         coEvery { sdkDelegate.approve(sdkApprove) } returns error
+        coEvery { sdkDelegate.rejectSession(sdkApprove.proposerPublicKey) } returns Unit
         coEvery { blockAidVerifier.verifyDApp(any()) } returns Either.catch { CheckDAppResult.SAFE }
 
         val errorResult = WcPairState.Approving.Result(sessionForApprove, error)
@@ -245,8 +263,8 @@ internal class DefaultWcPairUseCaseTest {
             assertEquals(approveLoading, awaitItem())
             coVerifyOrder {
                 sdkDelegate.approve(sdkApprove)
+                sdkDelegate.rejectSession(sdkApprove.proposerPublicKey)
             }
-
             assertEquals(errorResult, awaitItem())
             awaitComplete()
         }

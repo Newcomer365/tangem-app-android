@@ -12,7 +12,7 @@ import kotlinx.serialization.Serializable
 
 // TODO: Move to :domain:card:models
 /**
- * Created by Anton Zhilenkov on 07/04/2022.
+[REDACTED_AUTHOR]
  */
 @Serializable(with = ScanResponseAsStringSerializer::class)
 @JsonClass(generateAdapter = true)

@@ -1,7 +1,7 @@
 package com.tangem.domain.wallets.usecase
 
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.models.wallet.UserWallet
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
  *
  * @property userWalletsListManager user wallets list manager
  *
- * @author Andrew Khokhlov on 07/07/2023
+[REDACTED_AUTHOR]
  */
 class GetWalletsUseCase(private val userWalletsListManager: UserWalletsListManager) {
 

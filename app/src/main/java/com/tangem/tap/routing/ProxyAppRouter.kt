@@ -45,7 +45,7 @@ internal class ProxyAppRouter(
             runCatching {
                 innerRouter.replaceAll(*routes, onComplete = onComplete)
             }.getOrElse {
-                Timber.tag("ASDASD").e(it)
+                Timber.e(it)
             }
         }
     }
@@ -75,6 +75,7 @@ internal class ProxyAppRouter(
             try {
                 block()
             } catch (e: Throwable) {
+                Timber.e(e)
                 onComplete(false)
             }
         }
@@ -82,7 +83,6 @@ internal class ProxyAppRouter(
 
     override fun defaultCompletionHandler(isSuccess: Boolean, errorMessage: String) {
         if (!isSuccess) {
-            Timber.tag("ASDASD").d(errorMessage)
             analyticsExceptionHandler.sendException(ExceptionAnalyticsEvent(RuntimeException(errorMessage)))
             Timber.w(errorMessage)
 

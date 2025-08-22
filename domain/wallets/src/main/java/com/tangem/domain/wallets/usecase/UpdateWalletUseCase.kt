@@ -5,15 +5,15 @@ import arrow.core.raise.either
 import com.tangem.common.CompletionResult
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
 import com.tangem.domain.wallets.models.UpdateWalletError
-import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
 
 /**
  * Use case for updating user wallet
  *
  * @property userWalletsListManager user wallets list manager
  *
- * @author Andrew Khokhlov on 07/07/2023
+[REDACTED_AUTHOR]
  */
 class UpdateWalletUseCase(private val userWalletsListManager: UserWalletsListManager) {
 

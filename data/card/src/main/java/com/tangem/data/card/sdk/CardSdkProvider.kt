@@ -5,7 +5,7 @@ import com.tangem.TangemSdk
 /**
  * CardSDK instance provider
  *
- * @author Andrew Khokhlov on 12/07/2023
+[REDACTED_AUTHOR]
  */
 interface CardSdkProvider {
 

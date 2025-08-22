@@ -11,7 +11,7 @@ import timber.log.Timber
 import java.net.URLDecoder
 
 /**
- * @author Anton Zhilenkov on 04.06.2023.
+[REDACTED_AUTHOR]
  */
 class WalletConnectLinkIntentHandler : IntentHandler, AffectsNavigation {
 
