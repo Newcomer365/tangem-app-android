@@ -13,10 +13,8 @@ import com.tangem.common.CompletionResult
 import com.tangem.common.extensions.hexToBytes
 import com.tangem.common.extensions.toDecompressedPublicKey
 import com.tangem.common.extensions.toHexString
-import com.tangem.core.analytics.Analytics
-import com.tangem.core.analytics.models.Basic
-import com.tangem.core.analytics.models.Basic.TransactionSent.MemoType
 import com.tangem.data.walletconnect.network.ethereum.LegacySdkHelper
+import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.operations.sign.SignHashCommand
 import com.tangem.tap.common.extensions.inject
 import com.tangem.tap.common.extensions.safeUpdate
@@ -41,7 +39,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import timber.log.Timber
 import java.math.BigDecimal
-import com.tangem.core.analytics.models.AnalyticsParam as CoreAnalyticsParam
 
 @Suppress("LargeClass")
 class WalletConnectSdkHelper {
@@ -74,7 +71,7 @@ class WalletConnectSdkHelper {
             "Transaction amount is null"
         }
 
-        // TODO move fee calculation to SDK getFee() https://tangem.atlassian.net/browse/AND-8026
+        // TODO move fee calculation to SDK getFee() [REDACTED_JIRA]
         val gasLimit = getGasLimitFromTx(value, walletManager, transaction, blockchain)
         val gasPrice = getGasPrice(walletManager, transaction)
 
@@ -85,8 +82,8 @@ class WalletConnectSdkHelper {
         val destinationAddress = requireNotNull(transaction.to) { "Destination address is null" }
 
         val fee = if (blockchain.isEvm()) {
-            // TODO https://tangem.atlassian.net/browse/AND-8026
-            // workaround for Mantle, remove after https://tangem.atlassian.net/browse/AND-8026
+            // TODO [REDACTED_JIRA]
+            // workaround for Mantle, remove after [REDACTED_JIRA]
             val patchedAmount = if (blockchain == Blockchain.Mantle) {
                 feeAmount.copy(value = feeAmount.value?.multiply(MANTLE_FEE_ESTIMATE_MULTIPLIER))
             } else {
@@ -133,7 +130,7 @@ class WalletConnectSdkHelper {
 
     fun isDemoCard(): Boolean {
         val userWallet = userWalletsListManager.selectedUserWalletSync ?: return false
-        return userWallet.scanResponse.isDemoCard()
+        return userWallet is UserWallet.Cold && userWallet.scanResponse.isDemoCard()
     }
 
     private suspend fun getWalletManager(blockchain: Blockchain, derivationPath: String?): WalletManager? {
@@ -204,7 +201,7 @@ class WalletConnectSdkHelper {
         }
     }
 
-    // TODO Workaround for Mantle. Remove after https://tangem.atlassian.net/browse/AND-8026
+    // TODO Workaround for Mantle. Remove after [REDACTED_JIRA]
     private fun BigDecimal.increaseForMantleIfNeeded(blockchain: Blockchain): BigDecimal {
         return if (blockchain == Blockchain.Mantle) {
             this.multiply(MANTLE_FEE_ESTIMATE_MULTIPLIER)
@@ -226,8 +223,6 @@ class WalletConnectSdkHelper {
         )
         return when (result) {
             is Result.Success -> {
-                val sentFrom = CoreAnalyticsParam.TxSentFrom.WalletConnect
-                Analytics.send(Basic.TransactionSent(sentFrom = sentFrom, memoType = MemoType.Null))
                 val hash = result.data.hash
                 if (hash.startsWith(HEX_PREFIX)) {
                     hash
@@ -393,7 +388,8 @@ class WalletConnectSdkHelper {
                         signature = signedHash,
                         hash = hashToSign,
                         publicKey = wallet.publicKey.blockchainKey.toDecompressedPublicKey(),
-                    ).asRSVLegacyEVM().toHexString().formatHex().lowercase() // use lowercase because some dapps cant handle UPPERCASE
+                    ).asRSVLegacyEVM().toHexString().formatHex()
+                        .lowercase() // use lowercase because some dapps cant handle UPPERCASE
                 }
             }
             is CompletionResult.Failure -> {
@@ -511,7 +507,7 @@ class WalletConnectSdkHelper {
     private companion object {
         const val HEX_PREFIX = "0x"
         const val DEFAULT_MAX_GASLIMIT = 350000
-        // TODO remove after https://tangem.atlassian.net/browse/AND-8026
+        // TODO remove after [REDACTED_JIRA]
         private val MANTLE_FEE_ESTIMATE_MULTIPLIER = BigDecimal("1.8")
     }
 }

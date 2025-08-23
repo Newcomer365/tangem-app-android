@@ -1,13 +1,13 @@
 package com.tangem.domain.staking.fetcher
 
-import com.tangem.domain.tokens.model.CryptoCurrency
-import com.tangem.domain.tokens.model.Network
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.network.Network
+import com.tangem.domain.models.wallet.UserWalletId
 
 /**
  * Params for fetchers of yield balance
  *
- * @author Andrew Khokhlov on 21/04/2025
+[REDACTED_AUTHOR]
  */
 sealed interface YieldBalanceFetcherParams {
 

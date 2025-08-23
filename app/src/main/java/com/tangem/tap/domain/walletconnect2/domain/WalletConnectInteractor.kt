@@ -1,18 +1,21 @@
 package com.tangem.tap.domain.walletconnect2.domain
 
 import arrow.core.flatten
-import com.tangem.blockchain.common.Blockchain
+import com.tangem.blockchainsdk.utils.toBlockchain
 import com.tangem.blockchainsdk.utils.toNetworkId
-import com.tangem.domain.tokens.model.CryptoCurrency
-import com.tangem.domain.tokens.model.Network
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.network.Network
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
+import com.tangem.domain.models.wallet.isMultiCurrency
 import com.tangem.domain.tokens.repository.CurrenciesRepository
 import com.tangem.domain.walletconnect.model.legacy.Account
 import com.tangem.domain.walletconnect.model.legacy.Session
 import com.tangem.domain.walletconnect.model.legacy.WalletConnectSessionsRepository
 import com.tangem.domain.walletmanager.WalletManagersFacade
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
-import com.tangem.domain.wallets.models.UserWallet
 import com.tangem.domain.wallets.usecase.GetSelectedWalletUseCase
+import com.tangem.features.walletconnect.components.WalletConnectFeatureToggles
 import com.tangem.tap.common.extensions.dispatchOnMain
 import com.tangem.tap.common.extensions.filterNotNull
 import com.tangem.tap.domain.walletconnect.WalletConnectSdkHelper
@@ -36,8 +39,10 @@ class WalletConnectInteractor(
     private val walletManagersFacade: WalletManagersFacade,
     private val currenciesRepository: CurrenciesRepository,
     private val userWalletsListManager: UserWalletsListManager,
+    private val walletConnectFeatureToggles: WalletConnectFeatureToggles,
     val blockchainHelper: WcBlockchainHelper,
 ) {
+    private val isNewWc by lazy { walletConnectFeatureToggles.isRedesignedWalletConnectEnabled }
 
     private var isWalletConnectReadyForDeepLinks = false
 
@@ -85,6 +90,7 @@ class WalletConnectInteractor(
     }
 
     private fun initWithWallet(userWallet: UserWallet) {
+        if (isNewWc) return
         if (userWallet.isMultiCurrency) {
             Timber.i("WalletConnect: initialize and setup networks for ${userWallet.walletId}")
             startListeningWc(userWallet.walletId.stringValue, getCardId(userWallet))
@@ -139,7 +145,11 @@ class WalletConnectInteractor(
             if (deeplinkStack.empty()) return
             val lastDeeplink = deeplinkStack.pop()
             val action = WalletConnectAction
-                .OpenSession(lastDeeplink, WalletConnectAction.OpenSession.SourceType.DEEPLINK)
+                .OpenSession(
+                    wcUri = lastDeeplink,
+                    source = WalletConnectAction.OpenSession.SourceType.DEEPLINK,
+                    userWalletId = UserWalletId(userWalletId),
+                )
             store.dispatchOnMain(action)
         }.onFailure {
             Timber.e("WC deeplink handling failed. $it")
@@ -236,6 +246,7 @@ class WalletConnectInteractor(
     }
 
     fun approveSessionProposal(accounts: List<Account>) {
+        if (isNewWc) return
         Timber.i("Approve session proposal: $accounts")
         val userNamespaces: Map<NetworkNamespace, List<Account>> = accounts
             .groupBy { account ->
@@ -252,16 +263,19 @@ class WalletConnectInteractor(
     }
 
     fun rejectSessionProposal() {
+        if (isNewWc) return
         Timber.i("Reject session proposal")
         walletConnectRepository.reject()
     }
 
     fun disconnectSession(topic: String) {
+        if (isNewWc) return
         Timber.i("Disconnect session: $topic")
         walletConnectRepository.disconnect(topic)
     }
 
     fun cancelRequest(topic: String, id: Long) {
+        if (isNewWc) return
         Timber.i("Cancel request: $topic, $id")
         walletConnectRepository.cancelRequest(topic, id)
     }
@@ -316,6 +330,7 @@ class WalletConnectInteractor(
     }
 
     suspend fun continueWithRequest(request: WcPreparedRequest) {
+        if (isNewWc) return
         val currentRequest = this.currentRequest
         if (currentRequest == null || request.topic != currentRequest.topic) return
 
@@ -379,6 +394,7 @@ class WalletConnectInteractor(
      * @param deeplink deeplink to handle
      */
     fun addDeeplink(deeplink: String) {
+        if (isNewWc) return
         val deeplinkRegex = Regex(WC_PARAM_REGEX)
         val matched = deeplinkRegex.findAll(deeplink)
         val sessionTopic = matched.firstOrNull { it.value.contains(WC_TOPIC_QUERY_NAME) }?.groupValues?.lastOrNull()
@@ -393,7 +409,11 @@ class WalletConnectInteractor(
         }
 
         if (isWalletConnectReadyForDeepLinks) {
-            val action = WalletConnectAction.OpenSession(deeplink, WalletConnectAction.OpenSession.SourceType.DEEPLINK)
+            val action = WalletConnectAction.OpenSession(
+                wcUri = deeplink,
+                source = WalletConnectAction.OpenSession.SourceType.DEEPLINK,
+                userWalletId = UserWalletId(userWalletId),
+            )
             store.dispatchOnMain(action)
         } else {
             deeplinkStack.push(deeplink)
@@ -401,7 +421,7 @@ class WalletConnectInteractor(
     }
 
     private fun getCardId(userWallet: UserWallet): String? {
-        return if (userWallet.scanResponse.card.backupStatus?.isActive != true) {
+        return if (userWallet is UserWallet.Cold && userWallet.scanResponse.card.backupStatus?.isActive != true) {
             userWallet.cardId
         } else { // if wallet has backup, any card from wallet can be used to sign
             null
@@ -410,7 +430,8 @@ class WalletConnectInteractor(
 
     private suspend fun getAccountsForWc(userWallet: UserWallet, networks: List<Network>): List<Account> {
         val walletManagers = networks.mapNotNull {
-            val blockchain = Blockchain.fromId(it.id.value)
+            val blockchain = it.toBlockchain()
+
             walletManagersFacade.getOrCreateWalletManager(
                 userWalletId = userWallet.walletId,
                 blockchain = blockchain,

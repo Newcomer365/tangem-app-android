@@ -16,17 +16,20 @@ import com.tangem.datasource.api.stakekit.StakeKitApi
 import com.tangem.datasource.api.stakekit.models.response.model.YieldBalanceWrapperDTO
 import com.tangem.datasource.local.token.StakingYieldsStore
 import com.tangem.datasource.local.userwallet.UserWalletsStore
-import com.tangem.domain.staking.fetcher.YieldBalanceFetcherParams
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.staking.model.StakingID
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.staking.multi.MultiYieldBalanceFetcher
 import com.tangem.utils.coroutines.TestingCoroutineDispatcherProvider
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
-import org.junit.Test
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 
 /**
- * @author Andrew Khokhlov on 19/04/2025
+[REDACTED_AUTHOR]
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 internal class DefaultMultiYieldBalanceFetcherTest {
 
     private val userWalletsStore: UserWalletsStore = mockk()
@@ -44,15 +47,21 @@ internal class DefaultMultiYieldBalanceFetcherTest {
         dispatchers = TestingCoroutineDispatcherProvider(),
     )
 
+    @BeforeEach
+    fun resetMocks() {
+        clearMocks(userWalletsStore, stakingYieldsStore, yieldsBalancesStore, stakingIdFactory, stakeKitApi)
+    }
+
     @Test
     fun `fetch yields balances successfully`() = runTest {
+        // Arrange
         val currencyIdWithNetworkMap = mapOf(ton.id to ton.network, solana.id to solana.network)
 
-        val params = YieldBalanceFetcherParams.Multi(userWalletId, currencyIdWithNetworkMap)
+        val params = MultiYieldBalanceFetcher.Params(userWalletId, currencyIdWithNetworkMap)
 
         coEvery { userWalletsStore.getSyncOrNull(params.userWalletId) } returns userWallet
-        coEvery { stakingIdFactory.create(params.userWalletId, ton.id, ton.network) } returns setOf(tonId)
-        coEvery { stakingIdFactory.create(params.userWalletId, solana.id, solana.network) } returns setOf(solanaId)
+        coEvery { stakingIdFactory.create(params.userWalletId, ton.id, ton.network) } returns tonId
+        coEvery { stakingIdFactory.create(params.userWalletId, solana.id, solana.network) } returns solanaId
         coEvery { yieldsBalancesStore.refresh(params.userWalletId, tonAndSolanaIds) } just Runs
 
         val yields = listOf(MockYieldDTOFactory.create(tonId), MockYieldDTOFactory.create(solanaId))
@@ -66,8 +75,10 @@ internal class DefaultMultiYieldBalanceFetcherTest {
         coEvery { stakeKitApi.getMultipleYieldBalances(requests) } returns ApiResponse.Success(result)
         coEvery { yieldsBalancesStore.storeActual(userWalletId = userWalletId, values = result) } just Runs
 
-        val actual = fetcher(params)
+        // Actual
+        val actual = fetcher.invoke(params)
 
+        // Assert
         coVerify {
             userWalletsStore.getSyncOrNull(params.userWalletId)
             stakingIdFactory.create(params.userWalletId, ton.id, ton.network)
@@ -85,13 +96,14 @@ internal class DefaultMultiYieldBalanceFetcherTest {
 
     @Test
     fun `fetch yields balances successfully if one of stakingIds is unavailable`() = runTest {
+        // Arrange
         val currencyIdWithNetworkMap = mapOf(ton.id to ton.network, solana.id to solana.network)
 
-        val params = YieldBalanceFetcherParams.Multi(userWalletId, currencyIdWithNetworkMap)
+        val params = MultiYieldBalanceFetcher.Params(userWalletId, currencyIdWithNetworkMap)
 
         coEvery { userWalletsStore.getSyncOrNull(params.userWalletId) } returns userWallet
-        coEvery { stakingIdFactory.create(params.userWalletId, ton.id, ton.network) } returns setOf(tonId)
-        coEvery { stakingIdFactory.create(params.userWalletId, solana.id, solana.network) } returns setOf(solanaId)
+        coEvery { stakingIdFactory.create(params.userWalletId, ton.id, ton.network) } returns tonId
+        coEvery { stakingIdFactory.create(params.userWalletId, solana.id, solana.network) } returns solanaId
         coEvery { yieldsBalancesStore.refresh(params.userWalletId, tonAndSolanaIds) } just Runs
 
         val yields = listOf(MockYieldDTOFactory.create(tonId))
@@ -105,8 +117,10 @@ internal class DefaultMultiYieldBalanceFetcherTest {
         coEvery { stakeKitApi.getMultipleYieldBalances(requests) } returns ApiResponse.Success(result)
         coEvery { yieldsBalancesStore.storeActual(userWalletId = userWalletId, values = result) } just Runs
 
-        val actual = fetcher(params)
+        // Actual
+        val actual = fetcher.invoke(params)
 
+        // Assert
         coVerify {
             userWalletsStore.getSyncOrNull(params.userWalletId)
             stakingIdFactory.create(params.userWalletId, ton.id, ton.network)
@@ -123,19 +137,22 @@ internal class DefaultMultiYieldBalanceFetcherTest {
 
     @Test
     fun `fetch yields balances failure if user wallet is not supported`() = runTest {
+        // Arrange
         val currencyIdWithNetworkMap = mapOf(ton.id to ton.network, solana.id to solana.network)
 
-        val params = YieldBalanceFetcherParams.Multi(userWalletId, currencyIdWithNetworkMap)
+        val params = MultiYieldBalanceFetcher.Params(userWalletId, currencyIdWithNetworkMap)
 
         val userWallet = MockUserWalletFactory.create().copy(isMultiCurrency = false)
         coEvery { userWalletsStore.getSyncOrNull(params.userWalletId) } returns userWallet
 
-        val actual = fetcher(params)
+        // Actual
+        val actual = fetcher.invoke(params)
 
+        // Assert
         coVerify { userWalletsStore.getSyncOrNull(params.userWalletId) }
 
         coVerify(inverse = true) {
-            stakingIdFactory.createForDefault(params.userWalletId, ton.id, ton.network)
+            stakingIdFactory.create(params.userWalletId, ton.id, ton.network)
             yieldsBalancesStore.refresh(userWalletId = any(), stakingIds = any())
             stakingYieldsStore.getSyncWithTimeout()
             stakeKitApi.getSingleYieldBalance(integrationId = any(), body = any())
@@ -152,18 +169,21 @@ internal class DefaultMultiYieldBalanceFetcherTest {
 
     @Test
     fun `fetch yields balances failure if userWalletsStore returns null`() = runTest {
+        // Arrange
         val currencyIdWithNetworkMap = mapOf(ton.id to ton.network, solana.id to solana.network)
 
-        val params = YieldBalanceFetcherParams.Multi(userWalletId, currencyIdWithNetworkMap)
+        val params = MultiYieldBalanceFetcher.Params(userWalletId, currencyIdWithNetworkMap)
 
         coEvery { userWalletsStore.getSyncOrNull(params.userWalletId) } returns null
 
-        val actual = fetcher(params)
+        // Actual
+        val actual = fetcher.invoke(params)
 
+        // Assert
         coVerify { userWalletsStore.getSyncOrNull(params.userWalletId) }
 
         coVerify(inverse = true) {
-            stakingIdFactory.createForDefault(params.userWalletId, ton.id, ton.network)
+            stakingIdFactory.create(params.userWalletId, ton.id, ton.network)
             yieldsBalancesStore.refresh(userWalletId = any(), stakingIds = any())
             stakingYieldsStore.getSyncWithTimeout()
             stakeKitApi.getSingleYieldBalance(integrationId = any(), body = any())
@@ -179,17 +199,20 @@ internal class DefaultMultiYieldBalanceFetcherTest {
     }
 
     @Test
-    fun `fetch yields balances failure if stakingIdFactory returns empty list`() = runTest {
+    fun `fetch yields balances failure if stakingIdFactory returns null`() = runTest {
+        // Arrange
         val currencyIdWithNetworkMap = mapOf(ton.id to ton.network, solana.id to solana.network)
 
-        val params = YieldBalanceFetcherParams.Multi(userWalletId, currencyIdWithNetworkMap)
+        val params = MultiYieldBalanceFetcher.Params(userWalletId, currencyIdWithNetworkMap)
 
         coEvery { userWalletsStore.getSyncOrNull(params.userWalletId) } returns userWallet
-        coEvery { stakingIdFactory.create(params.userWalletId, ton.id, ton.network) } returns emptySet()
-        coEvery { stakingIdFactory.create(params.userWalletId, solana.id, solana.network) } returns emptySet()
+        coEvery { stakingIdFactory.create(params.userWalletId, ton.id, ton.network) } returns null
+        coEvery { stakingIdFactory.create(params.userWalletId, solana.id, solana.network) } returns null
 
-        val actual = fetcher(params)
+        // Actual
+        val actual = fetcher.invoke(params)
 
+        // Assert
         coVerify {
             userWalletsStore.getSyncOrNull(params.userWalletId)
             stakingIdFactory.create(params.userWalletId, ton.id, ton.network)
@@ -213,19 +236,22 @@ internal class DefaultMultiYieldBalanceFetcherTest {
 
     @Test
     fun `fetch yields balances failure if stakingYieldsStore getSyncWithTimeout returns null`() = runTest {
+        // Arrange
         val currencyIdWithNetworkMap = mapOf(ton.id to ton.network, solana.id to solana.network)
 
-        val params = YieldBalanceFetcherParams.Multi(userWalletId, currencyIdWithNetworkMap)
+        val params = MultiYieldBalanceFetcher.Params(userWalletId, currencyIdWithNetworkMap)
 
         coEvery { userWalletsStore.getSyncOrNull(params.userWalletId) } returns userWallet
-        coEvery { stakingIdFactory.create(params.userWalletId, ton.id, ton.network) } returns setOf(tonId)
-        coEvery { stakingIdFactory.create(params.userWalletId, solana.id, solana.network) } returns setOf(solanaId)
+        coEvery { stakingIdFactory.create(params.userWalletId, ton.id, ton.network) } returns tonId
+        coEvery { stakingIdFactory.create(params.userWalletId, solana.id, solana.network) } returns solanaId
         coEvery { yieldsBalancesStore.refresh(params.userWalletId, tonAndSolanaIds) } just Runs
         coEvery { stakingYieldsStore.getSyncWithTimeout() } returns null
         coEvery { yieldsBalancesStore.storeError(userWalletId, tonAndSolanaIds) } just Runs
 
-        val actual = fetcher(params)
+        // Actual
+        val actual = fetcher.invoke(params)
 
+        // Assert
         coVerify {
             userWalletsStore.getSyncOrNull(params.userWalletId)
             stakingIdFactory.create(params.userWalletId, ton.id, ton.network)
@@ -249,19 +275,22 @@ internal class DefaultMultiYieldBalanceFetcherTest {
 
     @Test
     fun `fetch yields balances failure if stakingYieldsStore getSyncWithTimeout returns empty list`() = runTest {
+        // Arrange
         val currencyIdWithNetworkMap = mapOf(ton.id to ton.network, solana.id to solana.network)
 
-        val params = YieldBalanceFetcherParams.Multi(userWalletId, currencyIdWithNetworkMap)
+        val params = MultiYieldBalanceFetcher.Params(userWalletId, currencyIdWithNetworkMap)
 
         coEvery { userWalletsStore.getSyncOrNull(params.userWalletId) } returns userWallet
-        coEvery { stakingIdFactory.create(params.userWalletId, ton.id, ton.network) } returns setOf(tonId)
-        coEvery { stakingIdFactory.create(params.userWalletId, solana.id, solana.network) } returns setOf(solanaId)
+        coEvery { stakingIdFactory.create(params.userWalletId, ton.id, ton.network) } returns tonId
+        coEvery { stakingIdFactory.create(params.userWalletId, solana.id, solana.network) } returns solanaId
         coEvery { yieldsBalancesStore.refresh(params.userWalletId, tonAndSolanaIds) } just Runs
         coEvery { stakingYieldsStore.getSyncWithTimeout() } returns emptyList()
         coEvery { yieldsBalancesStore.storeError(userWalletId, tonAndSolanaIds) } just Runs
 
-        val actual = fetcher(params)
+        // Actual
+        val actual = fetcher.invoke(params)
 
+        // Assert
         coVerify {
             userWalletsStore.getSyncOrNull(params.userWalletId)
             stakingIdFactory.create(params.userWalletId, ton.id, ton.network)
@@ -285,13 +314,14 @@ internal class DefaultMultiYieldBalanceFetcherTest {
 
     @Test
     fun `fetch yields balances failure if yields converting is failed`() = runTest {
+        // Arrange
         val currencyIdWithNetworkMap = mapOf(ton.id to ton.network, solana.id to solana.network)
 
-        val params = YieldBalanceFetcherParams.Multi(userWalletId, currencyIdWithNetworkMap)
+        val params = MultiYieldBalanceFetcher.Params(userWalletId, currencyIdWithNetworkMap)
 
         coEvery { userWalletsStore.getSyncOrNull(params.userWalletId) } returns userWallet
-        coEvery { stakingIdFactory.create(params.userWalletId, ton.id, ton.network) } returns setOf(tonId)
-        coEvery { stakingIdFactory.create(params.userWalletId, solana.id, solana.network) } returns setOf(solanaId)
+        coEvery { stakingIdFactory.create(params.userWalletId, ton.id, ton.network) } returns tonId
+        coEvery { stakingIdFactory.create(params.userWalletId, solana.id, solana.network) } returns solanaId
         coEvery { yieldsBalancesStore.refresh(params.userWalletId, tonAndSolanaIds) } just Runs
 
         val yields = listOf(
@@ -301,8 +331,10 @@ internal class DefaultMultiYieldBalanceFetcherTest {
         coEvery { stakingYieldsStore.getSyncWithTimeout() } returns yields
         coEvery { yieldsBalancesStore.storeError(userWalletId, tonAndSolanaIds) } just Runs
 
-        val actual = fetcher(params)
+        // Actual
+        val actual = fetcher.invoke(params)
 
+        // Assert
         coVerify {
             userWalletsStore.getSyncOrNull(params.userWalletId)
             stakingIdFactory.create(params.userWalletId, ton.id, ton.network)
@@ -326,21 +358,24 @@ internal class DefaultMultiYieldBalanceFetcherTest {
 
     @Test
     fun `fetch yields balances failure if available yields does not contain ids from params`() = runTest {
+        // Arrange
         val currencyIdWithNetworkMap = mapOf(ton.id to ton.network, solana.id to solana.network)
 
-        val params = YieldBalanceFetcherParams.Multi(userWalletId, currencyIdWithNetworkMap)
+        val params = MultiYieldBalanceFetcher.Params(userWalletId, currencyIdWithNetworkMap)
 
         coEvery { userWalletsStore.getSyncOrNull(params.userWalletId) } returns userWallet
-        coEvery { stakingIdFactory.create(params.userWalletId, ton.id, ton.network) } returns setOf(tonId)
-        coEvery { stakingIdFactory.create(params.userWalletId, solana.id, solana.network) } returns setOf(solanaId)
+        coEvery { stakingIdFactory.create(params.userWalletId, ton.id, ton.network) } returns tonId
+        coEvery { stakingIdFactory.create(params.userWalletId, solana.id, solana.network) } returns solanaId
         coEvery { yieldsBalancesStore.refresh(params.userWalletId, tonAndSolanaIds) } just Runs
 
         val yields = listOf(MockYieldDTOFactory.create(StakingID(integrationId = "polygon", address = "0x1")))
         coEvery { stakingYieldsStore.getSyncWithTimeout() } returns yields
         coEvery { yieldsBalancesStore.storeError(userWalletId, tonAndSolanaIds) } just Runs
 
-        val actual = fetcher(params)
+        // Actual
+        val actual = fetcher.invoke(params)
 
+        // Assert
         coVerify {
             userWalletsStore.getSyncOrNull(params.userWalletId)
             stakingIdFactory.create(params.userWalletId, ton.id, ton.network)
@@ -370,13 +405,14 @@ internal class DefaultMultiYieldBalanceFetcherTest {
 
     @Test
     fun `fetch yields balances failure if stakeKitApi getMultipleYieldBalances is failed`() = runTest {
+        // Arrange
         val currencyIdWithNetworkMap = mapOf(ton.id to ton.network, solana.id to solana.network)
 
-        val params = YieldBalanceFetcherParams.Multi(userWalletId, currencyIdWithNetworkMap)
+        val params = MultiYieldBalanceFetcher.Params(userWalletId, currencyIdWithNetworkMap)
 
         coEvery { userWalletsStore.getSyncOrNull(params.userWalletId) } returns userWallet
-        coEvery { stakingIdFactory.create(params.userWalletId, ton.id, ton.network) } returns setOf(tonId)
-        coEvery { stakingIdFactory.create(params.userWalletId, solana.id, solana.network) } returns setOf(solanaId)
+        coEvery { stakingIdFactory.create(params.userWalletId, ton.id, ton.network) } returns tonId
+        coEvery { stakingIdFactory.create(params.userWalletId, solana.id, solana.network) } returns solanaId
         coEvery { yieldsBalancesStore.refresh(params.userWalletId, tonAndSolanaIds) } just Runs
 
         val yields = listOf(MockYieldDTOFactory.create(tonId), MockYieldDTOFactory.create(solanaId))
@@ -391,8 +427,10 @@ internal class DefaultMultiYieldBalanceFetcherTest {
         coEvery { stakeKitApi.getMultipleYieldBalances(requests) } returns errorResponse
         coEvery { yieldsBalancesStore.storeError(userWalletId, tonAndSolanaIds) } just Runs
 
-        val actual = fetcher(params)
+        // Actual
+        val actual = fetcher.invoke(params)
 
+        // Assert
         coVerify {
             userWalletsStore.getSyncOrNull(params.userWalletId)
             stakingIdFactory.create(params.userWalletId, ton.id, ton.network)

@@ -16,10 +16,12 @@ dependencies {
 
     /** Project - Data */
     implementation(projects.core.datasource)
+    implementation(projects.core.error)
     implementation(projects.data.common)
 
     /** Project - Domain */
     implementation(projects.domain.visa)
+    implementation(projects.domain.card)
     implementation(projects.domain.models)
     implementation(projects.domain.wallets.models)
     implementation(projects.domain.appCurrency.models)

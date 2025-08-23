@@ -1,9 +1,9 @@
 package com.tangem.domain.transaction.usecase
 
 import arrow.core.Either
-import com.tangem.domain.tokens.model.CryptoCurrency
+import com.tangem.domain.models.currency.CryptoCurrency
 import com.tangem.domain.transaction.TransactionRepository
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWalletId
 import java.math.BigDecimal
 
 class GetAllowanceUseCase(

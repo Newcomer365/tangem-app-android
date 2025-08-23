@@ -13,7 +13,7 @@ import androidx.compose.ui.platform.SoftwareKeyboardController
  *
  * @property keyboardController keyboard controller
  *
- * @author Andrew Khokhlov on 29/11/2024
+[REDACTED_AUTHOR]
  */
 private class HideKeyboardNestedScrollConnection(
     private val keyboardController: SoftwareKeyboardController?,

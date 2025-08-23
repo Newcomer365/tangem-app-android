@@ -8,7 +8,8 @@ import com.tangem.core.analytics.api.AnalyticsEventHandler
 import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.domain.card.DeleteSavedAccessCodesUseCase
 import com.tangem.domain.redux.ReduxStateHolder
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.wallets.usecase.DeleteWalletUseCase
 import com.tangem.domain.wallets.usecase.GetSelectedWalletSyncUseCase
 import com.tangem.domain.wallets.usecase.GetUserWalletUseCase
@@ -86,8 +87,10 @@ internal class WalletCardClickIntentsImplementor @Inject constructor(
                 return@launch
             }
 
-            deleteSavedAccessCodesUseCase(cardId = walletToDelete.cardId).onLeft {
-                Timber.e("Unable to delete user wallet access code: $it")
+            if (walletToDelete is UserWallet.Cold) {
+                deleteSavedAccessCodesUseCase(cardId = walletToDelete.cardId).onLeft {
+                    Timber.e("Unable to delete user wallet access code: $it")
+                }
             }
 
             if (hasUserWallets) {

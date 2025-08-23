@@ -8,7 +8,7 @@ import com.tangem.tap.store
 import com.tangem.wallet.R
 
 /**
- * Created by Anton Zhilenkov on 28/02/2021.
+[REDACTED_AUTHOR]
  */
 object SimpleOkDialog {
 

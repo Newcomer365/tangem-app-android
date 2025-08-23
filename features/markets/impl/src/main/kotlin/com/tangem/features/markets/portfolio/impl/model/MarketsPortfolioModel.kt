@@ -21,9 +21,10 @@ import com.tangem.domain.managetokens.model.CurrencyUnsupportedState
 import com.tangem.domain.markets.SaveMarketTokensUseCase
 import com.tangem.domain.markets.TokenMarketInfo
 import com.tangem.domain.models.ArtworkModel
-import com.tangem.domain.tokens.model.CryptoCurrency
-import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
+import com.tangem.domain.models.wallet.isMultiCurrency
 import com.tangem.domain.wallets.usecase.GetCardImageUseCase
 import com.tangem.domain.wallets.usecase.GetSelectedWalletUseCase
 import com.tangem.features.markets.impl.R
@@ -98,6 +99,7 @@ internal class MarketsPortfolioModel @Inject constructor(
             )
         },
         addToPortfolioBSContentUMFactory = AddToPortfolioBSContentUMFactory(
+            addToPortfolioManager = addToPortfolioManager,
             token = params.token,
             onAddToPortfolioVisibilityChange = ::onAddToPortfolioBSVisibilityChange,
             onWalletSelectorVisibilityChange = ::onWalletSelectorVisibilityChange,
@@ -173,7 +175,7 @@ internal class MarketsPortfolioModel @Inject constructor(
 
     private fun subscribeOnStateUpdates() {
         combine(
-            flow = loadPortfolioData(params.token.id, addToPortfolioManager.availableNetworks),
+            flow = loadPortfolioData(params.token.id),
             flow2 = getPortfolioUIDataFlow(),
             flow3 = artworksState,
             transform = factory::create,
@@ -182,11 +184,8 @@ internal class MarketsPortfolioModel @Inject constructor(
             .launchIn(modelScope)
     }
 
-    private fun loadPortfolioData(
-        currencyRawId: CryptoCurrency.RawID,
-        availableNetworksFlow: Flow<Set<TokenMarketInfo.Network>?>,
-    ): Flow<PortfolioData> {
-        portfolioDataLoader.load(currencyRawId, availableNetworksFlow).onEach {
+    private fun loadPortfolioData(currencyRawId: CryptoCurrency.RawID): Flow<PortfolioData> {
+        portfolioDataLoader.load(currencyRawId).onEach {
             loadArtworks(it.walletsWithCurrencies.keys.toList())
         }.also { return it }
     }
@@ -194,7 +193,7 @@ internal class MarketsPortfolioModel @Inject constructor(
     private fun loadArtworks(wallets: List<UserWallet>) {
         modelScope.launch {
             loadArtworksMutex.withLock {
-                wallets.forEach { wallet ->
+                wallets.filterIsInstance<UserWallet.Cold>().forEach { wallet ->
                     if (!loadedArtworks.containsKey(wallet.walletId)) {
                         val artwork = getCardImageUseCase(
                             cardId = wallet.cardId,

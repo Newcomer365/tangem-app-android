@@ -14,7 +14,7 @@ import javax.inject.Inject
 /**
  * [TokenListUM] controller
  *
- * @author Andrew Khokhlov on 23/10/2024
+[REDACTED_AUTHOR]
  */
 internal class TokenListUMController @Inject constructor() {
 

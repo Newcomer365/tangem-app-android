@@ -20,21 +20,32 @@ dependencies {
     // region Domain modules
     api(projects.domain.core)
     implementation(projects.domain.legacy)
+    implementation(projects.domain.walletManager)
     implementation(projects.libs.blockchainSdk)
     implementation(projects.libs.tangemSdkApi)
     implementation(projects.domain.models)
     implementation(projects.domain.tokens)
+    implementation(projects.domain.card)
     implementation(projects.domain.tokens.models)
     implementation(projects.domain.wallets.models)
+    implementation(projects.domain.notifications.models)
     // endregion
 
     // region Tangem libraries
     implementation(tangemDeps.blockchain) // android-library
     implementation(tangemDeps.card.core)
+    implementation(tangemDeps.hot.core)
     // endregion
 
     // region DI
     implementation(deps.hilt.android)
     kapt(deps.hilt.kapt)
+    // end
+
+    // region Tests
+    testImplementation(deps.test.junit)
+    testImplementation(deps.test.coroutine)
+    testImplementation(deps.test.truth)
+    testImplementation(deps.test.mockk)
     // end
 }

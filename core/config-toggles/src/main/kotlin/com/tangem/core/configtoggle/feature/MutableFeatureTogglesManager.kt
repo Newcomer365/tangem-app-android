@@ -3,7 +3,7 @@ package com.tangem.core.configtoggle.feature
 /**
  * Component for change information about the availability of feature toggles
  *
- * @author Andrew Khokhlov on 26/01/2023
+[REDACTED_AUTHOR]
  */
 interface MutableFeatureTogglesManager : FeatureTogglesManager {
 

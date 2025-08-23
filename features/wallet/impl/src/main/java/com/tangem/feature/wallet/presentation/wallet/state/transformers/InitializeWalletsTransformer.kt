@@ -1,7 +1,8 @@
 package com.tangem.feature.wallet.presentation.wallet.state.transformers
 
-import com.tangem.domain.common.util.cardTypesResolver
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.card.common.util.cardTypesResolver
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.isLocked
 import com.tangem.feature.wallet.presentation.wallet.domain.WalletAdditionalInfoFactory
 import com.tangem.feature.wallet.presentation.wallet.domain.WalletImageResolver
 import com.tangem.feature.wallet.presentation.wallet.state.model.*
@@ -94,7 +95,8 @@ internal class InitializeWalletsTransformer(
     }
 
     private fun createMultiWalletEnabledButtons(userWallet: UserWallet): PersistentList<WalletManageButton> {
-        val isSingleWalletWithToken = userWallet.scanResponse.cardTypesResolver.isSingleWalletWithToken()
+        val isSingleWalletWithToken = userWallet is UserWallet.Cold &&
+            userWallet.scanResponse.cardTypesResolver.isSingleWalletWithToken()
         if (isSingleWalletWithToken) return persistentListOf()
 
         return persistentListOf(

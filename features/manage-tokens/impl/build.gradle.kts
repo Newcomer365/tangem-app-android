@@ -14,13 +14,15 @@ android {
 dependencies {
     /* Project - API */
     implementation(projects.features.manageTokens.api)
+    implementation(projects.features.swapV2.api)
 
     /* Project - Core */
     implementation(projects.core.decompose)
     implementation(projects.core.ui)
-    implementation(projects.common.routing)
     implementation(projects.core.configToggles)
     implementation(projects.core.analytics)
+    implementation(projects.common.routing)
+    implementation(projects.common.ui)
 
     /* Project - Domain */
     implementation(projects.domain.card)
@@ -29,6 +31,7 @@ dependencies {
     implementation(projects.domain.tokens)
     implementation(projects.domain.tokens.models)
     implementation(projects.domain.wallets.models)
+    implementation(projects.domain.swap.models)
 
     /* AndroidX */
     implementation(deps.androidx.activity.compose)

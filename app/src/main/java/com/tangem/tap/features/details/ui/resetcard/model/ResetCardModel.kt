@@ -11,7 +11,8 @@ import com.tangem.core.decompose.model.ParamsContainer
 import com.tangem.domain.card.DeleteSavedAccessCodesUseCase
 import com.tangem.domain.card.ResetCardUseCase
 import com.tangem.domain.card.ResetCardUserCodeParams
-import com.tangem.domain.common.util.cardTypesResolver
+import com.tangem.domain.card.common.util.cardTypesResolver
+import com.tangem.domain.models.wallet.requireColdWallet
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
 import com.tangem.domain.wallets.legacy.asLockable
 import com.tangem.domain.wallets.usecase.DeleteWalletUseCase
@@ -59,6 +60,7 @@ internal class ResetCardModel @Inject constructor(
     // Use only for card-specific data
     private val userWallet = getUserWalletUseCase(userWalletId = currentUserWalletId)
         .getOrElse { error("Failed to get user wallet: $it") }
+        .requireColdWallet()
 
     private val currentCardTypesResolver = userWallet.cardTypesResolver
     private val currentUserCodeParams = ResetCardUserCodeParams(

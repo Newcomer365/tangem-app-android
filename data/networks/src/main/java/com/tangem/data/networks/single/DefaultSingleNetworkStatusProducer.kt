@@ -1,9 +1,9 @@
 package com.tangem.data.networks.single
 
+import com.tangem.domain.models.network.NetworkStatus
 import com.tangem.domain.networks.multi.MultiNetworkStatusProducer
 import com.tangem.domain.networks.multi.MultiNetworkStatusSupplier
 import com.tangem.domain.networks.single.SingleNetworkStatusProducer
-import com.tangem.domain.tokens.model.NetworkStatus
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.mapNotNull
  * @property multiNetworkStatusSupplier multi network status supplier
  * @property dispatchers                dispatchers
  *
- * @author Andrew Khokhlov on 28/03/2025
+[REDACTED_AUTHOR]
  */
 internal class DefaultSingleNetworkStatusProducer @AssistedInject constructor(
     @Assisted val params: SingleNetworkStatusProducer.Params,

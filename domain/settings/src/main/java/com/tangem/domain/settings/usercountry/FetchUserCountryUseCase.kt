@@ -11,7 +11,7 @@ import com.tangem.domain.settings.usercountry.models.UserCountryError
  *
  * @property settingsRepository settings repository
  *
- * @author Andrew Khokhlov on 12/09/2024
+[REDACTED_AUTHOR]
  */
 class FetchUserCountryUseCase(
     private val settingsRepository: SettingsRepository,

@@ -2,8 +2,8 @@ package com.tangem.features.onramp.selectcountry
 
 import com.tangem.core.decompose.factory.ComponentFactory
 import com.tangem.core.ui.decompose.ComposableBottomSheetComponent
-import com.tangem.domain.tokens.model.CryptoCurrency
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.wallet.UserWalletId
 
 internal interface SelectCountryComponent : ComposableBottomSheetComponent {
 

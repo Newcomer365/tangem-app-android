@@ -17,7 +17,7 @@ import okio.IOException
  * @property id                api config id [ApiConfig.ID]
  * @property apiConfigsManager api configs manager
  *
- * @author Andrew Khokhlov on 07.08.2022
+[REDACTED_AUTHOR]
  */
 internal class SwitchEnvironmentInterceptor(
     private val id: ApiConfig.ID,

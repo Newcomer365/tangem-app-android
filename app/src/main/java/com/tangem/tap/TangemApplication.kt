@@ -30,6 +30,7 @@ import com.tangem.core.navigation.settings.SettingsManager
 import com.tangem.core.ui.clipboard.ClipboardManager
 import com.tangem.data.card.TransactionSignerFactory
 import com.tangem.datasource.api.common.MoshiConverter
+import com.tangem.datasource.api.common.config.managers.ApiConfigsManager
 import com.tangem.datasource.api.common.createNetworkLoggingInterceptor
 import com.tangem.datasource.connection.NetworkConnectionManager
 import com.tangem.datasource.local.config.environment.EnvironmentConfig
@@ -37,6 +38,7 @@ import com.tangem.datasource.local.config.environment.EnvironmentConfigStorage
 import com.tangem.datasource.local.config.issuers.IssuersConfigStorage
 import com.tangem.datasource.local.logs.AppLogsStore
 import com.tangem.datasource.local.preferences.AppPreferencesStore
+import com.tangem.datasource.local.token.UserTokensResponseStore
 import com.tangem.datasource.utils.NetworkLogsSaveInterceptor
 import com.tangem.domain.appcurrency.repository.AppCurrencyRepository
 import com.tangem.domain.apptheme.GetAppThemeModeUseCase
@@ -52,13 +54,11 @@ import com.tangem.domain.onboarding.WasTwinsOnboardingShownUseCase
 import com.tangem.domain.onboarding.repository.OnboardingRepository
 import com.tangem.domain.settings.repositories.SettingsRepository
 import com.tangem.domain.walletmanager.WalletManagersFacade
-import com.tangem.domain.wallets.builder.UserWalletBuilder
+import com.tangem.domain.wallets.builder.ColdUserWalletBuilder
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
 import com.tangem.domain.wallets.repository.WalletsRepository
 import com.tangem.features.onboarding.v2.OnboardingV2FeatureToggles
-import com.tangem.features.onramp.OnrampFeatureToggles
-import com.tangem.operations.attestation.OnlineCardVerifier
-import com.tangem.operations.attestation.api.TangemApiServiceLogging
+import com.tangem.operations.attestation.api.TangemApiServiceSettings
 import com.tangem.tap.common.analytics.AnalyticsFactory
 import com.tangem.tap.common.analytics.api.AnalyticsHandlerBuilder
 import com.tangem.tap.common.analytics.handlers.BlockchainExceptionHandler
@@ -77,7 +77,6 @@ import com.tangem.wallet.BuildConfig
 import dagger.hilt.EntryPoints
 import kotlinx.coroutines.*
 import org.rekotlin.Store
-import kotlin.collections.set
 import com.tangem.tap.domain.walletconnect2.domain.LegacyWalletConnectRepository as WalletConnect2Repository
 
 lateinit var store: Store<AppState>
@@ -184,9 +183,6 @@ abstract class TangemApplication : Application(), ImageLoaderFactory, Configurat
     private val transactionSignerFactory: TransactionSignerFactory
         get() = entryPoint.getTransactionSignerFactory()
 
-    private val onrampFeatureToggles: OnrampFeatureToggles
-        get() = entryPoint.getOnrampFeatureToggles()
-
     private val onboardingV2FeatureToggles: OnboardingV2FeatureToggles
         get() = entryPoint.getOnboardingV2FeatureToggles()
 
@@ -222,11 +218,14 @@ abstract class TangemApplication : Application(), ImageLoaderFactory, Configurat
             .setWorkerFactory(workerFactory)
             .build()
 
-    private val onlineCardVerifier: OnlineCardVerifier
-        get() = entryPoint.getOnlineCardVerifier()
+    private val coldUserWalletBuilderFactory: ColdUserWalletBuilder.Factory
+        get() = entryPoint.getColdUserWalletBuilderFactory()
 
-    private val userWalletBuilderFactory: UserWalletBuilder.Factory
-        get() = entryPoint.getUserWalletBuilderFactory()
+    private val apiConfigsManager: ApiConfigsManager
+        get() = entryPoint.getApiConfigsManager()
+
+    private val userTokensResponseStore: UserTokensResponseStore
+        get() = entryPoint.getUserTokensResponseStore()
 
     // endregion
 
@@ -275,6 +274,8 @@ abstract class TangemApplication : Application(), ImageLoaderFactory, Configurat
     }
 
     fun init() {
+        apiConfigsManager.initialize()
+
         store = createReduxStore()
 
         tangemAppLoggerInitializer.initialize()
@@ -285,12 +286,8 @@ abstract class TangemApplication : Application(), ImageLoaderFactory, Configurat
         // We need to initialize the toggles and excludedBlockchainsManager before the MainActivity starts using them.
         runBlocking {
             awaitAll(
-                async {
-                    featureTogglesManager.init()
-                },
-                async {
-                    excludedBlockchainsManager.init()
-                },
+                async { featureTogglesManager.init() },
+                async { excludedBlockchainsManager.init() },
             )
             initWithConfigDependency(environmentConfig = environmentConfigStorage.initialize())
         }
@@ -309,7 +306,8 @@ abstract class TangemApplication : Application(), ImageLoaderFactory, Configurat
                 createNetworkLoggingInterceptor(),
                 ChuckerInterceptor(this),
             )
-            TangemApiServiceLogging.addInterceptors(
+
+            TangemApiServiceSettings.addInterceptors(
                 createNetworkLoggingInterceptor(),
                 ChuckerInterceptor(this),
                 NetworkLogsSaveInterceptor(appLogsStore),
@@ -317,7 +315,7 @@ abstract class TangemApplication : Application(), ImageLoaderFactory, Configurat
         }
 
         derivationsFinder = DerivationsFinder(
-            appPreferencesStore = appPreferencesStore,
+            userTokensResponseStore = userTokensResponseStore,
             dispatchers = dispatchers,
         )
 
@@ -356,7 +354,6 @@ abstract class TangemApplication : Application(), ImageLoaderFactory, Configurat
                     shareManager = shareManager,
                     appRouter = appRouter,
                     transactionSignerFactory = transactionSignerFactory,
-                    onrampFeatureToggles = onrampFeatureToggles,
                     environmentConfigStorage = environmentConfigStorage,
                     onboardingV2FeatureToggles = onboardingV2FeatureToggles,
                     onboardingRepository = onboardingRepository,
@@ -365,8 +362,8 @@ abstract class TangemApplication : Application(), ImageLoaderFactory, Configurat
                     clipboardManager = clipboardManager,
                     settingsManager = settingsManager,
                     uiMessageSender = uiMessageSender,
-                    onlineCardVerifier = onlineCardVerifier,
-                    userWalletBuilderFactory = userWalletBuilderFactory,
+                    coldUserWalletBuilderFactory = coldUserWalletBuilderFactory,
+                    userTokensResponseStore = userTokensResponseStore,
                 ),
             ),
         )

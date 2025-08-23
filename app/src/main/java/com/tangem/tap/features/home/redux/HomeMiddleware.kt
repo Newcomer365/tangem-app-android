@@ -9,7 +9,7 @@ import com.tangem.common.routing.AppRoute
 import com.tangem.core.analytics.Analytics
 import com.tangem.core.analytics.models.AnalyticsParam
 import com.tangem.core.analytics.models.Basic
-import com.tangem.domain.common.util.cardTypesResolver
+import com.tangem.domain.card.common.util.cardTypesResolver
 import com.tangem.domain.models.scan.ScanResponse
 import com.tangem.tap.common.analytics.converters.ParamCardCurrencyConverter
 import com.tangem.tap.common.analytics.events.IntroductionProcess
@@ -61,7 +61,6 @@ private fun handleHomeAction(action: Action) {
             Analytics.send(IntroductionProcess.ScreenOpened())
 
             store.dispatch(GlobalAction.RestoreAppCurrency)
-            store.dispatch(GlobalAction.ExchangeManager.Init)
         }
         is HomeAction.ReadCard -> {
             action.scope.launch {
@@ -100,7 +99,7 @@ private suspend fun readCard() {
 }
 
 private fun proceedWithScanResponse(scanResponse: ScanResponse) = scope.launch {
-    val userWalletBuilder = store.inject(DaggerGraphState::userWalletBuilderFactory).create(scanResponse)
+    val userWalletBuilder = store.inject(DaggerGraphState::coldUserWalletBuilderFactory).create(scanResponse)
 
     val userWallet = userWalletBuilder.build().guard {
         Timber.e("User wallet not created")

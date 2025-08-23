@@ -2,9 +2,9 @@ package com.tangem.tap.domain.userWalletList.implementation
 
 import com.google.common.truth.Truth
 import com.tangem.common.test.domain.card.MockScanResponseFactory
-import com.tangem.domain.common.configs.GenericCardConfig
-import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.card.configs.GenericCardConfig
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
 import io.mockk.mockk
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -13,7 +13,7 @@ import kotlin.reflect.full.declaredFunctions
 import kotlin.reflect.jvm.isAccessible
 
 /**
- * @author Andrew Khokhlov on 04/02/2025
+[REDACTED_AUTHOR]
  */
 @RunWith(Parameterized::class)
 internal class BiometricUserWalletsListManagerTest(private val model: Model) {
@@ -191,7 +191,7 @@ internal class BiometricUserWalletsListManagerTest(private val model: Model) {
         )
 
         fun createUserWallet(id: String, isLocked: Boolean): UserWallet {
-            return UserWallet(
+            return UserWallet.Cold(
                 name = "Wallet $id",
                 walletId = UserWalletId(stringValue = id),
                 cardsInWallet = emptySet(),

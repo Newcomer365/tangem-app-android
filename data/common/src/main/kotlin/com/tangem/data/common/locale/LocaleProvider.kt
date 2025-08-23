@@ -3,7 +3,7 @@ package com.tangem.data.common.locale
 import java.util.Locale
 
 /**
- * @author Anton Zhilenkov on 12.08.2023.
+[REDACTED_AUTHOR]
  */
 interface LocaleProvider {
 

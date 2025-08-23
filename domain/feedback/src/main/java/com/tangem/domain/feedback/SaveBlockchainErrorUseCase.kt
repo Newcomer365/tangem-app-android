@@ -8,7 +8,7 @@ import com.tangem.domain.feedback.repository.FeedbackRepository
  *
  * @property feedbackRepository feedback repository
  *
- * @author Andrew Khokhlov on 20/05/2024
+[REDACTED_AUTHOR]
  */
 class SaveBlockchainErrorUseCase(
     private val feedbackRepository: FeedbackRepository,

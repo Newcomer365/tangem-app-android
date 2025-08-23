@@ -1,7 +1,7 @@
 package com.tangem.domain.wallets.models
 
 /**
- * @author Andrew Khokhlov on 14/07/2023
+[REDACTED_AUTHOR]
  */
 sealed interface SaveWalletError {
 

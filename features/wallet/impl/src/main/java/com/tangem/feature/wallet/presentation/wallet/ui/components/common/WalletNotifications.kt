@@ -16,7 +16,7 @@ import kotlinx.collections.immutable.ImmutableList
  * @param configs  list of notifications
  * @param modifier modifier
  *
- * @author Andrew Khokhlov on 07/08/2023
+[REDACTED_AUTHOR]
  */
 internal fun LazyListScope.notifications(configs: ImmutableList<WalletNotification>, modifier: Modifier = Modifier) {
     items(

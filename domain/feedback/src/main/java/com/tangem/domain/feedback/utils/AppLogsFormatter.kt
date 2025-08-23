@@ -9,7 +9,7 @@ import java.util.Locale
 /**
  * App logs formatter
  *
- * @author Andrew Khokhlov on 17/05/2024
+[REDACTED_AUTHOR]
  */
 internal class AppLogsFormatter {
 

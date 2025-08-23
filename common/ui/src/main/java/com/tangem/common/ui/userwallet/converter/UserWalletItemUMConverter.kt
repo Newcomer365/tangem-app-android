@@ -2,19 +2,19 @@ package com.tangem.common.ui.userwallet.converter
 
 import com.tangem.common.ui.R
 import com.tangem.common.ui.userwallet.state.UserWalletItemUM
-import com.tangem.core.ui.components.artwork.ArtworkUM
 import com.tangem.core.ui.extensions.TextReference
 import com.tangem.core.ui.extensions.stringReference
 import com.tangem.core.ui.extensions.wrappedList
 import com.tangem.core.ui.format.bigdecimal.fiat
 import com.tangem.core.ui.format.bigdecimal.format
 import com.tangem.domain.appcurrency.model.AppCurrency
-import com.tangem.domain.common.util.getCardsCount
+import com.tangem.domain.card.common.util.getCardsCount
 import com.tangem.domain.models.ArtworkModel
 import com.tangem.domain.models.StatusSource
-import com.tangem.domain.tokens.model.TotalFiatBalance
-import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.TotalFiatBalance
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
+import com.tangem.domain.models.wallet.isLocked
 import com.tangem.utils.converter.Converter
 
 /**
@@ -25,7 +25,7 @@ import com.tangem.utils.converter.Converter
  * @property balance         wallet balance
  * @property isBalanceHidden wallet balance is hidden
  *
- * @author Andrew Khokhlov on 27/08/2024
+[REDACTED_AUTHOR]
  */
 class UserWalletItemUMConverter(
     private val onClick: (UserWalletId) -> Unit,
@@ -35,6 +35,8 @@ class UserWalletItemUMConverter(
     private val endIcon: UserWalletItemUM.EndIcon = UserWalletItemUM.EndIcon.None,
     private val artwork: ArtworkModel? = null,
 ) : Converter<UserWallet, UserWalletItemUM> {
+
+    private val artworkUMConverter = ArtworkUMConverter()
 
     override fun convert(value: UserWallet): UserWalletItemUM {
         return with(value) {
@@ -47,19 +49,27 @@ class UserWalletItemUMConverter(
                 endIcon = endIcon,
                 onClick = { onClick(value.walletId) },
                 imageState = artwork?.let {
-                    UserWalletItemUM.ImageState.Image(ArtworkUM(it.verifiedArtwork, it.defaultUrl))
+                    UserWalletItemUM.ImageState.Image(artworkUMConverter.convert(it))
                 } ?: UserWalletItemUM.ImageState.Loading,
             )
         }
     }
 
-    private fun getInfo(userWallet: UserWallet): TextReference {
-        val cardCount = userWallet.getCardsCount() ?: 1
-        return TextReference.PluralRes(
-            id = R.plurals.card_label_card_count,
-            count = cardCount,
-            formatArgs = wrappedList(cardCount),
-        )
+    private fun getInfo(userWallet: UserWallet): UserWalletItemUM.Information.Loaded {
+        val text = when (userWallet) {
+            is UserWallet.Cold -> {
+                val cardCount = userWallet.getCardsCount() ?: 1
+                TextReference.PluralRes(
+                    id = R.plurals.card_label_card_count,
+                    count = cardCount,
+                    formatArgs = wrappedList(cardCount),
+                )
+            }
+            is UserWallet.Hot -> {
+                TextReference.Res(R.string.hw_mobile_wallet)
+            }
+        }
+        return UserWalletItemUM.Information.Loaded(text)
     }
 
     private fun getBalanceInfo(userWallet: UserWallet): UserWalletItemUM.Balance {

@@ -1,15 +1,15 @@
 package com.tangem.data.staking.store
 
 import com.tangem.datasource.api.stakekit.models.response.model.YieldBalanceWrapperDTO
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.staking.model.StakingID
 import com.tangem.domain.staking.model.stakekit.YieldBalance
-import com.tangem.domain.wallets.models.UserWalletId
 import kotlinx.coroutines.flow.Flow
 
 /**
  * Store of [YieldBalance]'s set
  *
- * @author Andrew Khokhlov on 15/04/2025
+[REDACTED_AUTHOR]
  */
 interface YieldsBalancesStore {
 

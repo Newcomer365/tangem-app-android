@@ -2,11 +2,13 @@ package com.tangem.feature.swap.di
 
 import com.squareup.moshi.Moshi
 import com.tangem.blockchainsdk.utils.ExcludedBlockchains
+import com.tangem.data.common.currency.ResponseCryptoCurrenciesFactory
 import com.tangem.datasource.api.express.TangemExpressApi
 import com.tangem.datasource.api.express.models.response.ExpressErrorResponse
 import com.tangem.datasource.crypto.DataSignatureVerifier
 import com.tangem.datasource.di.NetworkMoshi
 import com.tangem.datasource.local.preferences.AppPreferencesStore
+import com.tangem.domain.exchange.RampStateManager
 import com.tangem.domain.walletmanager.WalletManagersFacade
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
 import com.tangem.feature.swap.DefaultSwapRepository
@@ -37,6 +39,7 @@ internal class SwapDataModule {
         @NetworkMoshi moshi: Moshi,
         excludedBlockchains: ExcludedBlockchains,
         appPreferencesStore: AppPreferencesStore,
+        rampStateManager: RampStateManager,
     ): SwapRepository {
         return DefaultSwapRepository(
             tangemExpressApi = tangemExpressApi,
@@ -48,6 +51,7 @@ internal class SwapDataModule {
             moshi = moshi,
             excludedBlockchains = excludedBlockchains,
             appPreferencesStore = appPreferencesStore,
+            rampStateManager = rampStateManager,
         )
     }
 
@@ -55,13 +59,13 @@ internal class SwapDataModule {
     @Singleton
     fun provideSwapTransactionRepository(
         appPreferencesStore: AppPreferencesStore,
+        responseCryptoCurrenciesFactory: ResponseCryptoCurrenciesFactory,
         dispatcherProvider: CoroutineDispatcherProvider,
-        excludedBlockchains: ExcludedBlockchains,
     ): SwapTransactionRepository {
         return DefaultSwapTransactionRepository(
             appPreferencesStore = appPreferencesStore,
+            responseCryptoCurrenciesFactory = responseCryptoCurrenciesFactory,
             dispatchers = dispatcherProvider,
-            excludedBlockchains = excludedBlockchains,
         )
     }
 

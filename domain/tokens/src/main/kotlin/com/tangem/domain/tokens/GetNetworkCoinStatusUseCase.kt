@@ -1,13 +1,16 @@
 package com.tangem.domain.tokens
 
 import arrow.core.Either
+import com.tangem.domain.card.common.util.cardTypesResolver
+import com.tangem.domain.models.network.Network
 import com.tangem.domain.tokens.error.CurrencyStatusError
 import com.tangem.domain.tokens.error.mapper.mapToCurrencyError
 import com.tangem.domain.tokens.model.CryptoCurrencyStatus
-import com.tangem.domain.tokens.model.Network
 import com.tangem.domain.tokens.operations.BaseCurrencyStatusOperations
 import com.tangem.domain.tokens.operations.CurrenciesStatusesOperations
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
+import com.tangem.domain.models.wallet.isMultiCurrency
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import kotlinx.coroutines.flow.*
 
@@ -36,16 +39,20 @@ class GetNetworkCoinStatusUseCase(
     }
 
     suspend fun invokeSync(
-        userWalletId: UserWalletId,
+        userWallet: UserWallet,
         networkId: Network.ID,
         derivationPath: Network.DerivationPath,
-        isSingleWalletWithTokens: Boolean,
     ): Either<CurrencyStatusError, CryptoCurrencyStatus> {
-        val maybeCurrency = if (isSingleWalletWithTokens) {
+        val userWalletId = userWallet.walletId
+
+        val maybeCurrency = if (userWallet.isMultiCurrency) {
+            currencyStatusOperations.getNetworkCoinSync(userWalletId, networkId, derivationPath)
+        } else if (userWallet is UserWallet.Cold && userWallet.cardTypesResolver.isSingleWalletWithToken()) {
             currencyStatusOperations.getNetworkCoinForSingleWalletWithTokenSync(userWalletId, networkId)
         } else {
-            currencyStatusOperations.getNetworkCoinSync(userWalletId, networkId, derivationPath)
+            currencyStatusOperations.getPrimaryCurrencyStatusSync(userWalletId)
         }
+
         return maybeCurrency.mapLeft(CurrenciesStatusesOperations.Error::mapToCurrencyError)
     }
 

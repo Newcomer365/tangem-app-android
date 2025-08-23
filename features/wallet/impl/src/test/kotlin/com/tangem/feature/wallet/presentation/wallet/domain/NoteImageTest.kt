@@ -5,7 +5,7 @@ import com.tangem.blockchain.common.Blockchain
 import org.junit.Test
 
 /**
- * @author Andrew Khokhlov on 19/08/2024
+[REDACTED_AUTHOR]
  */
 internal class NoteImageTest {
 

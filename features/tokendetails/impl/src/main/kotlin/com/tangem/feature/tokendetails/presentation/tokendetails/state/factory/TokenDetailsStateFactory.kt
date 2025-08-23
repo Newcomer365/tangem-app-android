@@ -2,10 +2,10 @@ package com.tangem.feature.tokendetails.presentation.tokendetails.state.factory
 
 import androidx.paging.PagingData
 import arrow.core.Either
-import com.tangem.common.ui.tokens.getUnavailabilityReasonText
-import com.tangem.core.ui.components.bottomsheets.TangemBottomSheetConfig
 import com.tangem.common.ui.bottomsheet.chooseaddress.ChooseAddressBottomSheetConfig
 import com.tangem.common.ui.bottomsheet.receive.TokenReceiveBottomSheetConfig
+import com.tangem.common.ui.tokens.getUnavailabilityReasonText
+import com.tangem.core.ui.components.bottomsheets.TangemBottomSheetConfig
 import com.tangem.core.ui.components.dropdownmenu.TangemDropdownMenuItem
 import com.tangem.core.ui.components.transactions.state.TransactionState
 import com.tangem.core.ui.components.transactions.state.TxHistoryState
@@ -13,19 +13,26 @@ import com.tangem.core.ui.extensions.TextReference
 import com.tangem.core.ui.extensions.resourceReference
 import com.tangem.core.ui.res.TangemTheme
 import com.tangem.domain.appcurrency.model.AppCurrency
-import com.tangem.domain.card.NetworkHasDerivationUseCase
-import com.tangem.domain.common.CardTypesResolver
+import com.tangem.domain.card.common.util.cardTypesResolver
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.network.Network
+import com.tangem.domain.models.network.NetworkAddress
+import com.tangem.domain.models.network.TxInfo
 import com.tangem.domain.staking.GetStakingIntegrationIdUseCase
 import com.tangem.domain.staking.model.StakingAvailability
 import com.tangem.domain.staking.model.StakingEntryInfo
 import com.tangem.domain.tokens.error.CurrencyStatusError
-import com.tangem.domain.tokens.model.*
+import com.tangem.domain.tokens.model.CryptoCurrencyStatus
+import com.tangem.domain.tokens.model.ScenarioUnavailabilityReason
+import com.tangem.domain.tokens.model.TokenActionsState
 import com.tangem.domain.tokens.model.warnings.CryptoCurrencyWarning
-import com.tangem.domain.txhistory.models.TxHistoryItem
 import com.tangem.domain.txhistory.models.TxHistoryListError
 import com.tangem.domain.txhistory.models.TxHistoryStateError
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.wallets.usecase.GetUserWalletUseCase
+import com.tangem.domain.wallets.usecase.NetworkHasDerivationUseCase
+import com.tangem.feature.tokendetails.presentation.tokendetails.model.TokenDetailsClickIntents
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.TokenBalanceSegmentedButtonConfig
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.TokenDetailsAppBarMenuConfig
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.TokenDetailsState
@@ -33,7 +40,6 @@ import com.tangem.feature.tokendetails.presentation.tokendetails.state.component
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.factory.txhistory.TokenDetailsLoadedTxHistoryConverter
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.factory.txhistory.TokenDetailsLoadingTxHistoryConverter
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.factory.txhistory.TokenDetailsLoadingTxHistoryConverter.TokenDetailsLoadingTxHistoryModel
-import com.tangem.feature.tokendetails.presentation.tokendetails.model.TokenDetailsClickIntents
 import com.tangem.features.tokendetails.impl.R
 import com.tangem.utils.Provider
 import kotlinx.collections.immutable.toImmutableList
@@ -167,7 +173,7 @@ internal class TokenDetailsStateFactory(
     }
 
     fun getLoadedTxHistoryState(
-        txHistoryEither: Either<TxHistoryListError, Flow<PagingData<TxHistoryItem>>>,
+        txHistoryEither: Either<TxHistoryListError, Flow<PagingData<TxInfo>>>,
     ): TokenDetailsState {
         return currentStateProvider().copy(
             txHistoryState = loadedTxHistoryConverter.convert(txHistoryEither),
@@ -329,6 +335,11 @@ internal class TokenDetailsStateFactory(
         return state.copy(notifications = notificationConverter.removeHederaAssociateWarning(state))
     }
 
+    fun getStateWithRemovedRequiredTrustlineNotification(): TokenDetailsState {
+        val state = currentStateProvider()
+        return state.copy(notifications = notificationConverter.removeRequiredTrustlineWarning(state))
+    }
+
     fun getStateWithRemovedKaspaIncompleteTransactionNotification(): TokenDetailsState {
         val state = currentStateProvider()
         return state.copy(
@@ -338,7 +349,7 @@ internal class TokenDetailsStateFactory(
     }
 
     fun getStateWithUpdatedMenu(
-        cardTypesResolver: CardTypesResolver,
+        userWallet: UserWallet,
         hasDerivations: Boolean,
         isSupported: Boolean,
     ): TokenDetailsState {
@@ -346,7 +357,7 @@ internal class TokenDetailsStateFactory(
             copy(
                 topAppBarConfig = topAppBarConfig.copy(
                     tokenDetailsAppBarMenuConfig = topAppBarConfig.tokenDetailsAppBarMenuConfig
-                        ?.updateMenu(cardTypesResolver, hasDerivations, isSupported),
+                        ?.updateMenu(userWallet, hasDerivations, isSupported),
                 ),
             )
         }
@@ -375,11 +386,16 @@ internal class TokenDetailsStateFactory(
     }
 
     private fun TokenDetailsAppBarMenuConfig.updateMenu(
-        cardTypesResolver: CardTypesResolver,
+        userWallet: UserWallet,
         hasDerivations: Boolean,
         isSupported: Boolean,
     ): TokenDetailsAppBarMenuConfig? {
-        if (cardTypesResolver.isSingleWalletWithToken()) return null
+        if (userWallet is UserWallet.Cold &&
+            userWallet.scanResponse.cardTypesResolver.isSingleWalletWithToken()
+        ) {
+            return null
+        }
+
         return copy(
             items = buildList {
                 if (isSupported && hasDerivations) {

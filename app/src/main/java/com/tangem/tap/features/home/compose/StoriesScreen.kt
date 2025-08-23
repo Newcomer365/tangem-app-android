@@ -22,7 +22,7 @@ import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.datasource.CollectionPreviewParameterProvider
 import com.tangem.core.ui.res.TangemTheme
 import com.tangem.core.ui.res.TangemThemePreview
-import com.tangem.core.ui.test.TestTags
+import com.tangem.core.ui.test.StoriesScreenTestTags
 import com.tangem.tap.features.home.compose.content.*
 import com.tangem.tap.features.home.compose.views.HomeButtons
 import com.tangem.tap.features.home.compose.views.SearchCurrenciesButton
@@ -57,11 +57,11 @@ internal fun StoriesScreen(
         }
     }
 
-    // todo refactor AND-9605
+    // todo refactor [REDACTED_TASK_KEY]
     StoriesScreenContent(
         modifier = Modifier
             .fillMaxSize()
-            .testTag(TestTags.STORIES_SCREEN),
+            .testTag(StoriesScreenTestTags.SCREEN_CONTAINER),
         config = StoriesScreenContentConfig(
             storiesSize = state.stories.lastIndex,
             currentStoryIndex = currentStoryIndex,

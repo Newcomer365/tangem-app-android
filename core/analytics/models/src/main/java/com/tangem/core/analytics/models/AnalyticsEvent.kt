@@ -1,7 +1,7 @@
 package com.tangem.core.analytics.models
 
 /**
- * Created by Anton Zhilenkov on 28.09.2022.
+[REDACTED_AUTHOR]
  */
 open class AnalyticsEvent(
     val category: String,

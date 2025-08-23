@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 /**
  * Store of app currency data model [CurrenciesResponse.Currency]
  *
- * @author Andrew Khokhlov on 05/04/2025
+[REDACTED_AUTHOR]
  */
 interface AppCurrencyResponseStore {
 

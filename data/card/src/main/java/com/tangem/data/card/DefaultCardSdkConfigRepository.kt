@@ -15,7 +15,7 @@ import com.tangem.domain.models.scan.ProductType
  *
  * @property cardSdkProvider       CardSDK instance provider
  *
- * @author Andrew Khokhlov on 12/07/2023
+[REDACTED_AUTHOR]
  */
 internal class DefaultCardSdkConfigRepository(
     private val cardSdkProvider: CardSdkProvider,
@@ -69,9 +69,5 @@ internal class DefaultCardSdkConfigRepository(
 
     override fun setLinkedTerminal(isLinked: Boolean?) {
         sdk.config.linkedTerminal = isLinked
-    }
-
-    override fun setTangemApiProdEnvFlag(flag: Boolean) {
-        sdk.config.isTangemAttestationProdEnv = flag
     }
 }

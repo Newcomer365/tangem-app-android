@@ -1,7 +1,7 @@
 package com.tangem.tap.common
 
 /**
- * Created by Anton Zhilenkov on 19/04/2022.
+[REDACTED_AUTHOR]
  */
 
 object TestActions {

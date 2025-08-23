@@ -11,7 +11,7 @@ import com.squareup.moshi.JsonClass
  *
  * IMPORTANT: if the version is "undefined", it means that toggle is disabled!
  *
- * @author Andrew Khokhlov on 25/01/2023
+[REDACTED_AUTHOR]
  */
 @JsonClass(generateAdapter = true)
 internal data class ConfigToggle(

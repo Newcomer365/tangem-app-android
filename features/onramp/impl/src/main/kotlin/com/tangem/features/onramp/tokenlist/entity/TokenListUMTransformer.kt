@@ -5,6 +5,6 @@ import com.tangem.utils.transformer.Transformer
 /**
  * Base [TokenListUM] transformer
  *
- * @author Andrew Khokhlov on 23/10/2024
+[REDACTED_AUTHOR]
  */
 internal interface TokenListUMTransformer : Transformer<TokenListUM>

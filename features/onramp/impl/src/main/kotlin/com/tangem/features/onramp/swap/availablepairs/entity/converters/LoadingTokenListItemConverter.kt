@@ -9,7 +9,7 @@ import com.tangem.utils.converter.Converter
 /**
  * Convert from [CryptoCurrencyStatus] to loading [TokensListItemUM.Token] state
  *
- * @author Andrew Khokhlov on 09/11/2024
+[REDACTED_AUTHOR]
  */
 internal object LoadingTokenListItemConverter : Converter<CryptoCurrencyStatus, TokensListItemUM.Token> {
 

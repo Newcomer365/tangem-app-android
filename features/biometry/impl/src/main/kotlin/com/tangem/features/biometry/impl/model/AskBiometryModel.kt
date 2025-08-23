@@ -13,10 +13,10 @@ import com.tangem.core.ui.message.DialogMessage
 import com.tangem.core.ui.message.EventMessageAction
 import com.tangem.core.ui.message.SnackbarMessage
 import com.tangem.domain.card.repository.CardSdkConfigRepository
+import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.domain.settings.SetSaveWalletScreenShownUseCase
 import com.tangem.domain.settings.repositories.SettingsRepository
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
-import com.tangem.domain.wallets.models.UserWallet
 import com.tangem.domain.wallets.repository.WalletsRepository
 import com.tangem.features.biometry.AskBiometryComponent
 import com.tangem.features.biometry.impl.ui.state.AskBiometryUM
@@ -84,7 +84,7 @@ internal class AskBiometryModel @Inject constructor(
             _uiState.update { it.copy(showProgress = true) }
 
             /*
-             * We don't need to save user wallet if it is not created from backup info,
+
              * because it will be automatically saved on UserWalletsListManager switch
              */
             val selectedUserWallet = userWalletsListManager.selectedUserWalletSync ?: run {
@@ -109,9 +109,11 @@ internal class AskBiometryModel @Inject constructor(
         walletsRepository.saveShouldSaveUserWallets(item = true)
         settingsRepository.setShouldSaveAccessCodes(value = true)
 
-        cardSdkConfigRepository.setAccessCodeRequestPolicy(
-            isBiometricsRequestPolicy = userWallet.hasAccessCode,
-        )
+        if (userWallet is UserWallet.Cold) {
+            cardSdkConfigRepository.setAccessCodeRequestPolicy(
+                isBiometricsRequestPolicy = userWallet.hasAccessCode,
+            )
+        }
 
         if (_uiState.value.bottomSheetVariant) {
             dismissBSFlow.emit(Unit)

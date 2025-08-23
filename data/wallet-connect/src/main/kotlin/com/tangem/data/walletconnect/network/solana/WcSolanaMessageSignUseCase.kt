@@ -4,6 +4,7 @@ import arrow.core.left
 import com.domain.blockaid.models.transaction.CheckTransactionResult
 import com.tangem.blockchain.extensions.decodeBase58
 import com.tangem.blockchain.extensions.encodeBase58
+import com.tangem.core.analytics.api.AnalyticsEventHandler
 import com.tangem.data.walletconnect.respond.WcRespondService
 import com.tangem.data.walletconnect.sign.BaseWcSignUseCase
 import com.tangem.data.walletconnect.sign.SignCollector
@@ -11,6 +12,7 @@ import com.tangem.data.walletconnect.sign.SignStateConverter.toResult
 import com.tangem.data.walletconnect.sign.WcMethodUseCaseContext
 import com.tangem.domain.core.lce.LceFlow
 import com.tangem.domain.transaction.usecase.SignUseCase
+import com.tangem.domain.walletconnect.error.parseTangemSdkError
 import com.tangem.domain.walletconnect.model.WcSolanaMethod
 import com.tangem.domain.walletconnect.usecase.method.WcMessageSignUseCase
 import com.tangem.domain.walletconnect.usecase.method.WcSignState
@@ -25,6 +27,7 @@ internal class WcSolanaMessageSignUseCase @AssistedInject constructor(
     @Assisted override val method: WcSolanaMethod.SignMessage,
     private val signUseCase: SignUseCase,
     override val respondService: WcRespondService,
+    override val analytics: AnalyticsEventHandler,
 ) : BaseWcSignUseCase<Nothing, WcMessageSignUseCase.SignModel>(),
     WcMessageSignUseCase {
 
@@ -38,7 +41,7 @@ internal class WcSolanaMessageSignUseCase @AssistedInject constructor(
         val userWallet = session.wallet
 
         val signedHash = signUseCase(hashToSign, userWallet, network)
-            .onLeft { emit(state.toResult(it.left())) }
+            .onLeft { emit(state.toResult(parseTangemSdkError(it).left())) }
             .getOrNull() ?: return
 
         val respond = "{ signature: \"${signedHash.encodeBase58()}\" }"

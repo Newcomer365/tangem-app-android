@@ -1,8 +1,9 @@
 package com.tangem.feature.wallet.presentation.wallet.loaders
 
 import com.tangem.core.decompose.di.ModelScoped
-import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
+import com.tangem.domain.models.wallet.isLocked
 import com.tangem.feature.wallet.child.wallet.model.intents.WalletClickIntents
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import kotlinx.coroutines.CoroutineScope
@@ -16,7 +17,7 @@ import javax.inject.Inject
  * @property storage     storage that save loader's jobs
  * @property dispatchers coroutine dispatchers provider
  *
- * @author Andrew Khokhlov on 24/11/2023
+[REDACTED_AUTHOR]
  */
 @ModelScoped
 internal class WalletScreenContentLoader @Inject constructor(

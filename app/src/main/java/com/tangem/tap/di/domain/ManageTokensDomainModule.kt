@@ -5,13 +5,9 @@ import com.tangem.domain.managetokens.*
 import com.tangem.domain.managetokens.repository.CustomTokensRepository
 import com.tangem.domain.managetokens.repository.ManageTokensRepository
 import com.tangem.domain.networks.multi.MultiNetworkStatusFetcher
-import com.tangem.domain.quotes.multi.MultiQuoteFetcher
+import com.tangem.domain.quotes.multi.MultiQuoteStatusFetcher
 import com.tangem.domain.staking.multi.MultiYieldBalanceFetcher
-import com.tangem.domain.staking.repositories.StakingRepository
-import com.tangem.domain.tokens.TokensFeatureToggles
 import com.tangem.domain.tokens.repository.CurrenciesRepository
-import com.tangem.domain.tokens.repository.NetworksRepository
-import com.tangem.domain.tokens.repository.QuotesRepository
 import com.tangem.domain.walletmanager.WalletManagersFacade
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import dagger.Module
@@ -38,8 +34,10 @@ internal object ManageTokensDomainModule {
 
     @Provides
     @Singleton
-    fun provideCreateCurrencyUseCase(customTokensRepository: CustomTokensRepository): CreateCurrencyUseCase {
-        return CreateCurrencyUseCase(customTokensRepository)
+    fun provideCreateCryptoCurrencyUseCase(
+        customTokensRepository: CustomTokensRepository,
+    ): CreateCryptoCurrencyUseCase {
+        return CreateCryptoCurrencyUseCase(customTokensRepository)
     }
 
     @Provides
@@ -70,27 +68,19 @@ internal object ManageTokensDomainModule {
         customTokensRepository: CustomTokensRepository,
         walletManagersFacade: WalletManagersFacade,
         currenciesRepository: CurrenciesRepository,
-        networksRepository: NetworksRepository,
         derivationsRepository: DerivationsRepository,
-        stakingRepository: StakingRepository,
-        quotesRepository: QuotesRepository,
         multiNetworkStatusFetcher: MultiNetworkStatusFetcher,
-        multiQuoteFetcher: MultiQuoteFetcher,
+        multiQuoteStatusFetcher: MultiQuoteStatusFetcher,
         multiYieldBalanceFetcher: MultiYieldBalanceFetcher,
-        tokensFeatureToggles: TokensFeatureToggles,
     ): SaveManagedTokensUseCase {
         return SaveManagedTokensUseCase(
             customTokensRepository = customTokensRepository,
             walletManagersFacade = walletManagersFacade,
             currenciesRepository = currenciesRepository,
-            networksRepository = networksRepository,
             derivationsRepository = derivationsRepository,
-            stakingRepository = stakingRepository,
-            quotesRepository = quotesRepository,
             multiNetworkStatusFetcher = multiNetworkStatusFetcher,
-            multiQuoteFetcher = multiQuoteFetcher,
+            multiQuoteStatusFetcher = multiQuoteStatusFetcher,
             multiYieldBalanceFetcher = multiYieldBalanceFetcher,
-            tokensFeatureToggles = tokensFeatureToggles,
         )
     }
 

@@ -1,13 +1,13 @@
 package com.tangem.domain.card
 
 import com.tangem.domain.card.repository.DerivationsRepository
-import com.tangem.domain.tokens.model.Network
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.network.Network
+import com.tangem.domain.models.wallet.UserWalletId
 
 /**
  * Use case to check if user has missed derivations
  *
- * @author Andrew Khokhlov on 29/08/2024
+[REDACTED_AUTHOR]
  */
 
 typealias BackendId = String

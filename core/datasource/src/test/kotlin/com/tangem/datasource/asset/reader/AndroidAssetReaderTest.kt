@@ -9,7 +9,7 @@ import org.junit.Test
 import java.io.IOException
 
 /**
- * @author Andrew Khokhlov on 27/05/2024
+[REDACTED_AUTHOR]
  */
 internal class AndroidAssetReaderTest {
 

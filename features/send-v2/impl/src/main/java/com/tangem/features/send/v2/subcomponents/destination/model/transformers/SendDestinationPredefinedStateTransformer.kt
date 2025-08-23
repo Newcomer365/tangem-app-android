@@ -1,6 +1,6 @@
 package com.tangem.features.send.v2.subcomponents.destination.model.transformers
 
-import com.tangem.features.send.v2.subcomponents.destination.ui.state.DestinationUM
+import com.tangem.features.send.v2.api.subcomponents.destination.entity.DestinationUM
 import com.tangem.utils.transformer.Transformer
 
 internal class SendDestinationPredefinedStateTransformer(
@@ -13,7 +13,7 @@ internal class SendDestinationPredefinedStateTransformer(
 
         return state.copy(
             addressTextField = state.addressTextField.copy(value = address, isValuePasted = false),
-            memoTextField = memo?.let { state.memoTextField?.copy(value = it, isValuePasted = false) },
+            memoTextField = state.memoTextField?.copy(value = memo.orEmpty(), isValuePasted = false),
         )
     }
 }

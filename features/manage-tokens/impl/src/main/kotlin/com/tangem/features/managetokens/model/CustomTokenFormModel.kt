@@ -12,9 +12,9 @@ import com.tangem.core.ui.message.DialogMessage
 import com.tangem.domain.card.DerivePublicKeysUseCase
 import com.tangem.domain.card.HasMissedDerivationsUseCase
 import com.tangem.domain.managetokens.model.exceptoin.CustomTokenFormValidationException
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.network.Network
 import com.tangem.domain.tokens.AddCryptoCurrenciesUseCase
-import com.tangem.domain.tokens.model.CryptoCurrency
-import com.tangem.domain.tokens.model.Network
 import com.tangem.features.managetokens.analytics.CustomTokenAnalyticsEvent
 import com.tangem.features.managetokens.component.CustomTokenFormComponent
 import com.tangem.features.managetokens.entity.customtoken.ClickableFieldUM
@@ -35,7 +35,7 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 
-// TODO: Divide to sub-components: https://tangem.atlassian.net/browse/AND-9479
+// TODO: Divide to sub-components: [REDACTED_JIRA]
 @Suppress("LongParameterList", "LargeClass")
 @ModelScoped
 internal class CustomTokenFormModel @Inject constructor(

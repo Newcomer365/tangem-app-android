@@ -68,13 +68,14 @@ internal class BalanceItemConverter(
                 pendingActions = value.pendingActions.toPersistentList(),
                 isClickable = value.isClickable(),
                 isPending = value.isPending,
+                validatorAddress = value.validatorAddress,
             )
         }
     }
 
     private fun BalanceItem.getBalanceValue(): BigDecimal {
         val isIncludeStakingTotalBalance = BlockchainUtils.isIncludeStakingTotalBalance(
-            blockchainId = cryptoCurrencyStatus.currency.network.id.value,
+            blockchainId = cryptoCurrencyStatus.currency.network.rawId,
         )
         val yieldBalance = cryptoCurrencyStatus.value.yieldBalance as? YieldBalance.Data
         return if (isIncludeStakingTotalBalance) {
@@ -153,7 +154,7 @@ internal class BalanceItemConverter(
     }
 
     private fun BalanceItem.isClickable(): Boolean {
-        val networkId = cryptoCurrencyStatus.currency.network.id.value
+        val networkId = cryptoCurrencyStatus.currency.network.rawId
         return when {
             // TON allows withdrawing funds in the preparing state, unlike other networks.
             isTon(networkId) && this.type == BalanceType.PREPARING -> {

@@ -1,7 +1,7 @@
 package com.tangem.utils.extensions
 
 /**
- * Created by Anton Zhilenkov on 06.04.2023.
+[REDACTED_AUTHOR]
  */
 
 /**

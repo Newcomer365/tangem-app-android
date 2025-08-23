@@ -4,9 +4,9 @@ import com.tangem.common.CompletionResult
 import com.tangem.datasource.local.preferences.AppPreferencesStore
 import com.tangem.datasource.local.preferences.PreferencesKeys
 import com.tangem.datasource.local.preferences.utils.get
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
-import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.domain.wallets.models.UserWalletId
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -22,7 +22,7 @@ import timber.log.Timber
  * @property appPreferencesStore             app preferences store
  * @property dispatchers                     coroutine dispatcher provider
  *
- * @author Andrew Khokhlov on 09/02/2024
+[REDACTED_AUTHOR]
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class GeneralUserWalletsListManager(
@@ -59,6 +59,14 @@ internal class GeneralUserWalletsListManager(
             // that may have not user wallets (null or empty).
             // As a result subscription occurs on empty flow, than will not change if user wallets are available
             .filter { requireImplementation.hasUserWallets }
+
+    override val savedWalletsCount: Flow<Int>
+        get() = implementation
+            .transformLatest { impl ->
+                if (impl != null) {
+                    emitAll(impl.savedWalletsCount)
+                }
+            }
 
     override val userWalletsSync: List<UserWallet>
         get() = requireImplementation.userWalletsSync

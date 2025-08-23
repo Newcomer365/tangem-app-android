@@ -3,10 +3,10 @@ package com.tangem.feature.wallet.presentation.wallet.state.transformers.convert
 import com.tangem.core.ui.format.bigdecimal.fiat
 import com.tangem.core.ui.format.bigdecimal.format
 import com.tangem.domain.appcurrency.model.AppCurrency
-import com.tangem.domain.common.util.getCardsCount
+import com.tangem.domain.card.common.util.getCardsCount
 import com.tangem.domain.models.StatusSource
-import com.tangem.domain.tokens.model.TotalFiatBalance
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.models.TotalFiatBalance
+import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.feature.wallet.presentation.wallet.domain.WalletAdditionalInfoFactory
 import com.tangem.feature.wallet.presentation.wallet.state.model.WalletCardState
 import com.tangem.utils.converter.Converter
@@ -57,7 +57,10 @@ internal class MultiWalletCardStateConverter(
                 fiat(fiatCurrencyCode = appCurrency.code, fiatCurrencySymbol = appCurrency.symbol)
             },
             isZeroBalance = fiatBalance.amount.isZero(),
-            cardCount = selectedWallet.getCardsCount(),
+            cardCount = when (selectedWallet) {
+                is UserWallet.Cold -> selectedWallet.getCardsCount()
+                is UserWallet.Hot -> null
+            },
             isBalanceFlickering = fiatBalance.source == StatusSource.CACHE,
         )
     }

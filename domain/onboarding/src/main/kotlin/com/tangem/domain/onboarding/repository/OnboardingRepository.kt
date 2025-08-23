@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 /**
  * Onboarding repository
  *
- * @author Andrew Khokhlov on 18/02/2024
+[REDACTED_AUTHOR]
  */
 interface OnboardingRepository {
 

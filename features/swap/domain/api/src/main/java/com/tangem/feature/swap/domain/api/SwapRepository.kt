@@ -1,9 +1,9 @@
 package com.tangem.feature.swap.domain.api
 
 import arrow.core.Either
-import com.tangem.domain.tokens.model.CryptoCurrency
-import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.feature.swap.domain.models.ExpressDataError
 import com.tangem.feature.swap.domain.models.domain.*
 import java.math.BigDecimal
@@ -68,7 +68,7 @@ interface SwapRepository {
         refundExtraId: String? = null, // for cex only
     ): Either<ExpressDataError, SwapDataModel>
 
-    // TODO: Add target error handling, remove either (https://tangem.atlassian.net/browse/AND-7323)
+    // TODO: Add target error handling, remove either ([REDACTED_JIRA])
     @Suppress("LongParameterList")
     suspend fun exchangeSent(
         userWallet: UserWallet,

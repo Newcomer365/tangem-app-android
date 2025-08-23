@@ -16,6 +16,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.tangem.core.ui.components.containers.FooterContainer
 import com.tangem.core.ui.components.inputrow.InputRowRecipient
@@ -24,9 +28,9 @@ import com.tangem.core.ui.res.TangemTheme
 import com.tangem.features.send.v2.impl.R
 import com.tangem.features.send.v2.subcomponents.destination.analytics.EnterAddressSource
 import com.tangem.features.send.v2.subcomponents.destination.model.SendDestinationClickIntents
-import com.tangem.features.send.v2.subcomponents.destination.ui.state.DestinationRecipientListUM
-import com.tangem.features.send.v2.subcomponents.destination.ui.state.DestinationTextFieldUM
-import com.tangem.features.send.v2.subcomponents.destination.ui.state.DestinationUM
+import com.tangem.features.send.v2.api.subcomponents.destination.entity.DestinationRecipientListUM
+import com.tangem.features.send.v2.api.subcomponents.destination.entity.DestinationTextFieldUM
+import com.tangem.features.send.v2.api.subcomponents.destination.entity.DestinationUM
 import kotlinx.collections.immutable.ImmutableList
 
 private const val ADDRESS_FIELD_KEY = "ADDRESS_FIELD_KEY"
@@ -60,10 +64,13 @@ internal fun SendDestinationContent(
             isError = isError,
             isValidating = isValidating,
             onAddressChange = clickIntents::onRecipientAddressValueChange,
+            onQrCodeClick = clickIntents::onQrCodeScanClick,
+            isRedesignEnabled = state.isRedesignEnabled,
         )
         memoField(
             memoField = memoField,
             onMemoChange = clickIntents::onRecipientMemoValueChange,
+            isRedesignEnabled = state.isRedesignEnabled,
         )
         listHeaderItem(
             titleRes = R.string.send_recipient_wallets_title,
@@ -72,9 +79,14 @@ internal fun SendDestinationContent(
         )
         listItem(
             list = wallets,
-            clickIntents = clickIntents,
             isLast = recipients.any { !it.isVisible },
             isBalanceHidden = isBalanceHidden,
+            onClick = { title ->
+                clickIntents.onRecipientAddressValueChange(
+                    title,
+                    EnterAddressSource.MyWallets,
+                )
+            },
         )
         listHeaderItem(
             titleRes = R.string.send_recent_transactions,
@@ -83,23 +95,35 @@ internal fun SendDestinationContent(
         )
         listItem(
             list = recipients,
-            clickIntents = clickIntents,
             isLast = true,
             isBalanceHidden = isBalanceHidden,
+            onClick = { title ->
+                clickIntents.onRecipientAddressValueChange(
+                    title,
+                    EnterAddressSource.RecentAddress,
+                )
+            },
         )
     }
 }
 
+@Suppress("LongParameterList")
 private fun LazyListScope.addressItem(
     address: DestinationTextFieldUM.RecipientAddress,
     networkName: String,
     isError: Boolean,
     isValidating: Boolean,
     onAddressChange: (String, EnterAddressSource) -> Unit,
+    onQrCodeClick: () -> Unit,
+    isRedesignEnabled: Boolean,
 ) {
     item(key = ADDRESS_FIELD_KEY) {
         FooterContainer(
-            footer = resourceReference(R.string.send_recipient_address_footer, wrappedList(networkName)),
+            footer = if (isRedesignEnabled) {
+                buildHighlightedFooterText(networkName)
+            } else {
+                resourceReference(R.string.send_recipient_address_footer, wrappedList(networkName))
+            },
         ) {
             InputRowRecipient(
                 value = address.value,
@@ -107,6 +131,8 @@ private fun LazyListScope.addressItem(
                 placeholder = address.placeholder,
                 onValueChange = { onAddressChange(it, EnterAddressSource.InputField) },
                 onPasteClick = { onAddressChange(it, EnterAddressSource.PasteButton) },
+                onQrCodeClick = onQrCodeClick,
+                isRedesignEnabled = isRedesignEnabled,
                 isError = isError,
                 isLoading = isValidating,
                 error = address.error,
@@ -121,9 +147,37 @@ private fun LazyListScope.addressItem(
     }
 }
 
+@Composable
+private fun buildHighlightedFooterText(networkName: String): TextReference {
+    return annotatedReference(
+        buildAnnotatedString {
+            val styledText = stringResourceSafe(
+                R.string.send_recipient_address_footer_highlighted_part,
+                networkName,
+            )
+            val styledColor = TangemTheme.colors.text.secondary
+            appendWithStyledPlaceholder(
+                template = stringResourceSafe(
+                    R.string.send_recipient_address_footer_v2,
+                    networkName,
+                ),
+                placeholder = networkName,
+            ) {
+                withStyle(SpanStyle(fontWeight = FontWeight.Medium)) {
+                    appendColored(
+                        text = styledText,
+                        color = styledColor,
+                    )
+                }
+            }
+        },
+    )
+}
+
 private fun LazyListScope.memoField(
     memoField: DestinationTextFieldUM.RecipientMemo?,
     onMemoChange: (String, Boolean) -> Unit,
+    isRedesignEnabled: Boolean,
 ) {
     if (memoField != null) {
         item(key = MEMO_FIELD_KEY) {
@@ -132,7 +186,24 @@ private fun LazyListScope.memoField(
                 value = memoField.value,
                 label = memoField.label,
                 placeholder = placeholder,
-                footer = resourceReference(R.string.send_recipient_memo_footer),
+                footer = if (isRedesignEnabled) {
+                    annotatedReference(
+                        buildAnnotatedString {
+                            append(stringResourceSafe(R.string.send_recipient_memo_footer_v2))
+                            append("\n")
+                            withStyle(SpanStyle(fontWeight = FontWeight.Medium)) {
+                                appendColored(
+                                    text = stringResourceSafe(
+                                        R.string.send_recipient_memo_footer_v2_highlighted,
+                                    ),
+                                    color = TangemTheme.colors.text.secondary,
+                                )
+                            }
+                        },
+                    )
+                } else {
+                    resourceReference(R.string.send_recipient_memo_footer)
+                },
                 onValueChange = { onMemoChange(it, false) },
                 onPasteClick = { onMemoChange(it, true) },
                 modifier = Modifier.padding(top = 20.dp),
@@ -141,6 +212,7 @@ private fun LazyListScope.memoField(
                 error = memoField.error,
                 isReadOnly = !memoField.isEnabled,
                 isValuePasted = memoField.isValuePasted,
+                isRedesignEnabled = isRedesignEnabled,
             )
         }
     }
@@ -182,9 +254,9 @@ private fun LazyListScope.listHeaderItem(@StringRes titleRes: Int, isVisible: Bo
 
 private fun LazyListScope.listItem(
     list: ImmutableList<DestinationRecipientListUM>,
-    clickIntents: SendDestinationClickIntents,
     isLast: Boolean,
     isBalanceHidden: Boolean,
+    onClick: (String) -> Unit,
 ) {
     items(
         count = list.size,
@@ -201,12 +273,7 @@ private fun LazyListScope.listItem(
                 info = item.timestamp?.resolveReference(),
                 subtitleEndOffset = item.subtitleEndOffset,
                 subtitleIconRes = item.subtitleIconRes,
-                onClick = {
-                    clickIntents.onRecipientAddressValueChange(
-                        title,
-                        EnterAddressSource.RecentAddress,
-                    )
-                },
+                onClick = { onClick(title) },
                 isLoading = item.isLoading,
                 modifier = Modifier
                     .animateItem()

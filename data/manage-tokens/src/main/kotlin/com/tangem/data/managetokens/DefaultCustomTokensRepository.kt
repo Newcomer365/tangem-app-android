@@ -2,53 +2,51 @@ package com.tangem.data.managetokens
 
 import com.tangem.blockchain.common.Blockchain
 import com.tangem.blockchainsdk.utils.ExcludedBlockchains
+import com.tangem.blockchainsdk.utils.toBlockchain
 import com.tangem.blockchainsdk.utils.toNetworkId
 import com.tangem.crypto.hdWallet.DerivationPath
-import com.tangem.data.common.api.safeApiCall
 import com.tangem.data.common.currency.CryptoCurrencyFactory
 import com.tangem.data.common.currency.UserTokensResponseFactory
-import com.tangem.data.common.currency.getNetwork
+import com.tangem.data.common.currency.UserTokensSaver
+import com.tangem.data.common.network.NetworkFactory
 import com.tangem.data.managetokens.utils.TokenAddressesConverter
-import com.tangem.data.tokens.utils.UserTokensBackwardCompatibility
 import com.tangem.datasource.api.common.response.getOrThrow
 import com.tangem.datasource.api.tangemTech.TangemTechApi
-import com.tangem.datasource.api.tangemTech.models.UserTokensResponse
-import com.tangem.datasource.local.preferences.AppPreferencesStore
-import com.tangem.datasource.local.preferences.PreferencesKeys
-import com.tangem.datasource.local.preferences.utils.getObjectSyncOrNull
-import com.tangem.datasource.local.preferences.utils.storeObject
+import com.tangem.datasource.local.token.UserTokensResponseStore
 import com.tangem.datasource.local.userwallet.UserWalletsStore
-import com.tangem.domain.common.extensions.canHandleBlockchain
-import com.tangem.domain.common.extensions.supportedBlockchains
-import com.tangem.domain.common.util.cardTypesResolver
+import com.tangem.domain.card.common.extensions.canHandleBlockchain
+import com.tangem.domain.card.common.extensions.supportedBlockchains
+import com.tangem.domain.card.common.util.cardTypesResolver
 import com.tangem.domain.managetokens.model.AddCustomTokenForm
 import com.tangem.domain.managetokens.model.ManagedCryptoCurrency
 import com.tangem.domain.managetokens.repository.CustomTokensRepository
-import com.tangem.domain.tokens.model.CryptoCurrency
-import com.tangem.domain.tokens.model.Network
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.network.Network
+import com.tangem.domain.models.wallet.UserWalletId
+import com.tangem.domain.models.wallet.requireColdWallet
 import com.tangem.domain.walletmanager.WalletManagersFacade
-import com.tangem.domain.wallets.models.UserWalletId
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import kotlinx.coroutines.withContext
-import timber.log.Timber
 
+@Suppress("LongParameterList")
 internal class DefaultCustomTokensRepository(
     private val tangemTechApi: TangemTechApi,
     private val userWalletsStore: UserWalletsStore,
-    private val appPreferencesStore: AppPreferencesStore,
+    private val userTokensResponseStore: UserTokensResponseStore,
     private val walletManagersFacade: WalletManagersFacade,
     private val excludedBlockchains: ExcludedBlockchains,
     private val dispatchers: CoroutineDispatcherProvider,
+    private val userTokensSaver: UserTokensSaver,
+    private val networkFactory: NetworkFactory,
 ) : CustomTokensRepository {
 
     private val cryptoCurrencyFactory = CryptoCurrencyFactory(excludedBlockchains)
     private val userTokensResponseFactory = UserTokensResponseFactory()
     private val tokenAddressConverter = TokenAddressesConverter()
-    private val userTokensBackwardCompatibility = UserTokensBackwardCompatibility()
 
     override suspend fun validateContractAddress(contractAddress: String, networkId: Network.ID): Boolean =
         withContext(dispatchers.io) {
-            when (val blockchain = Blockchain.fromId(networkId.value)) {
+            when (val blockchain = networkId.toBlockchain()) {
                 Blockchain.Unknown,
                 Blockchain.Binance,
                 Blockchain.BinanceTestnet,
@@ -56,6 +54,8 @@ internal class DefaultCustomTokensRepository(
                 -> true
                 Blockchain.Cardano,
                 Blockchain.Sui,
+                Blockchain.Stellar,
+                Blockchain.XRP,
                 -> blockchain.validateContractAddress(contractAddress)
                 else -> blockchain.validateAddress(contractAddress)
             }
@@ -68,15 +68,14 @@ internal class DefaultCustomTokensRepository(
         contractAddress: String?,
     ): Boolean {
         return withContext(dispatchers.io) {
-            val storedCurrencies = appPreferencesStore.getObjectSyncOrNull<UserTokensResponse>(
-                key = PreferencesKeys.getUserTokensKey(userWalletId.stringValue),
-            )
+            val storedCurrencies = userTokensResponseStore.getSyncOrNull(userWalletId)
+
             requireNotNull(storedCurrencies) {
                 "User tokens not found for user wallet [$userWalletId] while checking if currency is not added"
             }
 
             storedCurrencies.tokens.none { token ->
-                Blockchain.fromId(networkId.value).toNetworkId() == token.networkId &&
+                networkId.toBlockchain().toNetworkId() == token.networkId &&
                     derivationPath.value == token.derivationPath &&
                     contractAddress.equals(token.contractAddress, ignoreCase = true)
             }
@@ -93,7 +92,11 @@ internal class DefaultCustomTokensRepository(
             "User wallet [$userWalletId] not found while finding token"
         }
         val network = requireNotNull(
-            getNetwork(networkId, derivationPath, userWallet.scanResponse, excludedBlockchains),
+            networkFactory.create(
+                networkId = networkId,
+                derivationPath = derivationPath,
+                userWallet = userWallet,
+            ),
         ) {
             "Network [$networkId] not found while finding token"
         }
@@ -103,8 +106,8 @@ internal class DefaultCustomTokensRepository(
             symbol = null,
         )
 
-        val supportedTokenNetworkIds = userWallet.scanResponse.card
-            .supportedBlockchains(userWallet.scanResponse.cardTypesResolver, excludedBlockchains)
+        val supportedTokenNetworkIds = userWallet
+            .supportedBlockchains(excludedBlockchains = excludedBlockchains)
             .filter(Blockchain::canHandleTokens)
             .map(Blockchain::toNetworkId)
 
@@ -145,7 +148,11 @@ internal class DefaultCustomTokensRepository(
             "User wallet [$userWalletId] not found while creating coin"
         }
         val network = requireNotNull(
-            getNetwork(networkId, derivationPath, userWallet.scanResponse, excludedBlockchains),
+            networkFactory.create(
+                networkId = networkId,
+                derivationPath = derivationPath,
+                userWallet = userWallet,
+            ),
         ) {
             "Network [$networkId] not found while creating coin"
         }
@@ -178,7 +185,11 @@ internal class DefaultCustomTokensRepository(
             "User wallet [$userWalletId] not found while creating custom token"
         }
         val network = requireNotNull(
-            getNetwork(networkId, derivationPath, userWallet.scanResponse, excludedBlockchains),
+            networkFactory.create(
+                networkId = networkId,
+                derivationPath = derivationPath,
+                userWallet = userWallet,
+            ),
         ) {
             "Network [$networkId] not found while creating custom token"
         }
@@ -215,15 +226,14 @@ internal class DefaultCustomTokensRepository(
                     contractAddress = currency.contractAddress,
                 )
             }
-            val storedCurrencies = appPreferencesStore.getObjectSyncOrNull<UserTokensResponse>(
-                key = PreferencesKeys.getUserTokensKey(userWalletId.stringValue),
-            )
+            val storedCurrencies = userTokensResponseStore.getSyncOrNull(userWalletId)
+
             requireNotNull(storedCurrencies) {
                 "User tokens not found for user wallet [$userWalletId] while removing currency"
             }
 
             val token = userTokensResponseFactory.createResponseToken(cryptoCurrency)
-            storeAndPushTokens(
+            userTokensSaver.storeAndPush(
                 userWalletId = userWalletId,
                 response = storedCurrencies.copy(tokens = storedCurrencies.tokens.filterNot { it == token }),
             )
@@ -237,7 +247,7 @@ internal class DefaultCustomTokensRepository(
         val userWallet = requireNotNull(userWalletsStore.getSyncOrNull(userWalletId)) {
             "User wallet [$userWalletId] not found while getting supported networks"
         }
-        val scanResponse = userWallet.scanResponse
+        val scanResponse = userWallet.requireColdWallet().scanResponse // TODO [REDACTED_TASK_KEY]
 
         Blockchain.entries
             .mapNotNull { blockchain ->
@@ -248,11 +258,10 @@ internal class DefaultCustomTokensRepository(
                 )
 
                 if (canHandleBlockchain) {
-                    getNetwork(
+                    networkFactory.create(
                         blockchain = blockchain,
                         extraDerivationPath = null,
-                        scanResponse = scanResponse,
-                        excludedBlockchains = excludedBlockchains,
+                        userWallet = userWallet,
                     )
                 } else {
                     null
@@ -266,21 +275,5 @@ internal class DefaultCustomTokensRepository(
         return Network.DerivationPath.Custom(
             value = sdkPath.rawPath,
         )
-    }
-
-    private suspend fun storeAndPushTokens(userWalletId: UserWalletId, response: UserTokensResponse) {
-        val compatibleUserTokensResponse = userTokensBackwardCompatibility.applyCompatibilityAndGetUpdated(response)
-        appPreferencesStore.storeObject(
-            key = PreferencesKeys.getUserTokensKey(userWalletId = userWalletId.stringValue),
-            value = compatibleUserTokensResponse,
-        )
-
-        pushTokens(userWalletId, response)
-    }
-
-    private suspend fun pushTokens(userWalletId: UserWalletId, response: UserTokensResponse) {
-        safeApiCall({ tangemTechApi.saveUserTokens(userWalletId.stringValue, response).bind() }) {
-            Timber.e(it, "Unable to push user tokens for: ${userWalletId.stringValue}")
-        }
     }
 }

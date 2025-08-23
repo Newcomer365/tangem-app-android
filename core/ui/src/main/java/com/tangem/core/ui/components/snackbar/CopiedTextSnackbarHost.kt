@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
  * @see <a href = https://www.figma.com/design/14ISV23YB1yVW1uNVwqrKv/Android?node-id=2001-728&t=kDzSZDx0m0sk4iYz-4
  * >Figma</a>
  *
- * @author Andrew Khokhlov on 15/05/2024
+[REDACTED_AUTHOR]
  */
 @Composable
 fun CopiedTextSnackbarHost(hostState: SnackbarHostState, modifier: Modifier = Modifier) {

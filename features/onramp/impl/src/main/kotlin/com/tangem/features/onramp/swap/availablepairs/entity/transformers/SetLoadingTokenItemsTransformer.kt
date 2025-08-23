@@ -10,7 +10,7 @@ import kotlinx.collections.immutable.toImmutableList
 /**
  * Set [statuses] as loading items
  *
- * @author Andrew Khokhlov on 09/11/2024
+[REDACTED_AUTHOR]
  */
 internal class SetLoadingTokenItemsTransformer(
     private val statuses: List<CryptoCurrencyStatus>,

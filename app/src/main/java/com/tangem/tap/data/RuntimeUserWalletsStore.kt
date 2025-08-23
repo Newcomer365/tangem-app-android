@@ -2,14 +2,14 @@ package com.tangem.tap.data
 
 import com.tangem.common.CompletionResult
 import com.tangem.datasource.local.userwallet.UserWalletsStore
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
-import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.domain.wallets.models.UserWalletId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 
 // FIXME: Workaround, remove it once the normal UserWalletsStore has been implemented
-// https://tangem.atlassian.net/browse/AND-4110
+// [REDACTED_JIRA]
 internal class RuntimeUserWalletsStore(
     private val userWalletsListManager: UserWalletsListManager,
 ) : UserWalletsStore {

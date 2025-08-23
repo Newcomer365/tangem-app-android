@@ -13,7 +13,7 @@ import com.tangem.tap.store
 import kotlinx.coroutines.CoroutineScope
 
 /**
- * @author Anton Zhilenkov on 04.06.2023.
+[REDACTED_AUTHOR]
  */
 class BackgroundScanIntentHandler(
     private val hasSavedUserWalletsProvider: () -> Boolean,

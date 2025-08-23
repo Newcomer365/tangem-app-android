@@ -12,7 +12,7 @@ import javax.inject.Singleton
  * @property blockchainProvidersResponseLoader blockchain providers response loader
  * @property blockchainProviderTypesStore      blockchain provider types store
  *
- * @author Andrew Khokhlov on 15/04/2024
+[REDACTED_AUTHOR]
  */
 @Singleton
 internal class ProdBlockchainProvidersTypesManager @Inject constructor(

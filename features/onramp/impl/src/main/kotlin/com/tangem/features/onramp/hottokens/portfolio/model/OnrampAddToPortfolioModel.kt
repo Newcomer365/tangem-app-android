@@ -6,7 +6,7 @@ import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
 import com.tangem.domain.card.DerivePublicKeysUseCase
 import com.tangem.domain.tokens.AddCryptoCurrenciesUseCase
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.domain.wallets.usecase.GetUserWalletUseCase
 import com.tangem.features.onramp.hottokens.portfolio.OnrampAddToPortfolioComponent
 import com.tangem.features.onramp.hottokens.portfolio.entity.OnrampAddToPortfolioUM
@@ -27,7 +27,7 @@ import javax.inject.Inject
  * @property addCryptoCurrenciesUseCase use case for adding crypto currency
  * @property getUserWalletUseCase       use case for getting user wallet by id
  *
- * @author Andrew Khokhlov on 18/01/2025
+[REDACTED_AUTHOR]
  */
 @ModelScoped
 internal class OnrampAddToPortfolioModel @Inject constructor(

@@ -3,10 +3,10 @@ package com.tangem.domain.txhistory.usecase
 import arrow.core.Either
 import arrow.core.raise.catch
 import arrow.core.raise.either
-import com.tangem.domain.tokens.model.CryptoCurrency
+import com.tangem.domain.models.currency.CryptoCurrency
 import com.tangem.domain.txhistory.models.TxHistoryStateError
 import com.tangem.domain.txhistory.repository.TxHistoryRepository
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWalletId
 
 // TODO: Add tests
 class GetTxHistoryItemsCountUseCase(private val repository: TxHistoryRepository) {

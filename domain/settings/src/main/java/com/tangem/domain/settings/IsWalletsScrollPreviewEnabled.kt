@@ -7,7 +7,7 @@ import com.tangem.domain.settings.repositories.SettingsRepository
  *
  * @property settingsRepository settings repository
  *
- * @author Andrew Khokhlov on 24/11/2023
+[REDACTED_AUTHOR]
  */
 class IsWalletsScrollPreviewEnabled(private val settingsRepository: SettingsRepository) {
 

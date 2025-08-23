@@ -12,6 +12,7 @@ android {
 dependencies {
     /* Core */
     implementation(projects.core.decompose)
+    implementation(projects.core.configToggles)
 
     /* Domain */
     implementation(projects.domain.qrScanning.models)
@@ -23,9 +24,16 @@ dependencies {
     implementation(projects.domain.onramp.models)
     implementation(projects.domain.appCurrency.models)
     implementation(projects.domain.nft.models)
+    implementation(projects.domain.feedback.models)
 
     /* Libs - Other */
     api(deps.kotlin.serialization)
     implementation(deps.androidx.core.ktx)
     implementation(deps.timber)
+
+    /* Tests */
+    testImplementation(deps.test.junit)
+    testImplementation(deps.test.coroutine)
+    testImplementation(deps.test.truth)
+    testImplementation(deps.test.mockk)
 }

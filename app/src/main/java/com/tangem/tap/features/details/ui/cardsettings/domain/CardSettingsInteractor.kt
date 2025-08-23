@@ -10,7 +10,7 @@ import javax.inject.Singleton
 /**
  * Interactor for sharing logic and data between all card settings screens
  *
- * @author Andrew Khokhlov on 01/08/2024
+[REDACTED_AUTHOR]
  */
 @Singleton
 internal class CardSettingsInteractor @Inject constructor() {

@@ -13,7 +13,7 @@ import timber.log.Timber
 /**
  * Implementation of email sender for Android
  *
- * @author Andrew Khokhlov on 05/03/2024
+[REDACTED_AUTHOR]
  */
 internal class AndroidEmailSender : EmailSender {
 

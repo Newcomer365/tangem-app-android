@@ -9,7 +9,7 @@ import kotlin.properties.Delegates
  *
  * @property assetLoader asset loader
  *
- * @author Andrew Khokhlov on 26/01/2023
+[REDACTED_AUTHOR]
  */
 internal class LocalTogglesStorage(
     private val assetLoader: AssetLoader,

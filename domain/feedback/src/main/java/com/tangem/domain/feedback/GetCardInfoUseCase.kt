@@ -11,7 +11,7 @@ import com.tangem.domain.models.scan.ScanResponse
  *
  * @property feedbackRepository feedback repository
  *
- * @author Andrew Khokhlov on 19/06/2024
+[REDACTED_AUTHOR]
  */
 class GetCardInfoUseCase(
     private val feedbackRepository: FeedbackRepository,

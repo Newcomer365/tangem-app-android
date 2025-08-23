@@ -5,7 +5,7 @@ import com.tangem.core.configtoggle.version.VersionAvailabilityContract
 import org.junit.Test
 
 /**
- * @author Andrew Khokhlov on 15/03/2023
+[REDACTED_AUTHOR]
  */
 internal class VersionAvailabilityContractTest {
 

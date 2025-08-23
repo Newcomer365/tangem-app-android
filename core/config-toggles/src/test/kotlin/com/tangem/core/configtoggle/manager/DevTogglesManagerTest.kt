@@ -20,7 +20,7 @@ import org.junit.Test
 import kotlin.collections.set
 
 /**
- * @author Andrew Khokhlov on 15/03/2023
+[REDACTED_AUTHOR]
  */
 @SuppressLint("CheckResult")
 internal class DevTogglesManagerTest {

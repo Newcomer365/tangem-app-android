@@ -4,7 +4,7 @@ import com.tangem.datasource.api.tangemTech.models.QuotesResponse
 import java.math.BigDecimal
 
 /**
- * @author Andrew Khokhlov on 05/04/2025
+[REDACTED_AUTHOR]
  */
 object MockQuoteResponseFactory {
 

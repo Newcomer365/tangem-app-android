@@ -3,6 +3,7 @@ package com.tangem.feature.tokendetails.presentation.tokendetails.model
 import androidx.compose.runtime.Stable
 import androidx.paging.cachedIn
 import arrow.core.getOrElse
+import arrow.core.merge
 import com.tangem.blockchain.common.address.AddressType
 import com.tangem.common.routing.AppRoute
 import com.tangem.common.routing.AppRouter
@@ -11,7 +12,9 @@ import com.tangem.common.ui.bottomsheet.receive.mapToAddressModels
 import com.tangem.common.ui.expressStatus.ExpressStatusBottomSheetConfig
 import com.tangem.common.ui.expressStatus.state.ExpressTransactionStateUM
 import com.tangem.core.analytics.api.AnalyticsEventHandler
+import com.tangem.core.analytics.api.AnalyticsExceptionHandler
 import com.tangem.core.analytics.models.AnalyticsParam
+import com.tangem.core.analytics.models.ExceptionAnalyticsEvent
 import com.tangem.core.decompose.di.GlobalUiMessageSender
 import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
@@ -31,9 +34,10 @@ import com.tangem.domain.appcurrency.GetSelectedAppCurrencyUseCase
 import com.tangem.domain.appcurrency.model.AppCurrency
 import com.tangem.domain.balancehiding.GetBalanceHidingSettingsUseCase
 import com.tangem.domain.card.GetExtendedPublicKeyForCurrencyUseCase
-import com.tangem.domain.card.NetworkHasDerivationUseCase
-import com.tangem.domain.common.util.cardTypesResolver
+import com.tangem.domain.card.common.util.cardTypesResolver
 import com.tangem.domain.demo.IsDemoCardUseCase
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.network.NetworkAddress
 import com.tangem.domain.onramp.model.OnrampSource
 import com.tangem.domain.promo.ShouldShowPromoTokenUseCase
 import com.tangem.domain.promo.models.PromoId
@@ -45,24 +49,30 @@ import com.tangem.domain.staking.GetYieldUseCase
 import com.tangem.domain.staking.model.StakingAvailability
 import com.tangem.domain.tokens.*
 import com.tangem.domain.tokens.legacy.TradeCryptoAction
-import com.tangem.domain.tokens.model.*
+import com.tangem.domain.tokens.model.CryptoCurrencyStatus
+import com.tangem.domain.tokens.model.ScenarioUnavailabilityReason
+import com.tangem.domain.tokens.model.TokenActionsState
 import com.tangem.domain.tokens.model.analytics.TokenReceiveAnalyticsEvent
 import com.tangem.domain.tokens.model.analytics.TokenScreenAnalyticsEvent
 import com.tangem.domain.tokens.model.analytics.TokenScreenAnalyticsEvent.Companion.toReasonAnalyticsText
 import com.tangem.domain.tokens.model.analytics.TokenSwapPromoAnalyticsEvent
 import com.tangem.domain.transaction.error.AssociateAssetError
 import com.tangem.domain.transaction.error.IncompleteTransactionError
+import com.tangem.domain.transaction.error.OpenTrustlineError
 import com.tangem.domain.transaction.error.SendTransactionError
 import com.tangem.domain.transaction.usecase.AssociateAssetUseCase
 import com.tangem.domain.transaction.usecase.DismissIncompleteTransactionUseCase
+import com.tangem.domain.transaction.usecase.OpenTrustlineUseCase
 import com.tangem.domain.transaction.usecase.RetryIncompleteTransactionUseCase
 import com.tangem.domain.txhistory.usecase.GetExplorerTransactionUrlUseCase
 import com.tangem.domain.txhistory.usecase.GetTxHistoryItemsCountUseCase
 import com.tangem.domain.txhistory.usecase.GetTxHistoryItemsUseCase
-import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.wallets.usecase.GetExploreUrlUseCase
 import com.tangem.domain.wallets.usecase.GetUserWalletUseCase
+import com.tangem.domain.wallets.usecase.NetworkHasDerivationUseCase
+import com.tangem.feature.tokendetails.deeplink.TokenDetailsDeepLinkActionListener
 import com.tangem.feature.tokendetails.presentation.router.InnerTokenDetailsRouter
 import com.tangem.feature.tokendetails.presentation.tokendetails.analytics.TokenDetailsCurrencyStatusAnalyticsSender
 import com.tangem.feature.tokendetails.presentation.tokendetails.analytics.TokenDetailsNotificationsAnalyticsSender
@@ -70,10 +80,9 @@ import com.tangem.feature.tokendetails.presentation.tokendetails.state.TokenBala
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.TokenDetailsState
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.factory.TokenDetailsStateFactory
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.factory.express.ExpressStatusFactory
-import com.tangem.features.onramp.OnrampFeatureToggles
+import com.tangem.features.send.v2.api.SendFeatureToggles
 import com.tangem.features.tokendetails.TokenDetailsComponent
 import com.tangem.features.tokendetails.impl.R
-import com.tangem.features.txhistory.TxHistoryFeatureToggles
 import com.tangem.features.txhistory.entity.TxHistoryContentUpdateEmitter
 import com.tangem.utils.Provider
 import com.tangem.utils.coroutines.*
@@ -91,7 +100,7 @@ import javax.inject.Inject
 @ModelScoped
 internal class TokenDetailsModel @Inject constructor(
     override val dispatchers: CoroutineDispatcherProvider,
-    private val getCurrencyStatusUpdatesUseCase: GetCurrencyStatusUpdatesUseCase,
+    private val getSingleCryptoCurrencyStatusUseCase: GetSingleCryptoCurrencyStatusUseCase,
     private val getSelectedAppCurrencyUseCase: GetSelectedAppCurrencyUseCase,
     private val fetchCurrencyStatusUseCase: FetchCurrencyStatusUseCase,
     private val txHistoryItemsCountUseCase: GetTxHistoryItemsCountUseCase,
@@ -112,16 +121,14 @@ internal class TokenDetailsModel @Inject constructor(
     private val isDemoCardUseCase: IsDemoCardUseCase,
     private val associateAssetUseCase: AssociateAssetUseCase,
     private val retryIncompleteTransactionUseCase: RetryIncompleteTransactionUseCase,
+    private val openTrustlineUseCase: OpenTrustlineUseCase,
     private val dismissIncompleteTransactionUseCase: DismissIncompleteTransactionUseCase,
     private val reduxStateHolder: ReduxStateHolder,
     private val analyticsEventsHandler: AnalyticsEventHandler,
     private val vibratorHapticManager: VibratorHapticManager,
     private val clipboardManager: ClipboardManager,
-    private val getCryptoCurrencySyncUseCase: GetCryptoCurrencyStatusSyncUseCase,
-    private val onrampFeatureToggles: OnrampFeatureToggles,
     private val shareManager: ShareManager,
     @GlobalUiMessageSender private val uiMessageSender: UiMessageSender,
-    private val txHistoryFeatureToggles: TxHistoryFeatureToggles,
     private val txHistoryContentUpdateEmitter: TxHistoryContentUpdateEmitter,
     paramsContainer: ParamsContainer,
     expressStatusFactory: ExpressStatusFactory.Factory,
@@ -129,6 +136,9 @@ internal class TokenDetailsModel @Inject constructor(
     getStakingIntegrationIdUseCase: GetStakingIntegrationIdUseCase,
     private val appRouter: AppRouter,
     private val router: InnerTokenDetailsRouter,
+    private val tokenDetailsDeepLinkActionListener: TokenDetailsDeepLinkActionListener,
+    private val analyticsExceptionHandler: AnalyticsExceptionHandler,
+    private val sendFeatureToggles: SendFeatureToggles,
 ) : Model(), TokenDetailsClickIntents {
 
     private val params = paramsContainer.require<TokenDetailsComponent.Params>()
@@ -147,6 +157,9 @@ internal class TokenDetailsModel @Inject constructor(
 
     private var cryptoCurrencyStatus: CryptoCurrencyStatus? = null
     private var expressTxStatusTaskScheduler = SingleTaskScheduler<PersistentList<ExpressTransactionStateUM>>()
+
+    /** Transaction id to check for status */
+    private val waitForFirstExpressStatusEmmit = MutableStateFlow(false)
 
     private val stateFactory = TokenDetailsStateFactory(
         currentStateProvider = Provider { uiState.value },
@@ -194,20 +207,16 @@ internal class TokenDetailsModel @Inject constructor(
         initButtons()
         updateContent()
         handleBalanceHiding()
+        checkForActionUpdates()
     }
 
-    fun onBuyCurrencyDeepLink() {
-        val currency = cryptoCurrencyStatus?.currency ?: return
-        analyticsEventsHandler.send(TokenScreenAnalyticsEvent.Bought(currency.symbol))
+    fun onResume() {
+        subscribeOnExpressTransactionsUpdates()
     }
 
     fun onPause() {
         expressTxStatusTaskScheduler.cancelTask()
         expressTxJobHolder.cancel()
-    }
-
-    fun onResume() {
-        subscribeOnExpressTransactionsUpdates()
     }
 
     override fun onDestroy() {
@@ -219,7 +228,7 @@ internal class TokenDetailsModel @Inject constructor(
     private fun initButtons() {
         // we need also init buttons before start all loading to avoid buttons blocking
         modelScope.launch {
-            val currentCryptoCurrencyStatus = getCryptoCurrencySyncUseCase.invoke(
+            val currentCryptoCurrencyStatus = getSingleCryptoCurrencyStatusUseCase.invokeMultiWalletSync(
                 userWalletId = userWalletId,
                 cryptoCurrencyId = cryptoCurrency.id,
                 isSingleWalletWithTokens = false,
@@ -248,7 +257,7 @@ internal class TokenDetailsModel @Inject constructor(
             .launchIn(modelScope)
     }
 
-    private suspend fun updateButtons(currencyStatus: CryptoCurrencyStatus) {
+    private fun updateButtons(currencyStatus: CryptoCurrencyStatus) {
         getCryptoCurrencyActionsUseCase(
             userWallet = userWallet,
             cryptoCurrencyStatus = currencyStatus,
@@ -285,7 +294,8 @@ internal class TokenDetailsModel @Inject constructor(
                 userWalletId = userWalletId,
                 currencyStatus = cryptoCurrencyStatus,
                 derivationPath = cryptoCurrency.network.derivationPath,
-                isSingleWalletWithTokens = userWallet.scanResponse.cardTypesResolver.isSingleWalletWithToken(),
+                isSingleWalletWithTokens = userWallet is UserWallet.Cold &&
+                    userWallet.scanResponse.cardTypesResolver.isSingleWalletWithToken(),
             )
                 .distinctUntilChanged()
                 .onEach {
@@ -299,64 +309,61 @@ internal class TokenDetailsModel @Inject constructor(
     }
 
     private fun subscribeOnCurrencyStatusUpdates() {
-        modelScope.launch(dispatchers.main) {
-            getCurrencyStatusUpdatesUseCase(
-                userWalletId = userWalletId,
-                currencyId = cryptoCurrency.id,
-                isSingleWalletWithTokens = userWallet.scanResponse.cardTypesResolver.isSingleWalletWithToken(),
-            )
-                .distinctUntilChanged()
-                .onEach { maybeCurrencyStatus ->
-                    internalUiState.value = stateFactory.getCurrencyLoadedBalanceState(maybeCurrencyStatus)
-                    maybeCurrencyStatus.onRight { status ->
-                        cryptoCurrencyStatus = status
-                        updateButtons(currencyStatus = status)
-                        updateWarnings(status)
-                        subscribeOnUpdateStakingInfo(status)
-                    }
-                    currencyStatusAnalyticsSender.send(maybeCurrencyStatus)
+        getSingleCryptoCurrencyStatusUseCase.invokeMultiWallet(
+            userWalletId = userWalletId,
+            currencyId = cryptoCurrency.id,
+            isSingleWalletWithTokens = userWallet is UserWallet.Cold &&
+                userWallet.scanResponse.cardTypesResolver.isSingleWalletWithToken(),
+        )
+            .distinctUntilChanged()
+            .onEach { maybeCurrencyStatus ->
+                internalUiState.value = stateFactory.getCurrencyLoadedBalanceState(maybeCurrencyStatus)
+                maybeCurrencyStatus.onRight { status ->
+                    cryptoCurrencyStatus = status
+                    updateButtons(currencyStatus = status)
+                    updateWarnings(status)
+                    subscribeOnUpdateStakingInfo(status)
                 }
-                .flowOn(dispatchers.main)
-                .launchIn(modelScope)
-                .saveIn(marketPriceJobHolder)
-        }
+                currencyStatusAnalyticsSender.send(maybeCurrencyStatus)
+            }
+            .flowOn(dispatchers.main)
+            .launchIn(modelScope)
+            .saveIn(marketPriceJobHolder)
     }
 
     private fun subscribeOnExpressTransactionsUpdates() {
-        modelScope.launch(dispatchers.main) {
-            expressTxStatusTaskScheduler.cancelTask()
-            expressStatusFactory
-                .getExpressStatuses()
-                .distinctUntilChanged()
-                .onEach { expressTxs ->
-                    internalUiState.value = expressStatusFactory.getStateWithUpdatedExpressTxs(
-                        expressTxs,
-                        ::updateNetworkToSwapBalance,
-                    )
-                    expressTxStatusTaskScheduler.scheduleTask(
-                        modelScope,
-                        PeriodicTask(
-                            isDelayFirst = false,
-                            delay = EXPRESS_STATUS_UPDATE_DELAY,
-                            task = {
-                                runCatching {
-                                    expressStatusFactory.getUpdatedExpressStatuses(internalUiState.value.expressTxs)
-                                }
-                            },
-                            onSuccess = { updatedTxs ->
-                                internalUiState.value = expressStatusFactory.getStateWithUpdatedExpressTxs(
-                                    updatedTxs,
-                                    ::updateNetworkToSwapBalance,
-                                )
-                            },
-                            onError = { /* no-op */ },
-                        ),
-                    )
-                }
-                .flowOn(dispatchers.main)
-                .launchIn(modelScope)
-                .saveIn(expressTxJobHolder)
-        }
+        expressTxStatusTaskScheduler.cancelTask()
+        expressStatusFactory.getExpressStatuses()
+            .distinctUntilChanged()
+            .onEach { waitForFirstExpressStatusEmmit.value = true }
+            .onEach { expressTxs ->
+                internalUiState.value = expressStatusFactory.getStateWithUpdatedExpressTxs(
+                    expressTxs = expressTxs,
+                    updateBalance = ::updateNetworkToSwapBalance,
+                )
+                expressTxStatusTaskScheduler.scheduleTask(
+                    scope = modelScope,
+                    task = PeriodicTask(
+                        isDelayFirst = false,
+                        delay = EXPRESS_STATUS_UPDATE_DELAY,
+                        task = {
+                            runCatching {
+                                expressStatusFactory.getUpdatedExpressStatuses(internalUiState.value.expressTxs)
+                            }
+                        },
+                        onSuccess = { updatedTxs ->
+                            internalUiState.value = expressStatusFactory.getStateWithUpdatedExpressTxs(
+                                updatedTxs,
+                                ::updateNetworkToSwapBalance,
+                            )
+                        },
+                        onError = { /* no-op */ },
+                    ),
+                )
+            }
+            .flowOn(dispatchers.main)
+            .launchIn(modelScope)
+            .saveIn(expressTxJobHolder)
     }
 
     private fun updateNetworkToSwapBalance(toCryptoCurrency: CryptoCurrency) {
@@ -364,7 +371,6 @@ internal class TokenDetailsModel @Inject constructor(
             updateDelayedCurrencyStatusUseCase(
                 userWalletId = userWalletId,
                 network = toCryptoCurrency.network,
-                refresh = true,
             )
         }
     }
@@ -374,10 +380,10 @@ internal class TokenDetailsModel @Inject constructor(
      * @param showItemsLoading - show loading items placeholder.
      */
     private fun updateTxHistory(refresh: Boolean, showItemsLoading: Boolean, initialUpdating: Boolean = false) {
-        if (txHistoryFeatureToggles.isFeatureEnabled && !initialUpdating) {
-            modelScope.launch { txHistoryContentUpdateEmitter.triggerUpdate() }
-        } else {
-            modelScope.launch(dispatchers.main) {
+        modelScope.launch {
+            if (!initialUpdating) {
+                txHistoryContentUpdateEmitter.triggerUpdate()
+            } else {
                 val txHistoryItemsCountEither = txHistoryItemsCountUseCase(
                     userWalletId = userWalletId,
                     currency = cryptoCurrency,
@@ -437,17 +443,47 @@ internal class TokenDetailsModel @Inject constructor(
 
     private fun updateTopBarMenu() {
         modelScope.launch(dispatchers.main) {
-            val hasDerivations =
-                networkHasDerivationUseCase(userWallet.scanResponse, cryptoCurrency.network).getOrElse { false }
+            val hasDerivations = networkHasDerivationUseCase(
+                userWallet = userWallet,
+                network = cryptoCurrency.network,
+            ).getOrElse { false }
 
-            val isSupported = getExtendedPublicKeyForCurrencyUseCase.isSupported(userWalletId, cryptoCurrency.network)
+            val isSupported = isXPUBSupported()
 
             internalUiState.value = stateFactory.getStateWithUpdatedMenu(
-                cardTypesResolver = userWallet.scanResponse.cardTypesResolver,
+                userWallet = userWallet,
                 hasDerivations = hasDerivations,
                 isSupported = isSupported,
             )
         }
+    }
+
+    private suspend fun isXPUBSupported(): Boolean {
+        return getExtendedPublicKeyForCurrencyUseCase.isSupported(
+            userWalletId = userWalletId,
+            network = cryptoCurrency.network,
+        )
+            .mapLeft {
+                analyticsExceptionHandler.sendException(
+                    event = ExceptionAnalyticsEvent(
+                        exception = it,
+                        params = mapOf(
+                            "blockchainId" to cryptoCurrency.network.id.rawId.value,
+                            "networkId" to cryptoCurrency.network.backendId,
+                        ),
+                    ),
+                )
+
+                Timber.e(
+                    /* t = */ it,
+                    /* message = */ "Unable to get wallet manager for user wallet %s and network %s",
+                    /* ...args = */ userWalletId,
+                    cryptoCurrency.network,
+                )
+
+                false
+            }
+            .merge()
     }
 
     private fun createSelectedAppCurrencyFlow(): StateFlow<AppCurrency> {
@@ -480,30 +516,14 @@ internal class TokenDetailsModel @Inject constructor(
         }
 
         val status = cryptoCurrencyStatus ?: return
-        if (onrampFeatureToggles.isFeatureEnabled) {
-            modelScope.launch(dispatchers.main) {
-                reduxStateHolder.dispatch(
-                    TradeCryptoAction.Buy(
-                        userWallet = userWallet,
-                        source = OnrampSource.TOKEN_DETAILS,
-                        cryptoCurrencyStatus = status,
-                        appCurrencyCode = selectedAppCurrencyFlow.value.code,
-                    ),
-                )
-            }
-        } else {
-            showErrorIfDemoModeOrElse {
-                modelScope.launch(dispatchers.main) {
-                    reduxStateHolder.dispatch(
-                        TradeCryptoAction.Buy(
-                            userWallet = userWallet,
-                            source = OnrampSource.TOKEN_DETAILS,
-                            cryptoCurrencyStatus = status,
-                            appCurrencyCode = selectedAppCurrencyFlow.value.code,
-                        ),
-                    )
-                }
-            }
+        modelScope.launch {
+            appRouter.push(
+                AppRoute.Onramp(
+                    userWalletId = userWallet.walletId,
+                    currency = status.currency,
+                    source = OnrampSource.TOKEN_DETAILS,
+                ),
+            )
         }
     }
 
@@ -546,10 +566,17 @@ internal class TokenDetailsModel @Inject constructor(
     }
 
     private fun sendCurrency() {
-        val route = AppRoute.Send(
-            currency = cryptoCurrency,
-            userWalletId = userWallet.walletId,
-        )
+        val route = if (sendFeatureToggles.isSendWithSwapEnabled) {
+            AppRoute.SendEntryPoint(
+                currency = cryptoCurrency,
+                userWalletId = userWallet.walletId,
+            )
+        } else {
+            AppRoute.Send(
+                currency = cryptoCurrency,
+                userWalletId = userWallet.walletId,
+            )
+        }
 
         appRouter.push(route)
     }
@@ -718,7 +745,7 @@ internal class TokenDetailsModel @Inject constructor(
     }
 
     private fun showErrorIfDemoModeOrElse(action: () -> Unit) {
-        if (isDemoCardUseCase(cardId = userWallet.cardId)) {
+        if (userWallet is UserWallet.Cold && isDemoCardUseCase(cardId = userWallet.cardId)) {
             internalUiState.value = stateFactory.getStateWithClosedBottomSheet()
 
             uiMessageSender.send(
@@ -757,13 +784,7 @@ internal class TokenDetailsModel @Inject constructor(
 
         modelScope.launch(dispatchers.main) {
             listOf(
-                async {
-                    fetchCurrencyStatusUseCase(
-                        userWalletId = userWalletId,
-                        id = cryptoCurrency.id,
-                        refresh = true,
-                    )
-                },
+                async { fetchCurrencyStatusUseCase(userWalletId = userWalletId, id = cryptoCurrency.id) },
                 async {
                     updateTxHistory(
                         refresh = true,
@@ -792,7 +813,8 @@ internal class TokenDetailsModel @Inject constructor(
     }
 
     override fun onExpressTransactionClick(txId: String) {
-        val expressTxState = internalUiState.value.expressTxsToDisplay.first { it.info.txId == txId }
+        val expressTxState = internalUiState.value.expressTxsToDisplay.firstOrNull { it.info.txId == txId }
+            ?: return
         internalUiState.value = expressStatusFactory.getStateWithExpressStatusBottomSheet(expressTxState)
     }
 
@@ -883,6 +905,44 @@ internal class TokenDetailsModel @Inject constructor(
                 ifRight = {
                     internalUiState.value = stateFactory.getStateWithRemovedKaspaIncompleteTransactionNotification()
                 },
+            )
+        }
+    }
+
+    override fun onOpenTrustlineClick() {
+        analyticsEventsHandler.send(
+            TokenScreenAnalyticsEvent.Associate(
+                tokenSymbol = cryptoCurrency.symbol,
+                blockchain = cryptoCurrency.network.name,
+            ),
+        )
+        modelScope.launch(dispatchers.mainImmediate) {
+            openTrustlineUseCase(
+                userWalletId = userWalletId,
+                currency = cryptoCurrency,
+            ).fold(
+                ifLeft = { e ->
+                    val message: TextReference? = when (e) {
+                        is OpenTrustlineError.UnknownError -> e.message?.let { stringReference(it) }
+                        is OpenTrustlineError.NotEnoughCoin -> resourceReference(
+                            id = R.string.warning_token_required_min_coin_reserve,
+                            formatArgs = wrappedList(e.amount, e.symbol),
+                        )
+                        is OpenTrustlineError.SendError -> when (val error = e.error) {
+                            is SendTransactionError.UserCancelledError,
+                            is SendTransactionError.CreateAccountUnderfunded,
+                            is SendTransactionError.TangemSdkError,
+                            is SendTransactionError.DemoCardError,
+                            -> null
+                            is SendTransactionError.DataError -> error.message
+                            is SendTransactionError.BlockchainSdkError -> error.message
+                            is SendTransactionError.NetworkError -> error.message
+                            is SendTransactionError.UnknownError -> error.ex?.localizedMessage
+                        }?.let { stringReference(it) }
+                    }
+                    message?.let { internalUiState.value = stateFactory.getStateWithErrorDialog(message) }
+                },
+                ifRight = { internalUiState.value = stateFactory.getStateWithRemovedRequiredTrustlineNotification() },
             )
         }
     }
@@ -993,6 +1053,15 @@ internal class TokenDetailsModel @Inject constructor(
 
             router.openStaking(userWalletId, cryptoCurrency, yield.id)
         }
+    }
+
+    private fun checkForActionUpdates() {
+        combine(
+            tokenDetailsDeepLinkActionListener.tokenDetailsActionFlow,
+            waitForFirstExpressStatusEmmit.filter { it },
+        ) { transactionId, _ -> transactionId }
+            .onEach(::onExpressTransactionClick)
+            .launchIn(modelScope)
     }
 
     private companion object {

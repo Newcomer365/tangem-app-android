@@ -13,7 +13,7 @@ import kotlinx.collections.immutable.ImmutableList
  * @property unavailableItems unavailable items (header, tokens)
  * @property isBalanceHidden  flag that indicates if balance should be hidden
  *
- * @author Andrew Khokhlov on 18/10/2024
+[REDACTED_AUTHOR]
  */
 internal data class TokenListUM(
     val searchBarUM: SearchBarUM,

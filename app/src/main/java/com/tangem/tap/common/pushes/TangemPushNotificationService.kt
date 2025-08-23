@@ -15,7 +15,6 @@ import coil.executeBlocking
 import coil.request.ImageRequest
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-import com.tangem.core.deeplink.DEEPLINK_KEY
 import com.tangem.domain.common.LogConfig
 import com.tangem.tap.MainActivity
 import com.tangem.tap.common.images.createCoilImageLoader
@@ -38,7 +37,9 @@ internal class TangemPushNotificationService : FirebaseMessagingService() {
         val channelId = notification.channelId ?: TANGEM_CHANNEL_ID
 
         val intent = Intent(applicationContext, MainActivity::class.java).apply {
-            putExtra(DEEPLINK_KEY, message.data[DEEPLINK_KEY])
+            message.data.forEach {
+                putExtra(it.key, it.value)
+            }
             putExtra(OnPushClickedIntentHandler.OPENED_FROM_GCM_PUSH, true)
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }

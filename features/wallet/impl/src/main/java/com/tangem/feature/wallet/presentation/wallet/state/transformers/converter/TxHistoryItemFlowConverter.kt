@@ -24,7 +24,7 @@ internal class TxHistoryItemFlowConverter(
             ?: TxHistoryState.Content(contentItems = MutableStateFlow(PagingData.empty()))
 
         // FIXME: TxHistoryRepository should send loading transactions
-        // https://tangem.atlassian.net/browse/AND-4334
+        // [REDACTED_JIRA]
         value
             .onEach { txHistoryStatePagingData ->
                 txHistoryContent.contentItems.update {

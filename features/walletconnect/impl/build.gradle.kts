@@ -12,9 +12,9 @@ android {
 }
 
 dependencies {
+    implementation(projects.features.wallet.api)
     implementation(projects.features.walletconnect.api)
-    implementation(projects.domain.walletConnect)
-    implementation(projects.domain.walletConnect.models)
+    implementation(projects.features.sendV2.api)
 
     /** Core */
     implementation(projects.core.configToggles)
@@ -22,15 +22,28 @@ dependencies {
     implementation(projects.core.ui)
     implementation(projects.common.routing)
     implementation(projects.common.ui)
+    implementation(projects.core.analytics)
 
     /** Domain models */
+    implementation(projects.domain.appCurrency.models)
+    implementation(projects.domain.balanceHiding.models)
     implementation(projects.domain.blockaid.models)
+    implementation(projects.domain.models)
     implementation(projects.domain.qrScanning.models)
     implementation(projects.domain.tokens.models)
+    implementation(projects.domain.transaction.models)
     implementation(projects.domain.wallets.models)
+    implementation(projects.domain.walletConnect)
+    implementation(projects.domain.walletConnect.models)
 
     /** Domain */
+    implementation(projects.domain.appCurrency)
+    implementation(projects.domain.balanceHiding)
+    implementation(projects.domain.legacy)
     implementation(projects.domain.qrScanning)
+    implementation(projects.domain.tokens)
+    implementation(projects.domain.transaction)
+    implementation(projects.domain.wallets)
 
     /** DI */
     implementation(deps.hilt.android)
@@ -56,4 +69,9 @@ dependencies {
     implementation(deps.kotlin.immutable.collections)
     implementation(deps.timber)
     implementation(tangemDeps.card.core)
+    implementation(tangemDeps.blockchain)
+
+    /** Test libraries */
+    implementation(deps.test.junit)
+    implementation(deps.test.truth)
 }

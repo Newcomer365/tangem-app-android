@@ -38,4 +38,3 @@ dependencies {
     kaptForObfuscatingVariants(deps.retrofit.response.type.keeper)
     // endregion
 }
-

@@ -12,7 +12,7 @@ import com.tangem.tap.common.compose.extensions.toAnimatable
 import com.tangem.wallet.R
 
 /**
- * Created by Anton Zhilenkov on 08/06/2022.
+[REDACTED_AUTHOR]
  */
 @Composable
 fun FloatingCardsContent(isPaused: Boolean, stepDuration: Int) {

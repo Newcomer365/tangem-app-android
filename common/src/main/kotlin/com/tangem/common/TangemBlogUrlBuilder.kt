@@ -3,7 +3,7 @@ package com.tangem.common
 import com.tangem.utils.SupportedLanguages
 
 /**
- * @author Andrew Khokhlov on 31/12/2024
+[REDACTED_AUTHOR]
  */
 object TangemBlogUrlBuilder {
 

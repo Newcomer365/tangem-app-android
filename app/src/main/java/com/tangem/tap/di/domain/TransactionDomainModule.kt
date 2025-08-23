@@ -1,22 +1,24 @@
 package com.tangem.tap.di.domain
 
 import com.tangem.domain.card.repository.CardSdkConfigRepository
-import com.tangem.domain.demo.DemoConfig
+import com.tangem.domain.demo.models.DemoConfig
 import com.tangem.domain.networks.single.SingleNetworkStatusFetcher
 import com.tangem.domain.networks.single.SingleNetworkStatusSupplier
+import com.tangem.domain.tokens.MultiWalletCryptoCurrenciesSupplier
 import com.tangem.domain.tokens.TokensFeatureToggles
 import com.tangem.domain.tokens.repository.CurrenciesRepository
-import com.tangem.domain.tokens.repository.NetworksRepository
 import com.tangem.domain.transaction.FeeRepository
 import com.tangem.domain.transaction.TransactionRepository
 import com.tangem.domain.transaction.usecase.*
 import com.tangem.domain.walletmanager.WalletManagersFacade
+import com.tangem.tap.domain.hot.TangemHotWalletSigner
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
+@Suppress("TooManyFunctions")
 @Module
 @InstallIn(SingletonComponent::class)
 internal object TransactionDomainModule {
@@ -43,7 +45,7 @@ internal object TransactionDomainModule {
         transactionRepository: TransactionRepository,
         walletManagersFacade: WalletManagersFacade,
         singleNetworkStatusFetcher: SingleNetworkStatusFetcher,
-        tokensFeatureToggles: TokensFeatureToggles,
+        tangemHotWalletSignerFactory: TangemHotWalletSigner.Factory,
     ): SendTransactionUseCase {
         return SendTransactionUseCase(
             demoConfig = DemoConfig(),
@@ -51,7 +53,7 @@ internal object TransactionDomainModule {
             transactionRepository = transactionRepository,
             walletManagersFacade = walletManagersFacade,
             singleNetworkStatusFetcher = singleNetworkStatusFetcher,
-            tokensFeatureToggles = tokensFeatureToggles,
+            getHotWalletSigner = tangemHotWalletSignerFactory::create,
         )
     }
 
@@ -61,16 +63,16 @@ internal object TransactionDomainModule {
         cardSdkConfigRepository: CardSdkConfigRepository,
         walletManagersFacade: WalletManagersFacade,
         currenciesRepository: CurrenciesRepository,
-        networksRepository: NetworksRepository,
         singleNetworkStatusSupplier: SingleNetworkStatusSupplier,
+        multiWalletCryptoCurrenciesSupplier: MultiWalletCryptoCurrenciesSupplier,
         tokensFeatureToggles: TokensFeatureToggles,
     ): AssociateAssetUseCase {
         return AssociateAssetUseCase(
             cardSdkConfigRepository = cardSdkConfigRepository,
             walletManagersFacade = walletManagersFacade,
             currenciesRepository = currenciesRepository,
-            networksRepository = networksRepository,
             singleNetworkStatusSupplier = singleNetworkStatusSupplier,
+            multiWalletCryptoCurrenciesSupplier = multiWalletCryptoCurrenciesSupplier,
             tokensFeatureToggles = tokensFeatureToggles,
         )
     }
@@ -82,6 +84,18 @@ internal object TransactionDomainModule {
         walletManagersFacade: WalletManagersFacade,
     ): RetryIncompleteTransactionUseCase {
         return RetryIncompleteTransactionUseCase(
+            cardSdkConfigRepository = cardSdkConfigRepository,
+            walletManagersFacade = walletManagersFacade,
+        )
+    }
+
+    @Provides
+    @Singleton
+    fun provideOpenTrustlineUseCase(
+        cardSdkConfigRepository: CardSdkConfigRepository,
+        walletManagersFacade: WalletManagersFacade,
+    ): OpenTrustlineUseCase {
+        return OpenTrustlineUseCase(
             cardSdkConfigRepository = cardSdkConfigRepository,
             walletManagersFacade = walletManagersFacade,
         )
@@ -169,6 +183,15 @@ internal object TransactionDomainModule {
         cardSdkConfigRepository: CardSdkConfigRepository,
     ): PrepareForSendUseCase {
         return PrepareForSendUseCase(transactionRepository, cardSdkConfigRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun providePrepareAndSignUseCase(
+        transactionRepository: TransactionRepository,
+        cardSdkConfigRepository: CardSdkConfigRepository,
+    ): PrepareAndSignUseCase {
+        return PrepareAndSignUseCase(transactionRepository, cardSdkConfigRepository)
     }
 
     @Provides

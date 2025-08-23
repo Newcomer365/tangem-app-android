@@ -8,7 +8,7 @@ import androidx.compose.ui.unit.dp
 import com.tangem.sdk.extensions.pxToDp
 
 /**
- * Created by Anton Zhilenkov on 08/06/2022.
+[REDACTED_AUTHOR]
  */
 @Composable
 fun Painter.dpSize(): DpSize = DpSize(

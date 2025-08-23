@@ -10,7 +10,7 @@ import javax.inject.Inject
 /**
  * Search tokens manager
  *
- * @author Andrew Khokhlov on 23/10/2024
+[REDACTED_AUTHOR]
  */
 class InputManager @Inject constructor() {
 

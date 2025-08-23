@@ -13,7 +13,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
 /**
- * @author Andrew Khokhlov on 15/03/2023
+[REDACTED_AUTHOR]
  */
 internal class ProdTogglesManagerTest {
 

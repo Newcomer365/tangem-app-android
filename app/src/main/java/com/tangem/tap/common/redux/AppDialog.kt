@@ -5,7 +5,7 @@ import com.tangem.domain.redux.StateDialog
 import com.tangem.wallet.R
 
 /**
- * Created by Anton Zhilenkov on 25/09/2021.
+[REDACTED_AUTHOR]
  */
 sealed class AppDialog : StateDialog {
     data class SimpleOkDialogRes(

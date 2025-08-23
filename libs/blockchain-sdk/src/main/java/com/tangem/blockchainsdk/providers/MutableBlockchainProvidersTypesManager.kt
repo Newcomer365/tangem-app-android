@@ -6,7 +6,7 @@ import com.tangem.blockchain.common.network.providers.ProviderType
 /**
  * Mutable blockchain providers types manager
  *
- * @author Andrew Khokhlov on 06/01/2025
+[REDACTED_AUTHOR]
  */
 interface MutableBlockchainProvidersTypesManager : BlockchainProvidersTypesManager {
 

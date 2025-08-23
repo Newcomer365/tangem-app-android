@@ -4,10 +4,6 @@
         "version": "undefined"
     },
     {
-        "name": "ONRAMP_ENABLED",
-        "version": "undefined"
-    },
-    {
         "name": "VISA_ONBOARDING_ENABLED",
         "version": "undefined"
     },
@@ -16,15 +12,7 @@
         "version": "undefined"
     },
     {
-        "name": "NFT_ENABLED",
-        "version": "undefined"
-    },
-    {
-        "name": "NFT_EVM_ENABLED",
-        "version": "undefined"
-    },
-    {
-        "name": "NFT_SOLANA_ENABLED",
+        "name": "NFT_MEDIA_CONTENT_ENABLED",
         "version": "undefined"
     },
     {
@@ -32,35 +20,35 @@
         "version": "undefined"
     },
     {
-        "name": "TX_HISTORY_REFACTORING_ENABLED",
-        "version": "5.22.0"
-    },
-    {
-        "name": "NEW_ARTWORK_LOADING",
-        "version": "5.25.0"
-    },
-    {
-        "name": "NEW_ATTESTATION_ENABLED",
-        "version": "5.24.0"
-    },
-    {
-        "name": "SEND_V2_ENABLED",
-        "version": "5.23.0"
-    },
-    {
         "name": "WALLET_CONNECT_REDESIGN_ENABLED",
+        "version": "5.27.0"
+    },
+    {
+        "name": "PUSH_NOTIFICATIONS_ENABLED",
+        "version": "5.26.2"
+    },
+    {
+        "name": "USEDESK_ENABLED",
         "version": "undefined"
     },
     {
-        "name": "NETWORKS_LOADING_REFACTORING_ENABLED",
-        "version": "5.23.0"
+        "name": "SEND_VIA_SWAP_ENABLED",
+        "version": "undefined"
     },
     {
-        "name": "QUOTES_LOADING_REFACTORING_ENABLED",
-        "version": "5.24.0"
+        "name": "SWAP_REDESIGN_ENABLED",
+        "version": "undefined"
     },
     {
-        "name": "STAKING_LOADING_REFACTORING_ENABLED",
-        "version": "5.25.0"
+        "name": "SEND_REDESIGN_ENABLED",
+        "version": "undefined"
+    },
+    {
+        "name": "WALLET_BALANCE_FETCHER_ENABLED",
+        "version": "5.27.0"
+    },
+    {
+        "name": "HOT_WALLET_ENABLED",
+        "version": "undefined"
     }
 ]

@@ -8,9 +8,12 @@ import kotlinx.coroutines.launch
 /**
  * Job holder. It is automatically finished old job if new one is started
  *
- * @author Andrew Khokhlov on 27/07/2023
+[REDACTED_AUTHOR]
  */
 class JobHolder {
+
+    val isActive: Boolean
+        get() = job?.isActive ?: false
 
     private var job: Job? = null
 

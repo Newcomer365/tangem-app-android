@@ -6,7 +6,9 @@ import arrow.core.raise.catch
 import arrow.core.raise.either
 import arrow.core.right
 import com.squareup.moshi.Moshi
-import com.tangem.blockchain.common.*
+import com.tangem.blockchain.common.Approver
+import com.tangem.blockchain.common.Blockchain
+import com.tangem.blockchain.common.Token
 import com.tangem.blockchainsdk.utils.ExcludedBlockchains
 import com.tangem.blockchainsdk.utils.fromNetworkId
 import com.tangem.data.common.currency.CryptoCurrencyFactory
@@ -23,11 +25,12 @@ import com.tangem.datasource.api.express.models.response.TxDetails
 import com.tangem.datasource.crypto.DataSignatureVerifier
 import com.tangem.datasource.exchangeservice.swap.ExpressUtils
 import com.tangem.datasource.local.preferences.AppPreferencesStore
-import com.tangem.domain.tokens.model.CryptoCurrency
+import com.tangem.domain.exchange.RampStateManager
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.walletmanager.WalletManagersFacade
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
-import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.domain.wallets.models.UserWalletId
 import com.tangem.feature.swap.converters.*
 import com.tangem.feature.swap.domain.api.SwapRepository
 import com.tangem.feature.swap.domain.models.ExpressDataError
@@ -52,6 +55,7 @@ internal class DefaultSwapRepository(
     private val errorsDataConverter: ErrorsDataConverter,
     private val dataSignatureVerifier: DataSignatureVerifier,
     private val appPreferencesStore: AppPreferencesStore,
+    private val rampStateManager: RampStateManager,
     moshi: Moshi,
     excludedBlockchains: ExcludedBlockchains,
 ) : SwapRepository {
@@ -132,7 +136,13 @@ internal class DefaultSwapRepository(
                     contractAddress = initialCurrency.contractAddress,
                     network = initialCurrency.network,
                 )
-                val currenciesList = currencyList.map { leastTokenInfoConverter.convert(it) }
+                val currenciesList = currencyList
+                    .filter {
+                        val requirements = walletManagersFacade.getAssetRequirements(userWallet.walletId, it)
+                        val isAvailableForSwap = rampStateManager.checkAssetRequirements(requirements)
+                        isAvailableForSwap
+                    }
+                    .map { leastTokenInfoConverter.convert(it) }
 
                 val pairsDeferred = async {
                     getPairsInternal(
@@ -401,11 +411,7 @@ internal class DefaultSwapRepository(
             cryptoCurrencyFactory.createCoin(
                 blockchain = blockchain,
                 extraDerivationPath = null,
-                scanResponse = requireNotNull(
-                    userWalletsListManager
-                        .selectedUserWalletSync
-                        ?.scanResponse,
-                ),
+                userWallet = requireNotNull(userWalletsListManager.selectedUserWalletSync),
             ),
         )
     }

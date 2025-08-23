@@ -20,7 +20,7 @@ import com.tangem.datasource.local.preferences.PreferencesKeys.WAS_TWINS_ONBOARD
  * !!!IMPORTANT!!!
  * Before DELETING active key do [CleanupKeyMigration] in [PreferencesDataStore]
  *
- * @author Andrew Khokhlov on 23/10/2023
+[REDACTED_AUTHOR]
  */
 object PreferencesKeys {
 
@@ -134,6 +134,18 @@ object PreferencesKeys {
 
     val NOTIFICATIONS_ENABLED_STATES_KEY by lazy { stringPreferencesKey(name = "notificationsEnabledStates") }
 
+    val NOTIFICATIONS_AUTOMATICALLY_ENABLED_STATES_KEY by lazy {
+        stringPreferencesKey(
+            name = "notificationsAutomaticallyEnabledStates",
+        )
+    }
+
+    val NOTIFICATIONS_USER_ALLOW_SEND_ADDRESSES_KEY by lazy {
+        booleanPreferencesKey(
+            name = "userAllowSendAddresses",
+        )
+    }
+
     val TRON_NETWORK_FEE_NOTIFICATION_SHOW_COUNT_KEY by lazy {
         intPreferencesKey(name = "tronNetworkFeeNotificationShowCount")
     }
@@ -151,8 +163,6 @@ object PreferencesKeys {
     fun getShouldShowInitialPermissionScreen(permission: String) =
         booleanPreferencesKey("shouldShowInitialPushPermissionScreen_$permission")
     // endregion
-
-    fun getUserTokensKey(userWalletId: String) = stringPreferencesKey(name = "user_tokens_$userWalletId")
 }
 
 /** Preferences keys set that should be migrated from "PreferencesDataSource" to a new DataStore<Preferences> */

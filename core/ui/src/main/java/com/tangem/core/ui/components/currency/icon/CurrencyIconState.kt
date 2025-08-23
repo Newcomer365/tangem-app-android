@@ -8,7 +8,7 @@ import com.tangem.core.ui.R
 /**
  * Represents the various states an icon can be in.
  *
- * TODO [separate domain from ui](https://tangem.atlassian.net/browse/AND-5015)
+ * [REDACTED_TODO_COMMENT]
  */
 @Immutable
 sealed class CurrencyIconState {

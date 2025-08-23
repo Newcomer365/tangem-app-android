@@ -3,7 +3,7 @@ package com.tangem.tap.common.analytics.events
 import com.tangem.core.analytics.models.AnalyticsEvent
 
 /**
- * Created by Anton Zhilenkov on 23.01.2023.
+[REDACTED_AUTHOR]
  */
 sealed class SignIn(
     event: String,

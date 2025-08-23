@@ -4,7 +4,7 @@ import kotlin.math.max
 
 /**
  * =========================================================
- * Copyright 2016 Guillermo Gutierrez Almazor, http://github.com/ggalmazor/lt_downsampling_java8
+
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import kotlin.math.max
  *
  * Downsamples the given data points to the desired number of buckets (points + 2).
  *
- * @author Nikita Samoylov
+[REDACTED_AUTHOR]
  */
 object LTThreeBuckets {
 

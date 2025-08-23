@@ -3,7 +3,7 @@ package com.tangem.domain.settings.usercountry.models
 /**
  * User country error
  *
- * @author Andrew Khokhlov on 15/09/2024
+[REDACTED_AUTHOR]
  */
 sealed interface UserCountryError {
 

@@ -13,7 +13,7 @@ import com.tangem.domain.feedback.utils.*
  * @property feedbackRepository feedback repository
  * @property resources          resources for getting strings
  *
- * @author Andrew Khokhlov on 05/03/2024
+[REDACTED_AUTHOR]
  */
 class SendFeedbackEmailUseCase(
     private val feedbackRepository: FeedbackRepository,
@@ -29,8 +29,7 @@ class SendFeedbackEmailUseCase(
             address = getAddress(type),
             subject = emailSubjectResolver.resolve(type),
             message = createMessage(type),
-            // Temporally user data is not sent
-            file = null, // feedbackRepository.getZipLogFile(),
+            file = feedbackRepository.getZipLogFile(),
         )
 
         feedbackRepository.sendEmail(email)

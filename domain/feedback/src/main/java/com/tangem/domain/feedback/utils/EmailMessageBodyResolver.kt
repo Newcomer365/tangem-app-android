@@ -11,7 +11,7 @@ import com.tangem.domain.visa.model.VisaTxDetails
  *
  * @property feedbackRepository feedback repository
  *
- * @author Andrew Khokhlov on 20/05/2024
+[REDACTED_AUTHOR]
  */
 internal class EmailMessageBodyResolver(
     private val feedbackRepository: FeedbackRepository,
@@ -50,8 +50,10 @@ internal class EmailMessageBodyResolver(
         addCardInfo(cardInfo)
         addDelimiter()
 
-        if (cardInfo.userWalletId != null) {
-            val blockchainInfoList = feedbackRepository.getBlockchainInfoList(cardInfo.userWalletId)
+        val userWalletId = cardInfo.userWalletId
+
+        if (userWalletId != null) {
+            val blockchainInfoList = feedbackRepository.getBlockchainInfoList(userWalletId)
 
             if (blockchainInfoList.isNotEmpty()) {
                 addBlockchainInfoList(blockchainInfoList = blockchainInfoList)

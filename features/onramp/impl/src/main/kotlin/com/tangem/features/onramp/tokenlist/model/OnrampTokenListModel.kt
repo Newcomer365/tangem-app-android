@@ -12,14 +12,16 @@ import com.tangem.domain.balancehiding.GetBalanceHidingSettingsUseCase
 import com.tangem.domain.core.lce.Lce
 import com.tangem.domain.core.utils.getOrElse
 import com.tangem.domain.exchange.RampStateManager
+import com.tangem.domain.models.TotalFiatBalance
+import com.tangem.domain.models.wallet.requireColdWallet
 import com.tangem.domain.settings.usercountry.GetUserCountryUseCase
 import com.tangem.domain.settings.usercountry.models.UserCountry
+import com.tangem.domain.tokens.GetAssetRequirementsUseCase
 import com.tangem.domain.tokens.GetTokenListUseCase
 import com.tangem.domain.tokens.error.TokenListError
 import com.tangem.domain.tokens.model.CryptoCurrencyStatus
 import com.tangem.domain.tokens.model.ScenarioUnavailabilityReason
 import com.tangem.domain.tokens.model.TokenList
-import com.tangem.domain.tokens.model.TotalFiatBalance
 import com.tangem.domain.wallets.usecase.GetWalletsUseCase
 import com.tangem.features.onramp.impl.R
 import com.tangem.features.onramp.tokenlist.OnrampTokenListComponent
@@ -53,13 +55,15 @@ internal class OnrampTokenListModel @Inject constructor(
     private val getWalletsUseCase: GetWalletsUseCase,
     private val rampStateManager: RampStateManager,
     private val getUserCountryUseCase: GetUserCountryUseCase,
+    private val getAssetRequirementsUseCase: GetAssetRequirementsUseCase,
 ) : Model() {
 
     val state: StateFlow<TokenListUM> = tokenListUMController.state
 
     private val params: OnrampTokenListComponent.Params = paramsContainer.require()
-    private val scanResponse by lazy {
-        getWalletsUseCase.invokeSync().first { it.walletId == params.userWalletId }.scanResponse
+    private val userWallet by lazy {
+        getWalletsUseCase.invokeSync().first { it.walletId == params.userWalletId }
+            .requireColdWallet() // TODO [REDACTED_TASK_KEY]
     }
 
     init {
@@ -145,7 +149,7 @@ internal class OnrampTokenListModel @Inject constructor(
     private fun Lce<TokenListError, TokenList>.isInsufficientBalanceForSell(): Boolean {
         return if (params.filterOperation == OnrampOperation.SELL) {
             isContent {
-                (it.totalFiatBalance as? TotalFiatBalance.Loaded)?.amount?.isZero() ?: false
+                (it.totalFiatBalance as? TotalFiatBalance.Loaded)?.amount?.isZero() == true
             }
         } else {
             false
@@ -204,17 +208,29 @@ internal class OnrampTokenListModel @Inject constructor(
         return coroutineScope {
             map { status ->
                 async {
-                    val isAvailable = checkAvailabilityByOperation(status = status)
+                    val isOperationAvailable = checkAvailabilityByOperation(status = status)
                     val isNotMissedDerivation = status.value !is CryptoCurrencyStatus.MissedDerivation
                     val isNotLoading = status.value !is CryptoCurrencyStatus.Loading
 
-                    val isNotUnreachable = when (params.filterOperation) {
-                        OnrampOperation.BUY -> true // unreachable state is available for Buy operation
-                        OnrampOperation.SELL -> status.value !is CryptoCurrencyStatus.Unreachable
-                        OnrampOperation.SWAP -> status.value !is CryptoCurrencyStatus.Unreachable
+                    val requirements = getAssetRequirementsUseCase(
+                        userWalletId = userWallet.walletId,
+                        currency = status.currency,
+                    ).getOrNull()
+
+                    val isAvailableForBuy = rampStateManager.checkAssetRequirements(requirements)
+                    val isNotUnreachable = status.value !is CryptoCurrencyStatus.Unreachable
+
+                    val isAvailable = when (params.filterOperation) {
+                        OnrampOperation.BUY -> {
+                            isAvailableForBuy
+                        } // unreachable state is available for Buy operation
+                        OnrampOperation.SELL -> isNotUnreachable
+                        OnrampOperation.SWAP -> {
+                            isNotUnreachable && isAvailableForBuy
+                        }
                     }
 
-                    status to (isAvailable && isNotMissedDerivation && isNotLoading && isNotUnreachable)
+                    status to (isOperationAvailable && isNotMissedDerivation && isNotLoading && isAvailable)
                 }
             }
                 .awaitAll()
@@ -227,15 +243,15 @@ internal class OnrampTokenListModel @Inject constructor(
         return when (params.filterOperation) {
             OnrampOperation.BUY -> {
                 rampStateManager.availableForBuy(
-                    scanResponse = scanResponse,
-                    userWalletId = params.userWalletId,
+                    userWallet = userWallet,
                     cryptoCurrency = status.currency,
                 ).isAvailable()
             }
             OnrampOperation.SELL -> {
                 rampStateManager.availableForSell(
-                    userWalletId = params.userWalletId,
+                    userWalletId = userWallet.walletId,
                     status = status,
+                    sendUnavailabilityReason = null,
                 ).isRight()
             }
             OnrampOperation.SWAP -> {

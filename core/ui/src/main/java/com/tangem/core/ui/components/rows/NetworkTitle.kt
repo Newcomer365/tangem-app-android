@@ -25,7 +25,7 @@ import com.tangem.core.ui.res.TangemThemePreview
  * @see <a href = "https://www.figma.com/design/14ISV23YB1yVW1uNVwqrKv/Android?node-id=2760-2854&t=rupZfuJYbBYDidJv-4"
  * >Figma component</a>
  *
- * @author Andrew Khokhlov on 06/09/2024
+[REDACTED_AUTHOR]
  */
 @Composable
 fun NetworkTitle(

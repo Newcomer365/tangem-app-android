@@ -1,42 +1,37 @@
 package com.tangem.features.send.v2.send.confirm.ui
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.tangem.common.ui.notifications.NotificationUM
-import com.tangem.core.ui.components.Keyboard
 import com.tangem.core.ui.components.SpacerHMax
-import com.tangem.core.ui.components.keyboardAsState
 import com.tangem.core.ui.components.transactions.TransactionDoneTitle
 import com.tangem.core.ui.extensions.TextReference
-import com.tangem.core.ui.extensions.resolveAnnotatedReference
 import com.tangem.core.ui.extensions.resourceReference
 import com.tangem.core.ui.extensions.wrappedList
 import com.tangem.core.ui.res.TangemTheme
 import com.tangem.core.ui.utils.DateTimeFormatters
 import com.tangem.core.ui.utils.toTimeFormat
+import com.tangem.features.send.v2.api.FeeSelectorBlockComponent
+import com.tangem.features.send.v2.common.ui.SendingText
 import com.tangem.features.send.v2.common.ui.state.ConfirmUM
 import com.tangem.features.send.v2.common.ui.tapHelp
 import com.tangem.features.send.v2.impl.R
 import com.tangem.features.send.v2.send.ui.state.SendUM
 import com.tangem.features.send.v2.subcomponents.amount.SendAmountBlockComponent
-import com.tangem.features.send.v2.subcomponents.destination.SendDestinationBlockComponent
+import com.tangem.features.send.v2.subcomponents.destination.DefaultSendDestinationBlockComponent
 import com.tangem.features.send.v2.subcomponents.fee.SendFeeBlockComponent
 import com.tangem.features.send.v2.subcomponents.notifications
-import com.tangem.features.send.v2.subcomponents.notifications.NotificationsComponent
+import com.tangem.features.send.v2.subcomponents.notifications.DefaultSendNotificationsComponent
 import kotlinx.collections.immutable.ImmutableList
 
 private const val BLOCKS_KEY = "BLOCKS_KEY"
@@ -45,10 +40,11 @@ private const val BLOCKS_KEY = "BLOCKS_KEY"
 @Composable
 internal fun SendConfirmContent(
     sendUM: SendUM,
-    destinationBlockComponent: SendDestinationBlockComponent,
+    destinationBlockComponent: DefaultSendDestinationBlockComponent,
     amountBlockComponent: SendAmountBlockComponent,
     feeBlockComponent: SendFeeBlockComponent,
-    notificationsComponent: NotificationsComponent,
+    feeSelectorBlockComponent: FeeSelectorBlockComponent,
+    notificationsComponent: DefaultSendNotificationsComponent,
     notificationsUM: ImmutableList<NotificationUM>,
 ) {
     val confirmUM = sendUM.confirmUM as? ConfirmUM.Content
@@ -62,6 +58,7 @@ internal fun SendConfirmContent(
                 destinationBlockComponent = destinationBlockComponent,
                 amountBlockComponent = amountBlockComponent,
                 feeBlockComponent = feeBlockComponent,
+                feeSelectorBlockComponent = feeSelectorBlockComponent,
             )
             if (confirmUM != null) {
                 tapHelp(isDisplay = confirmUM.showTapHelp)
@@ -82,66 +79,50 @@ internal fun SendConfirmContent(
     }
 }
 
-@Composable
-private fun SendingText(footerText: TextReference, modifier: Modifier = Modifier) {
-    var isVisibleProxy by remember { mutableStateOf(footerText != TextReference.EMPTY) }
-    val keyboard by keyboardAsState()
-
-    // the text should appear when the keyboard is closed
-    LaunchedEffect(footerText != TextReference.EMPTY, keyboard) {
-        if (footerText != TextReference.EMPTY && keyboard is Keyboard.Opened) {
-            return@LaunchedEffect
-        }
-        isVisibleProxy = footerText != TextReference.EMPTY
-    }
-
-    AnimatedVisibility(
-        visible = isVisibleProxy,
-        modifier = modifier,
-        enter = slideInVertically() + fadeIn(),
-        exit = fadeOut(tween(durationMillis = 300)),
-        label = "Animate show sending state text",
-    ) {
-        Text(
-            text = footerText.resolveAnnotatedReference(),
-            textAlign = TextAlign.Center,
-            style = TangemTheme.typography.caption2,
-            color = TangemTheme.colors.text.primary1,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-        )
-    }
-}
-
 private fun LazyListScope.blocks(
     uiState: SendUM,
-    destinationBlockComponent: SendDestinationBlockComponent,
+    destinationBlockComponent: DefaultSendDestinationBlockComponent,
     amountBlockComponent: SendAmountBlockComponent,
     feeBlockComponent: SendFeeBlockComponent,
+    feeSelectorBlockComponent: FeeSelectorBlockComponent,
 ) {
     item(key = BLOCKS_KEY) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            AnimatedVisibility(
-                visible = uiState.confirmUM is ConfirmUM.Success,
-                modifier = Modifier.padding(vertical = TangemTheme.dimens.spacing12),
-            ) {
-                val wrappedConfirmUM = remember(this) { uiState.confirmUM as ConfirmUM.Success }
-                TransactionDoneTitle(
-                    title = resourceReference(R.string.sent_transaction_sent_title),
-                    subtitle = resourceReference(
-                        R.string.send_date_format,
-                        wrappedList(
-                            wrappedConfirmUM.transactionDate.toTimeFormat(DateTimeFormatters.dateFormatter),
-                            wrappedConfirmUM.transactionDate.toTimeFormat(),
-                        ),
-                    ),
-                    modifier = Modifier.padding(vertical = 12.dp),
+            if (uiState.isRedesignEnabled) {
+                amountBlockComponent.Content(modifier = Modifier)
+                destinationBlockComponent.Content(modifier = Modifier)
+                feeSelectorBlockComponent.Content(
+                    modifier = Modifier
+                        .clip(TangemTheme.shapes.roundedCornersXMedium)
+                        .background(TangemTheme.colors.background.action),
                 )
+            } else {
+                TransactionDoneTitleAnimated(uiState)
+                destinationBlockComponent.Content(modifier = Modifier)
+                amountBlockComponent.Content(modifier = Modifier)
+                feeBlockComponent.Content(modifier = Modifier)
             }
-            destinationBlockComponent.Content(modifier = Modifier)
-            amountBlockComponent.Content(modifier = Modifier)
-            feeBlockComponent.Content(modifier = Modifier)
         }
+    }
+}
+
+@Composable
+internal fun TransactionDoneTitleAnimated(uiState: SendUM) {
+    AnimatedVisibility(
+        visible = uiState.confirmUM is ConfirmUM.Success,
+        modifier = Modifier.padding(vertical = 12.dp),
+    ) {
+        val wrappedConfirmUM = remember(this) { uiState.confirmUM as ConfirmUM.Success }
+        TransactionDoneTitle(
+            title = resourceReference(R.string.sent_transaction_sent_title),
+            subtitle = resourceReference(
+                R.string.send_date_format,
+                wrappedList(
+                    wrappedConfirmUM.transactionDate.toTimeFormat(DateTimeFormatters.dateFormatter),
+                    wrappedConfirmUM.transactionDate.toTimeFormat(),
+                ),
+            ),
+            modifier = Modifier.padding(vertical = 12.dp),
+        )
     }
 }

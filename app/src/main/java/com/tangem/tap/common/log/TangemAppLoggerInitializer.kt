@@ -12,7 +12,7 @@ import timber.log.Timber
  *
  * @property appLogsStore app logs store
  *
- * @author Andrew Khokhlov on 12/08/2024
+[REDACTED_AUTHOR]
  */
 class TangemAppLoggerInitializer(
     private val appLogsStore: AppLogsStore,

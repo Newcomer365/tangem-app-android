@@ -1,34 +1,59 @@
 package com.tangem.features.walletconnect.connections.model.transformers
 
 import com.domain.blockaid.models.dapp.CheckDAppResult
-import com.tangem.core.ui.extensions.iconResId
+import com.tangem.domain.models.network.Network
+import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.domain.walletconnect.model.WcSessionProposal
-import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.features.walletconnect.connections.entity.*
+import com.tangem.features.walletconnect.connections.entity.WcAppInfoSecurityNotification
+import com.tangem.features.walletconnect.connections.entity.WcAppInfoUM
+import com.tangem.features.walletconnect.connections.entity.WcPrimaryButtonConfig
 import com.tangem.utils.transformer.Transformer
-import kotlinx.collections.immutable.toImmutableList
 
+@Suppress("LongParameterList")
 internal class WcAppInfoTransformer(
     private val dAppSession: WcSessionProposal,
+    private val dAppVerifiedStateConverter: WcDAppVerifiedStateConverter,
     private val onDismiss: () -> Unit,
-    private val onConnect: () -> Unit,
+    private val onConnect: (securityStatus: CheckDAppResult) -> Unit,
+    private val onWalletClick: (() -> Unit)?,
+    private val onNetworksClick: () -> Unit,
     private val userWallet: UserWallet,
     private val proposalNetwork: WcSessionProposal.ProposalNetwork,
+    private val additionallyEnabledNetworks: Set<Network>,
 ) : Transformer<WcAppInfoUM> {
 
     override fun transform(prevState: WcAppInfoUM): WcAppInfoUM {
         return WcAppInfoUM.Content(
             appName = dAppSession.dAppMetaData.name,
             appIcon = dAppSession.dAppMetaData.icons.firstOrNull().orEmpty(),
-            isVerified = dAppSession.securityStatus == CheckDAppResult.SAFE,
-            appSubtitle = dAppSession.dAppMetaData.description,
+            verifiedDAppState = dAppVerifiedStateConverter.convert(
+                dAppSession.securityStatus to dAppSession.dAppMetaData.name,
+            ),
+            appSubtitle = WcAppSubtitleConverter.convert(dAppSession.dAppMetaData),
             notification = createNotification(dAppSession.securityStatus),
             walletName = userWallet.name,
-            networksInfo = convertNetworksInfo(proposalNetwork),
+            onWalletClick = onWalletClick,
+            networksInfo = WcNetworksInfoConverter.convert(
+                value = WcNetworksInfoConverter.Input(
+                    missingNetworks = proposalNetwork.missingRequired,
+                    requiredNetworks = proposalNetwork.required,
+                    availableNetworks = proposalNetwork.available,
+                    notAddedNetworks = proposalNetwork.notAdded,
+                    additionallyEnabledNetworks = additionallyEnabledNetworks,
+                ),
+            ),
+            onNetworksClick = onNetworksClick,
             connectButtonConfig = WcPrimaryButtonConfig(
                 showProgress = false,
-                enabled = proposalNetwork.missingRequired.isEmpty(),
-                onClick = onConnect,
+                enabled = WcConnectButtonAvailabilityConverter.convert(
+                    WcConnectButtonAvailabilityConverter.Input(
+                        missingNetworks = proposalNetwork.missingRequired,
+                        requiredNetworks = proposalNetwork.required,
+                        availableNetworks = proposalNetwork.available,
+                        selectedNetworks = additionallyEnabledNetworks,
+                    ),
+                ),
+                onClick = { onConnect(dAppSession.securityStatus) },
             ),
             onDismiss = onDismiss,
         )
@@ -39,28 +64,6 @@ internal class WcAppInfoTransformer(
             CheckDAppResult.SAFE -> null
             CheckDAppResult.UNSAFE -> WcAppInfoSecurityNotification.SecurityRisk
             CheckDAppResult.FAILED_TO_VERIFY -> WcAppInfoSecurityNotification.UnknownDomain
-        }
-    }
-
-    private fun convertNetworksInfo(proposalNetwork: WcSessionProposal.ProposalNetwork): WcNetworksInfo {
-        return if (proposalNetwork.missingRequired.isNotEmpty()) {
-            WcNetworksInfo.MissingRequiredNetworkInfo(
-                networks = proposalNetwork.missingRequired
-                    .joinToString { it.name },
-            )
-        } else {
-            WcNetworksInfo.ContainsAllRequiredNetworks(
-                items = (proposalNetwork.required + proposalNetwork.available)
-                    .map {
-                        WcNetworkInfoItem(
-                            id = it.id.value,
-                            icon = it.iconResId,
-                            name = it.name,
-                            symbol = it.currencySymbol,
-                        )
-                    }
-                    .toImmutableList(),
-            )
         }
     }
 }

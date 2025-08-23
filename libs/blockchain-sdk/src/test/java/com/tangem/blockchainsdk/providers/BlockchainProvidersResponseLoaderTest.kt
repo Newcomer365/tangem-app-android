@@ -16,7 +16,7 @@ import org.junit.Before
 import org.junit.Test
 
 /**
- * @author Andrew Khokhlov on 29/05/2024
+[REDACTED_AUTHOR]
  */
 internal class BlockchainProvidersResponseLoaderTest {
 

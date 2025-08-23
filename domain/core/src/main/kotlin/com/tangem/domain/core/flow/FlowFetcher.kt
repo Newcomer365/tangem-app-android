@@ -7,7 +7,7 @@ import arrow.core.Either
  *
  * @param Params data that required to fetch flow
  *
- * @author Andrew Khokhlov on 06/03/2025
+[REDACTED_AUTHOR]
  */
 interface FlowFetcher<Params : Any> {
 

@@ -16,10 +16,10 @@ import com.tangem.common.extensions.toHexString
 import com.tangem.core.error.ext.tangemError
 import com.tangem.crypto.hdWallet.DerivationPath
 import com.tangem.crypto.hdWallet.bip32.ExtendedPublicKey
-import com.tangem.domain.common.util.derivationStyleProvider
-import com.tangem.domain.common.visa.VisaUtilities
-import com.tangem.domain.common.visa.VisaWalletPublicKeyUtility
-import com.tangem.domain.common.visa.VisaWalletPublicKeyUtility.findKeyWithoutDerivation
+import com.tangem.domain.card.common.util.derivationStyleProvider
+import com.tangem.domain.card.common.visa.VisaUtilities
+import com.tangem.domain.card.common.visa.VisaWalletPublicKeyUtility
+import com.tangem.domain.card.common.visa.VisaWalletPublicKeyUtility.findKeyWithoutDerivation
 import com.tangem.domain.models.scan.CardDTO
 import com.tangem.domain.visa.error.VisaActivationError
 import com.tangem.domain.visa.model.VisaDataForApprove
@@ -40,17 +40,12 @@ class VisaCustomerWalletApproveTask(
         }
 
         if (VisaUtilities.isVisaCard(card.firmwareVersion.doubleValue, card.batchId)) {
-            // TODO TVF-21
-            callback(CompletionResult.Failure(TangemSdkError.Underlying("Can't use Visa card for approve")))
+            callback(CompletionResult.Failure(VisaActivationError.VisaCardForApproval.tangemError))
             return
         }
 
         if (visaDataForApprove.customerWalletCardId != null && card.cardId != visaDataForApprove.customerWalletCardId) {
-            callback(
-                CompletionResult.Failure(
-                    TangemSdkError.Underlying("Use tangem wallet specified during visa registration"), // TODO TVF-21
-                ),
-            )
+            callback(CompletionResult.Failure(VisaActivationError.CardIdNotMatched.tangemError))
             return
         }
 

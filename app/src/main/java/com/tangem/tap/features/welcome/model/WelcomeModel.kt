@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.update
 import org.rekotlin.StoreSubscriber
 import javax.inject.Inject
 
-// FIXME: Remove redux: https://tangem.atlassian.net/browse/AND-9528
+// FIXME: Remove redux: [REDACTED_JIRA]
 @ModelScoped
 internal class WelcomeModel @Inject constructor(
     override val dispatchers: CoroutineDispatcherProvider,
@@ -131,6 +131,5 @@ internal class WelcomeModel @Inject constructor(
 
     private fun initGlobalState() {
         store.dispatch(GlobalAction.RestoreAppCurrency)
-        store.dispatch(GlobalAction.ExchangeManager.Init)
     }
 }

@@ -3,7 +3,7 @@ package com.tangem.tap.common
 import android.content.Intent
 
 /**
- * Created by Anton Zhilenkov on 16.10.2022.
+[REDACTED_AUTHOR]
  */
 interface ActivityResultCallbackHolder {
     fun addOnActivityResultCallback(callback: OnActivityResultCallback)

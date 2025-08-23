@@ -10,7 +10,7 @@ import kotlinx.coroutines.sync.withLock
 /**
  * Runtime shared store
  *
- * @author Andrew Khokhlov on 15/04/2024
+[REDACTED_AUTHOR]
  */
 interface RuntimeSharedStore<T> {
 

@@ -10,7 +10,7 @@ import com.tangem.feature.wallet.impl.R
 /**
  * Wallet bottom sheet config
  *
- * @author Andrew Khokhlov on 14/07/2023
+[REDACTED_AUTHOR]
  */
 sealed class WalletBottomSheetConfig(
     open val title: TextReference,

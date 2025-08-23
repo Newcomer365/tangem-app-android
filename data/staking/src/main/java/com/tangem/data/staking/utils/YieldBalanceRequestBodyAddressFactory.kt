@@ -6,7 +6,7 @@ import com.tangem.domain.staking.model.StakingID
 /**
  * Factory for creating [Address]
  *
- * @author Andrew Khokhlov on 24/04/2025
+[REDACTED_AUTHOR]
  */
 internal object YieldBalanceRequestBodyAddressFactory {
 
@@ -14,7 +14,7 @@ internal object YieldBalanceRequestBodyAddressFactory {
         return Address(
             address = stakingId.address,
             additionalAddresses = null, // todo fill additional addresses metadata if needed
-            explorerUrl = "", // todo fill exporer url https://tangem.atlassian.net/browse/AND-7138
+            explorerUrl = "", // todo fill exporer url [REDACTED_JIRA]
         )
     }
 }

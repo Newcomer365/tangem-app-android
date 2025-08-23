@@ -19,7 +19,7 @@ import javax.inject.Singleton
  *
  * @see <a href = "https://www.notion.so/tangem/Assets-e045dd890413413faf34ce07ae47ff56">Documentation</a>
  *
- * @author Andrew Khokhlov on 11/04/2024
+[REDACTED_AUTHOR]
  */
 @Singleton
 class AssetLoader @Inject constructor(

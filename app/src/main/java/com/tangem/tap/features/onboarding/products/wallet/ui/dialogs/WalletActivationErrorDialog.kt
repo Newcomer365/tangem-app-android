@@ -24,10 +24,10 @@ object WalletActivationErrorDialog {
             setMessage(context.getString(R.string.onboarding_activation_error_message))
             setPositiveButton(R.string.common_ok) { _, _ -> dialog.onConfirm() }
             setNegativeButton(R.string.common_support) { _, _ ->
-                // changed on email support AND-6202
+                // changed on email support [REDACTED_TASK_KEY]
                 Analytics.send(Basic.ButtonSupport(AnalyticsParam.ScreensSources.Intro))
 
-                val scanResponse = store.state.globalState.onboardingState.onboardingManager?.scanResponse
+                val scanResponse = store.state.globalState.scanResponse
                     ?: error("ScanResponse must be not null")
 
                 val cardInfo = store.inject(DaggerGraphState::getCardInfoUseCase).invoke(scanResponse).getOrNull()

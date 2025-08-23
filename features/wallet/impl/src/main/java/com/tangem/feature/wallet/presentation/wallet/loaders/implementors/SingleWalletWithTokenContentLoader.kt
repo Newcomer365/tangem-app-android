@@ -1,10 +1,9 @@
 package com.tangem.feature.wallet.presentation.wallet.loaders.implementors
 
-import com.tangem.core.deeplink.DeepLinksRegistry
 import com.tangem.domain.appcurrency.GetSelectedAppCurrencyUseCase
 import com.tangem.domain.promo.GetStoryContentUseCase
 import com.tangem.domain.tokens.RunPolkadotAccountHealthCheckUseCase
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.domain.wallets.usecase.ShouldSaveUserWalletsUseCase
 import com.tangem.feature.wallet.child.wallet.model.intents.WalletClickIntents
 import com.tangem.feature.wallet.presentation.wallet.analytics.utils.TokenListAnalyticsSender
@@ -18,7 +17,7 @@ import com.tangem.feature.wallet.presentation.wallet.subscribers.*
 
 @Suppress("LongParameterList")
 internal class SingleWalletWithTokenContentLoader(
-    private val userWallet: UserWallet,
+    private val userWallet: UserWallet.Cold,
     private val clickIntents: WalletClickIntents,
     private val stateHolder: WalletStateController,
     private val tokenListAnalyticsSender: TokenListAnalyticsSender,
@@ -31,7 +30,6 @@ internal class SingleWalletWithTokenContentLoader(
     private val runPolkadotAccountHealthCheckUseCase: RunPolkadotAccountHealthCheckUseCase,
     private val shouldSaveUserWalletsUseCase: ShouldSaveUserWalletsUseCase,
     private val getStoryContentUseCase: GetStoryContentUseCase,
-    private val deepLinksRegistry: DeepLinksRegistry,
 ) : WalletContentLoader(id = userWallet.walletId) {
 
     override fun create(): List<WalletSubscriber> {
@@ -45,7 +43,6 @@ internal class SingleWalletWithTokenContentLoader(
                 tokenListStore = tokenListStore,
                 getSelectedAppCurrencyUseCase = getSelectedAppCurrencyUseCase,
                 runPolkadotAccountHealthCheckUseCase = runPolkadotAccountHealthCheckUseCase,
-                deepLinksRegistry = deepLinksRegistry,
             ).let(::add)
             MultiWalletWarningsSubscriber(
                 userWallet = userWallet,

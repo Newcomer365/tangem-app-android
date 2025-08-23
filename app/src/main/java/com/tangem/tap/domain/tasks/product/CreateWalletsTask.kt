@@ -12,7 +12,7 @@ import com.tangem.operations.wallet.CreateWalletResponse
 import com.tangem.operations.wallet.CreateWalletTask
 
 /**
- * Created by Anton Zhilenkov on 13/10/2021.
+[REDACTED_AUTHOR]
  */
 class CreateWalletsResponse(
     val createWalletResponses: List<CreateWalletResponse>,

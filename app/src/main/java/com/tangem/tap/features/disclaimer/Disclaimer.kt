@@ -3,7 +3,7 @@ package com.tangem.tap.features.disclaimer
 import android.net.Uri
 
 /**
- * Created by Anton Zhilenkov on 19.12.2022.
+[REDACTED_AUTHOR]
  */
 interface Disclaimer {
     fun getUri(): Uri

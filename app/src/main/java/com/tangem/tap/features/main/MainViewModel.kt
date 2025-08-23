@@ -9,7 +9,6 @@ import com.tangem.core.analytics.api.AnalyticsEventHandler
 import com.tangem.core.analytics.models.event.TechAnalyticsEvent
 import com.tangem.core.decompose.di.GlobalUiMessageSender
 import com.tangem.core.decompose.ui.UiMessageSender
-import com.tangem.core.deeplink.DeepLinksRegistry
 import com.tangem.core.ui.R
 import com.tangem.core.ui.coil.ImagePreloader
 import com.tangem.core.ui.extensions.resourceReference
@@ -17,34 +16,53 @@ import com.tangem.core.ui.message.BottomSheetMessage
 import com.tangem.core.ui.message.EventMessageAction
 import com.tangem.core.ui.message.SnackbarMessage
 import com.tangem.datasource.api.common.config.managers.ApiConfigsManager
+import com.tangem.datasource.local.config.environment.EnvironmentConfig
+import com.tangem.datasource.local.config.environment.EnvironmentConfigStorage
 import com.tangem.domain.appcurrency.FetchAppCurrenciesUseCase
 import com.tangem.domain.balancehiding.BalanceHidingSettings
 import com.tangem.domain.balancehiding.GetBalanceHidingSettingsUseCase
 import com.tangem.domain.balancehiding.ListenToFlipsUseCase
 import com.tangem.domain.balancehiding.UpdateBalanceHidingSettingsUseCase
+import com.tangem.domain.common.LogConfig
+import com.tangem.domain.models.scan.ScanResponse
+import com.tangem.domain.models.wallet.requireColdWallet
+import com.tangem.domain.notifications.GetApplicationIdUseCase
+import com.tangem.domain.notifications.SendPushTokenUseCase
+import com.tangem.domain.notifications.models.ApplicationId
+import com.tangem.domain.notifications.toggles.NotificationsFeatureToggles
 import com.tangem.domain.onboarding.repository.OnboardingRepository
 import com.tangem.domain.onramp.FetchHotCryptoUseCase
 import com.tangem.domain.promo.GetStoryContentUseCase
 import com.tangem.domain.promo.models.StoryContentIds
+import com.tangem.domain.quotes.multi.MultiQuoteUpdater
 import com.tangem.domain.settings.DeleteDeprecatedLogsUseCase
 import com.tangem.domain.settings.IncrementAppLaunchCounterUseCase
 import com.tangem.domain.settings.usercountry.FetchUserCountryUseCase
 import com.tangem.domain.staking.FetchStakingTokensUseCase
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
+import com.tangem.domain.wallets.usecase.AssociateWalletsWithApplicationIdUseCase
+import com.tangem.domain.wallets.usecase.GetSavedWalletsCountUseCase
+import com.tangem.domain.wallets.usecase.UpdateRemoteWalletsInfoUseCase
 import com.tangem.feature.swap.analytics.StoriesEvents
-import com.tangem.features.onramp.deeplink.OnrampDeepLink
 import com.tangem.tap.common.extensions.setContext
 import com.tangem.tap.common.redux.global.GlobalAction
 import com.tangem.tap.features.onboarding.products.wallet.redux.BackupDialog
+import com.tangem.tap.network.exchangeServices.ExchangeService
+import com.tangem.tap.network.exchangeServices.moonpay.MoonPayService
+import com.tangem.tap.proxy.AppStateHolder
 import com.tangem.tap.store
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
+import com.tangem.wallet.BuildConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import timber.log.Timber
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.seconds
 
-@Suppress("LongParameterList")
+@Suppress("LongParameterList", "LargeClass")
 @HiltViewModel
 internal class MainViewModel @Inject constructor(
     private val updateBalanceHidingSettingsUseCase: UpdateBalanceHidingSettingsUseCase,
@@ -56,7 +74,6 @@ internal class MainViewModel @Inject constructor(
     private val userWalletsListManager: UserWalletsListManager,
     private val dispatchers: CoroutineDispatcherProvider,
     private val fetchStakingTokensUseCase: FetchStakingTokensUseCase,
-    private val apiConfigsManager: ApiConfigsManager,
     private val fetchUserCountryUseCase: FetchUserCountryUseCase,
     @GlobalUiMessageSender private val messageSender: UiMessageSender,
     private val keyboardValidator: KeyboardValidator,
@@ -65,8 +82,16 @@ internal class MainViewModel @Inject constructor(
     private val imagePreloader: ImagePreloader,
     private val fetchHotCryptoUseCase: FetchHotCryptoUseCase,
     private val onboardingRepository: OnboardingRepository,
-    private val deepLinksRegistry: DeepLinksRegistry,
-    private val onrampDeepLinkFactory: OnrampDeepLink.Factory,
+    private val notificationsToggles: NotificationsFeatureToggles,
+    private val getApplicationIdUseCase: GetApplicationIdUseCase,
+    private val subscribeOnWalletsUseCase: GetSavedWalletsCountUseCase,
+    private val associateWalletsWithApplicationIdUseCase: AssociateWalletsWithApplicationIdUseCase,
+    private val updateRemoteWalletsInfoUseCase: UpdateRemoteWalletsInfoUseCase,
+    private val sendPushTokenUseCase: SendPushTokenUseCase,
+    private val apiConfigsManager: ApiConfigsManager,
+    private val multiQuoteUpdater: MultiQuoteUpdater,
+    private val appStateHolder: AppStateHolder,
+    private val environmentConfigStorage: EnvironmentConfigStorage,
     getBalanceHidingSettingsUseCase: GetBalanceHidingSettingsUseCase,
 ) : ViewModel() {
 
@@ -77,32 +102,44 @@ internal class MainViewModel @Inject constructor(
         private set
 
     init {
+        /**
+         * Run any data initialization here that needs to happen before the app starts
+         * and is hidden behind the SplashScreen
+         */
         loadApplicationResources()
 
-        viewModelScope.launch(dispatchers.main) { incrementAppLaunchCounterUseCase() }
+        /** Run any API data load here that runs in parallel and does not block the app from starting */
+        launchAPIRequests {
+            launch { fetchHotCryptoUseCase() }
 
-        viewModelScope.launch {
-            fetchUserCountryUseCase().onLeft {
-                Timber.e("Unable to fetch the user country code $it")
-            }
+            launch { fetchAppCurrenciesUseCase() }
+
+            launch { fetchStakingTokens() }
+
+            launch { initPushNotifications() }
         }
 
-        viewModelScope.launch { fetchHotCryptoUseCase() }
+        viewModelScope.launch { incrementAppLaunchCounterUseCase() }
 
-        updateAppCurrencies()
+        multiQuoteUpdater.subscribe()
+
+        initializeOffRamp()
+
         observeFlips()
         displayBalancesHidingStatusToast()
         displayHiddenBalancesModalNotification()
-
-        fetchStakingTokens()
 
         deleteDeprecatedLogsUseCase()
 
         sendKeyboardIdentifierEvent()
 
         preloadImages()
+    }
 
-        initializeDeepLinks()
+    override fun onCleared() {
+        super.onCleared()
+
+        multiQuoteUpdater.unsubscribe()
     }
 
     fun checkForUnfinishedBackup() {
@@ -114,13 +151,38 @@ internal class MainViewModel @Inject constructor(
 
     /** Loading the resources needed to run the application */
     private fun loadApplicationResources() {
-        viewModelScope.launch(dispatchers.main) {
-            apiConfigsManager.initialize()
+        viewModelScope.launch {
+            launchAPIRequests {
+                launch { blockchainSDKFactory.init() }
 
-            blockchainSDKFactory.init()
+                launch {
+                    withTimeout(timeMillis = 1.seconds.inWholeMilliseconds) { fetchUserCountry() }
+                }
+            }
+
             prepareSelectedWalletFeedback()
 
             isSplashScreenShown = false
+        }
+    }
+
+    private suspend fun fetchUserCountry() {
+        fetchUserCountryUseCase().onLeft {
+            Timber.e("Unable to fetch the user country code $it")
+        }
+    }
+
+    private fun launchAPIRequests(function: suspend CoroutineScope.() -> Unit) {
+        viewModelScope.launch {
+            if (BuildConfig.TESTER_MENU_ENABLED) {
+                apiConfigsManager.isInitialized
+                    .filter { it }
+                    .first() // wait until isInitialized becomes true
+
+                function()
+            } else {
+                function()
+            }
         }
     }
 
@@ -128,24 +190,38 @@ internal class MainViewModel @Inject constructor(
         userWalletsListManager.selectedUserWallet
             .distinctUntilChanged()
             .onEach { userWallet ->
-                Analytics.setContext(userWallet.scanResponse)
+                Analytics.setContext(userWallet)
             }
             .flowOn(dispatchers.io)
             .launchIn(viewModelScope)
     }
 
-    private fun updateAppCurrencies() {
-        viewModelScope.launch(dispatchers.main) {
-            fetchAppCurrenciesUseCase.invoke()
+    private suspend fun fetchStakingTokens() {
+        fetchStakingTokensUseCase()
+            .onLeft { Timber.e(it.toString(), "Unable to fetch the staking tokens list") }
+            .onRight { Timber.d("Staking token list was fetched successfully") }
+    }
+
+    private fun initializeOffRamp() {
+        viewModelScope.launch {
+            val sellService = makeSellExchangeService(environmentConfig = environmentConfigStorage.getConfigSync())
+            appStateHolder.sellService = sellService
+
+            sellService.update()
         }
     }
 
-    private fun fetchStakingTokens() {
-        viewModelScope.launch(dispatchers.main) {
-            fetchStakingTokensUseCase()
-                .onLeft { Timber.e(it.toString(), "Unable to fetch the staking tokens list") }
-                .onRight { Timber.d("Staking token list was fetched successfully") }
+    private fun makeSellExchangeService(environmentConfig: EnvironmentConfig): ExchangeService {
+        val cardProvider: () -> ScanResponse? = {
+            userWalletsListManager.selectedUserWalletSync?.requireColdWallet()?.scanResponse // TODO [REDACTED_TASK_KEY]
         }
+
+        return MoonPayService(
+            apiKey = environmentConfig.moonPayApiKey,
+            secretKey = environmentConfig.moonPayApiSecretKey,
+            logEnabled = LogConfig.network.moonPayService,
+            cardProvider = { cardProvider.invoke()?.card },
+        )
     }
 
     private fun observeFlips() {
@@ -331,7 +407,7 @@ internal class MainViewModel @Inject constructor(
                 }
             }
         } catch (ex: Exception) {
-            Timber.e(ex.message)
+            Timber.e(ex)
             analyticsEventHandler.send(
                 StoriesEvents.Error(
                     type = StoryContentIds.STORY_FIRST_TIME_SWAP.analyticType,
@@ -340,7 +416,19 @@ internal class MainViewModel @Inject constructor(
         }
     }
 
-    private fun initializeDeepLinks() {
-        deepLinksRegistry.register(onrampDeepLinkFactory.create(viewModelScope))
+    private suspend fun initPushNotifications() {
+        if (notificationsToggles.isNotificationsEnabled) {
+            getApplicationIdUseCase().onRight { applicationId ->
+                sendPushTokenUseCase(applicationId = applicationId)
+                associateWalletsWithApplicationId(applicationId = applicationId)
+                updateRemoteWalletsInfoUseCase(applicationId = applicationId)
+            }.onLeft { Timber.e(it.toString()) }
+        }
+    }
+
+    private fun associateWalletsWithApplicationId(applicationId: ApplicationId) {
+        subscribeOnWalletsUseCase().onEach { wallets ->
+            associateWalletsWithApplicationIdUseCase(applicationId, wallets)
+        }.launchIn(viewModelScope)
     }
 }

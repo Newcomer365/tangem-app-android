@@ -7,6 +7,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.arkivanov.decompose.router.slot.childSlot
 import com.arkivanov.decompose.router.slot.dismiss
+import com.tangem.common.routing.AppRoute
 import com.tangem.core.decompose.context.AppComponentContext
 import com.tangem.core.decompose.context.child
 import com.tangem.core.decompose.context.childByContext
@@ -21,6 +22,8 @@ import com.tangem.feature.wallet.presentation.wallet.ui.WalletScreen
 import com.tangem.feature.walletsettings.component.RenameWalletComponent
 import com.tangem.features.biometry.AskBiometryComponent
 import com.tangem.features.markets.entry.MarketsEntryComponent
+import com.tangem.features.pushnotifications.api.PushNotificationsBottomSheetComponent
+import com.tangem.features.pushnotifications.api.PushNotificationsParams
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -32,6 +35,7 @@ internal class WalletComponent @AssistedInject constructor(
     private val renameWalletComponentFactory: RenameWalletComponent.Factory,
     private val marketsEntryComponentFactory: MarketsEntryComponent.Factory,
     private val askBiometryComponentFactory: AskBiometryComponent.Factory,
+    private val pushNotificationsBottomSheetComponent: PushNotificationsBottomSheetComponent.Factory,
 ) : ComposableContentComponent, AppComponentContext by appComponentContext {
 
     private val model: WalletModel = getOrCreateModel()
@@ -66,6 +70,14 @@ internal class WalletComponent @AssistedInject constructor(
                         ),
                     )
                 }
+                WalletDialogConfig.AskForPushNotifications -> pushNotificationsBottomSheetComponent.create(
+                    context = childByContext(componentContext),
+                    params = PushNotificationsParams(
+                        isBottomSheet = true,
+                        modelCallbacks = model.askForPushNotificationsModelCallbacks,
+                        source = AppRoute.PushNotification.Source.Main,
+                    ),
+                )
             }
         },
     )

@@ -9,14 +9,14 @@ import com.tangem.common.doOnSuccess
 import com.tangem.domain.wallets.legacy.UserWalletsListError
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
 import com.tangem.domain.wallets.models.SaveWalletError
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.models.wallet.UserWallet
 
 /**
  * Use case for saving user wallet
  *
  * @property userWalletsListManager user wallets list manager
  *
- * @author Andrew Khokhlov on 07/07/2023
+[REDACTED_AUTHOR]
  */
 class SaveWalletUseCase(private val userWalletsListManager: UserWalletsListManager) {
 

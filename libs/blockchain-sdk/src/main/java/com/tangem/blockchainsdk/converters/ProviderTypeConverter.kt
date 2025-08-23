@@ -8,7 +8,7 @@ import com.tangem.utils.converter.TwoWayConverter
 /**
  * Converts [ProviderModel] to [ProviderType] and vice versa
  *
- * @author Andrew Khokhlov on 01/02/2025
+[REDACTED_AUTHOR]
  */
 internal object ProviderTypeConverter : TwoWayConverter<ProviderModel, ProviderType?> {
 

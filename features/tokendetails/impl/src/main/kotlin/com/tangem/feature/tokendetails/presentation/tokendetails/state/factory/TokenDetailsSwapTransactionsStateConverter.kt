@@ -16,8 +16,9 @@ import com.tangem.core.ui.format.bigdecimal.format
 import com.tangem.core.ui.utils.toDateFormatWithTodayYesterday
 import com.tangem.core.ui.utils.toTimeFormat
 import com.tangem.domain.appcurrency.model.AppCurrency
-import com.tangem.domain.tokens.model.CryptoCurrency
-import com.tangem.domain.tokens.model.Quote
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.quote.QuoteStatus
+import com.tangem.domain.models.quote.mapData
 import com.tangem.domain.tokens.model.analytics.TokenExchangeAnalyticsEvent
 import com.tangem.feature.swap.domain.models.domain.ExchangeStatus
 import com.tangem.feature.swap.domain.models.domain.ExchangeStatus.Companion.isFailed
@@ -39,7 +40,7 @@ import timber.log.Timber
 import java.math.BigDecimal
 import java.util.Locale
 
-// Fixme https://tangem.atlassian.net/browse/AND-9219
+// Fixme [REDACTED_JIRA]
 @Suppress("LargeClass")
 internal class TokenDetailsSwapTransactionsStateConverter(
     private val clickIntents: TokenDetailsClickIntents,
@@ -57,7 +58,7 @@ internal class TokenDetailsSwapTransactionsStateConverter(
 
     fun convert(
         savedTransactions: List<SavedSwapTransactionListModel>,
-        quotes: Set<Quote>,
+        quoteStatuses: Set<QuoteStatus>,
     ): PersistentList<ExchangeUM> {
         val result = mutableListOf<ExchangeUM>()
 
@@ -73,12 +74,17 @@ internal class TokenDetailsSwapTransactionsStateConverter(
                     val fromAmount = transaction.fromCryptoAmount
                     var toFiatAmount: BigDecimal? = null
                     var fromFiatAmount: BigDecimal? = null
-                    quotes.forEach { quote ->
-                        if (quote is Quote.Value && quote.rawCurrencyId == toCryptoCurrencyRawId) {
-                            toFiatAmount = quote.fiatRate.multiply(toAmount)
+                    quoteStatuses.forEach { quote ->
+                        quote.mapData {
+                            if (quote.rawCurrencyId == toCryptoCurrencyRawId) {
+                                toFiatAmount = fiatRate.multiply(toAmount)
+                            }
                         }
-                        if (quote is Quote.Value && quote.rawCurrencyId == fromCryptoCurrencyRawId) {
-                            fromFiatAmount = quote.fiatRate.multiply(fromAmount)
+
+                        quote.mapData {
+                            if (quote.rawCurrencyId == fromCryptoCurrencyRawId) {
+                                fromFiatAmount = fiatRate.multiply(fromAmount)
+                            }
                         }
                     }
                     val statusModel = transaction.status
@@ -172,7 +178,7 @@ internal class TokenDetailsSwapTransactionsStateConverter(
             },
             iconState = getIconState(transaction.status?.status),
             status = getStatusState(),
-            notification = null, // fixme https://tangem.atlassian.net/browse/AND-9219,
+            notification = null, // fixme [REDACTED_JIRA],
             onDisposeExpressStatus = clickIntents::onConfirmDisposeExpressStatus,
         )
     }
@@ -249,7 +255,7 @@ internal class TokenDetailsSwapTransactionsStateConverter(
         }
     }
 
-    // Fixme https://tangem.atlassian.net/browse/AND-9219
+    // Fixme [REDACTED_JIRA]
     private fun getStatusState() = ExpressStatusUM(
         title = resourceReference(R.string.express_exchange_status_title),
         link = ExpressLinkUM.Empty,

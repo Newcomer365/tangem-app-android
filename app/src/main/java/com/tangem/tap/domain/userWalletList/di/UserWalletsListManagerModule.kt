@@ -13,6 +13,7 @@ import com.tangem.domain.visa.model.VisaActivationRemoteState
 import com.tangem.domain.visa.model.VisaCardActivationStatus
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
 import com.tangem.sdk.storage.AndroidSecureStorage
+import com.tangem.sdk.storage.AndroidSecureStorageV2
 import com.tangem.sdk.storage.createEncryptedSharedPreferences
 import com.tangem.tap.domain.userWalletList.implementation.BiometricUserWalletsListManager
 import com.tangem.tap.domain.userWalletList.implementation.GeneralUserWalletsListManager
@@ -48,8 +49,9 @@ internal object UserWalletsListManagerModule {
         return GeneralUserWalletsListManager(
             runtimeUserWalletsListManager = RuntimeUserWalletsListManager(),
             biometricUserWalletsListManager = createBiometricUserWalletsListManager(
-                applicationContext,
-                analyticsEventHandler,
+                applicationContext = applicationContext,
+                analyticsEventHandler = analyticsEventHandler,
+                dispatchers = dispatchers,
             ),
             appPreferencesStore = appPreferencesStore,
             dispatchers = dispatchers,
@@ -59,6 +61,7 @@ internal object UserWalletsListManagerModule {
     private fun createBiometricUserWalletsListManager(
         applicationContext: Context,
         analyticsEventHandler: AnalyticsEventHandler,
+        dispatchers: CoroutineDispatcherProvider,
     ): UserWalletsListManager {
         val moshi = Moshi.Builder()
             .add(WalletDerivedKeysMapAdapter())
@@ -79,6 +82,16 @@ internal object UserWalletsListManagerModule {
             preferences = SecureStorage.createEncryptedSharedPreferences(
                 context = applicationContext,
                 storageName = "user_wallets_storage",
+            ),
+            androidSecureStorageV2 = AndroidSecureStorageV2(
+                appContext = applicationContext,
+                useStrongBox = true,
+                name = "user_wallets_storage2",
+            ),
+            androidSecureStorageV3 = AndroidSecureStorageV2(
+                appContext = applicationContext,
+                useStrongBox = false,
+                name = "user_wallets_storage3",
             ),
         )
 
@@ -109,7 +122,10 @@ internal object UserWalletsListManagerModule {
             secureStorage = secureStorage,
         )
 
-        val selectedUserWalletRepository = DefaultSelectedUserWalletRepository(secureStorage = secureStorage)
+        val selectedUserWalletRepository = DefaultSelectedUserWalletRepository(
+            secureStorage = secureStorage,
+            dispatchers = dispatchers,
+        )
 
         return BiometricUserWalletsListManager(
             keysRepository = keysRepository,

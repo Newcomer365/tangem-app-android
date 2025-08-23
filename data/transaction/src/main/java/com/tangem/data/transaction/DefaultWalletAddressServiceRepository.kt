@@ -4,11 +4,14 @@ import android.net.Uri
 import androidx.core.text.isDigitsOnly
 import com.tangem.blockchain.blockchains.near.NearWalletManager
 import com.tangem.blockchain.common.Blockchain
-import com.tangem.domain.tokens.model.Network
+import com.tangem.blockchain.common.NameResolver
+import com.tangem.blockchain.common.ResolveAddressResult
+import com.tangem.blockchainsdk.utils.toBlockchain
+import com.tangem.domain.models.network.Network
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.transaction.WalletAddressServiceRepository
 import com.tangem.domain.walletmanager.WalletManagersFacade
 import com.tangem.domain.wallets.models.ParsedQrCode
-import com.tangem.domain.wallets.models.UserWalletId
 import com.tangem.domain.wallets.models.errors.ParsedQrCodeErrors
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import kotlinx.coroutines.withContext
@@ -19,9 +22,31 @@ class DefaultWalletAddressServiceRepository(
     private val dispatchers: CoroutineDispatcherProvider,
 ) : WalletAddressServiceRepository {
 
+    override suspend fun resolveAddress(
+        userWalletId: UserWalletId,
+        network: Network,
+        address: String,
+    ): ResolveAddressResult {
+        return withContext(dispatchers.io) {
+            val blockchain = network.toBlockchain()
+
+            val walletManager = walletManagersFacade.getOrCreateWalletManager(
+                userWalletId = userWalletId,
+                blockchain = blockchain,
+                derivationPath = network.derivationPath.value,
+            )
+
+            if (walletManager is NameResolver) {
+                walletManager.resolve(address)
+            } else {
+                ResolveAddressResult.NotSupported
+            }
+        }
+    }
+
     override suspend fun validateAddress(userWalletId: UserWalletId, network: Network, address: String): Boolean =
         withContext(dispatchers.io) {
-            val blockchain = Blockchain.fromId(network.id.value)
+            val blockchain = network.toBlockchain()
 
             if (blockchain.isNear()) {
                 val walletManager = walletManagersFacade.getOrCreateWalletManager(
@@ -37,7 +62,7 @@ class DefaultWalletAddressServiceRepository(
 
     override fun validateMemo(network: Network, memo: String): Boolean {
         if (memo.isEmpty()) return true
-        return when (network.id.value) {
+        return when (network.rawId) {
             Blockchain.XRP.id -> {
                 val tag = memo.toLongOrNull()
                 tag != null && tag <= XRP_TAG_MAX_NUMBER
@@ -50,7 +75,7 @@ class DefaultWalletAddressServiceRepository(
     }
 
     override suspend fun parseSharedAddress(input: String, network: Network): ParsedQrCode {
-        val blockchain = Blockchain.fromId(network.id.value)
+        val blockchain = network.toBlockchain()
         val addressSchemeSplit = when (blockchain) {
             Blockchain.BitcoinCash, Blockchain.Kaspa -> listOf(input)
             else -> input.split(":")

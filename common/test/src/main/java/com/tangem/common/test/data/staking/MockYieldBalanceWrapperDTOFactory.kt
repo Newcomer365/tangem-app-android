@@ -9,7 +9,7 @@ import com.tangem.domain.staking.model.StakingID
 import java.math.BigDecimal
 
 /**
- * @author Andrew Khokhlov on 16/04/2025
+[REDACTED_AUTHOR]
  */
 object MockYieldBalanceWrapperDTOFactory {
 

@@ -25,7 +25,7 @@ import kotlin.coroutines.CoroutineContext
  * Application preferences data store 'DataStore<Preferences>'.
  * Implements the singleton pattern [INSTANCE] under the hood.
  *
- * @author Andrew Khokhlov on 24/10/2023
+[REDACTED_AUTHOR]
  */
 internal object PreferencesDataStore {
 

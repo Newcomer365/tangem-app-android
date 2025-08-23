@@ -3,15 +3,15 @@ package com.tangem.domain.transaction.usecase
 import arrow.core.Either
 import com.tangem.blockchain.common.transaction.Fee
 import com.tangem.blockchain.nft.models.NFTAsset
-import com.tangem.domain.tokens.model.Network
+import com.tangem.domain.models.network.Network
 import com.tangem.domain.transaction.TransactionRepository
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWalletId
 
 class CreateNFTTransferTransactionUseCase(
     private val transactionRepository: TransactionRepository,
 ) {
     /**
-     * Todo wrap params into a model https://tangem.atlassian.net/browse/AND-5741
+     * [REDACTED_TODO_COMMENT]
      */
     @Suppress("LongParameterList")
     suspend operator fun invoke(
@@ -35,7 +35,7 @@ class CreateNFTTransferTransactionUseCase(
     }
 
     /**
-     * Todo wrap params into a model https://tangem.atlassian.net/browse/AND-5741
+     * [REDACTED_TODO_COMMENT]
      */
     @Suppress("LongParameterList")
     suspend operator fun invoke(

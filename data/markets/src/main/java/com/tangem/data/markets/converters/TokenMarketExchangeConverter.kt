@@ -8,7 +8,7 @@ import com.tangem.utils.converter.Converter
 /**
  * Converter from [TokenMarketExchangesResponse.Exchange] to [TokenMarketExchange]
  *
- * @author Andrew Khokhlov on 30/09/2024
+[REDACTED_AUTHOR]
  */
 internal object TokenMarketExchangeConverter : Converter<TokenMarketExchangesResponse.Exchange, TokenMarketExchange> {
 

@@ -9,7 +9,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.graphics.drawable.toBitmap
 
 /**
- * Created by Anton Zhilenkov on 08/06/2022.
+[REDACTED_AUTHOR]
  */
 @Composable
 fun asImageBitmap(@DrawableRes drawableId: Int): ImageBitmap {

@@ -6,15 +6,11 @@ import com.tangem.domain.markets.*
 import com.tangem.domain.markets.repositories.MarketsTokenRepository
 import com.tangem.domain.networks.multi.MultiNetworkStatusFetcher
 import com.tangem.domain.promo.PromoRepository
-import com.tangem.domain.quotes.multi.MultiQuoteFetcher
-import com.tangem.domain.quotes.single.SingleQuoteSupplier
+import com.tangem.domain.quotes.multi.MultiQuoteStatusFetcher
+import com.tangem.domain.quotes.single.SingleQuoteStatusSupplier
 import com.tangem.domain.settings.repositories.SettingsRepository
 import com.tangem.domain.staking.multi.MultiYieldBalanceFetcher
-import com.tangem.domain.staking.repositories.StakingRepository
-import com.tangem.domain.tokens.TokensFeatureToggles
 import com.tangem.domain.tokens.repository.CurrenciesRepository
-import com.tangem.domain.tokens.repository.NetworksRepository
-import com.tangem.domain.tokens.repository.QuotesRepository
 import com.tangem.domain.wallets.legacy.UserWalletsListManager
 import dagger.Module
 import dagger.Provides
@@ -54,16 +50,8 @@ object MarketsDomainModule {
 
     @Provides
     @Singleton
-    fun provideGetTokenQuotesUseCase(
-        quotesRepository: QuotesRepository,
-        singleQuoteSupplier: SingleQuoteSupplier,
-        tokensFeatureToggles: TokensFeatureToggles,
-    ): GetCurrencyQuotesUseCase {
-        return GetCurrencyQuotesUseCase(
-            quotesRepository = quotesRepository,
-            singleQuoteSupplier = singleQuoteSupplier,
-            tokensFeatureToggles = tokensFeatureToggles,
-        )
+    fun provideGetTokenQuotesUseCase(singleQuoteStatusSupplier: SingleQuoteStatusSupplier): GetCurrencyQuotesUseCase {
+        return GetCurrencyQuotesUseCase(singleQuoteStatusSupplier = singleQuoteStatusSupplier)
     }
 
     @Provides
@@ -72,25 +60,17 @@ object MarketsDomainModule {
         derivationsRepository: DerivationsRepository,
         marketsTokenRepository: MarketsTokenRepository,
         currenciesRepository: CurrenciesRepository,
-        networksRepository: NetworksRepository,
-        stakingRepository: StakingRepository,
-        quotesRepository: QuotesRepository,
         multiNetworkStatusFetcher: MultiNetworkStatusFetcher,
-        multiQuoteFetcher: MultiQuoteFetcher,
+        multiQuoteStatusFetcher: MultiQuoteStatusFetcher,
         multiYieldBalanceFetcher: MultiYieldBalanceFetcher,
-        tokensFeatureToggles: TokensFeatureToggles,
     ): SaveMarketTokensUseCase {
         return SaveMarketTokensUseCase(
             derivationsRepository = derivationsRepository,
             marketsTokenRepository = marketsTokenRepository,
             currenciesRepository = currenciesRepository,
-            networksRepository = networksRepository,
-            stakingRepository = stakingRepository,
-            quotesRepository = quotesRepository,
             multiNetworkStatusFetcher = multiNetworkStatusFetcher,
-            multiQuoteFetcher = multiQuoteFetcher,
+            multiQuoteStatusFetcher = multiQuoteStatusFetcher,
             multiYieldBalanceFetcher = multiYieldBalanceFetcher,
-            tokensFeatureToggles = tokensFeatureToggles,
         )
     }
 

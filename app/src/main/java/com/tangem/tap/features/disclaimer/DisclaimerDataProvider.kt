@@ -1,7 +1,7 @@
 package com.tangem.tap.features.disclaimer
 
 /**
- * Created by Anton Zhilenkov on 22.12.2022.
+[REDACTED_AUTHOR]
  */
 interface DisclaimerDataProvider {
     fun getLanguage(): String

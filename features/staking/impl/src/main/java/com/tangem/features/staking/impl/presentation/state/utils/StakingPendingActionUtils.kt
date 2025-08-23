@@ -3,11 +3,13 @@ package com.tangem.features.staking.impl.presentation.state.utils
 import com.tangem.core.ui.R
 import com.tangem.core.ui.extensions.TextReference
 import com.tangem.core.ui.extensions.resourceReference
+import com.tangem.domain.staking.model.stakekit.BalanceType
 import com.tangem.domain.staking.model.stakekit.PendingAction
 import com.tangem.domain.staking.model.stakekit.action.StakingActionType
 import com.tangem.features.staking.impl.presentation.state.BalanceState
 import com.tangem.lib.crypto.BlockchainUtils.isBSC
 import com.tangem.lib.crypto.BlockchainUtils.isCardano
+import com.tangem.lib.crypto.BlockchainUtils.isCosmos
 import com.tangem.lib.crypto.BlockchainUtils.isSolana
 import com.tangem.lib.crypto.BlockchainUtils.isTron
 import kotlinx.collections.immutable.ImmutableList
@@ -43,16 +45,18 @@ internal fun isSingleAction(networkId: String, activeStake: BalanceState): Boole
     return isSingleAction && !isRestake || isCompositePendingActions
 }
 
-internal fun withStubUnstakeAction(networkId: String, activeStake: BalanceState) = if (isStubUnstakeAction(networkId)) {
-    activeStake.pendingActions.plus(
-        PendingAction(
-            type = StakingActionType.UNSTAKE,
-            passthrough = "",
-            args = null,
-        ),
-    ).toPersistentList()
-} else {
-    activeStake.pendingActions
+internal fun withStubUnstakeAction(networkId: String, activeStake: BalanceState): ImmutableList<PendingAction> {
+    return if (isStubUnstakeAction(networkId) && activeStake.type != BalanceType.REWARDS) {
+        activeStake.pendingActions.plus(
+            PendingAction(
+                type = StakingActionType.UNSTAKE,
+                passthrough = "",
+                args = null,
+            ),
+        ).toPersistentList()
+    } else {
+        activeStake.pendingActions
+    }
 }
 
 internal fun isTronStakedBalance(networkId: String, pendingAction: PendingAction?): Boolean {
@@ -67,5 +71,5 @@ internal fun isCompositePendingActions(networkId: String, pendingActions: Immuta
 }
 
 private fun isStubUnstakeAction(networkId: String): Boolean {
-    return isBSC(networkId) || isCardano(networkId)
+    return isBSC(networkId) || isCardano(networkId) || isCosmos(networkId)
 }

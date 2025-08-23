@@ -27,7 +27,7 @@ abstract class FlowCachingSupplier<Producer : FlowProducer<Data>, Params : Any, 
 
     /**
      * Supply [Flow] by [params].
-     * Returns [Flow] from cache [flowsStore], if it was already created.
+
      */
     override operator fun invoke(params: Params): Flow<Data> {
         val key = keyCreator(params)

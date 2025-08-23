@@ -11,7 +11,7 @@ internal interface RoutingComponent : ComposableContentComponent {
     @Immutable
     sealed class Child {
 
-        // TODO: Remove and find initial intent in RoutingComponent: https://tangem.atlassian.net/browse/AND-9520
+        // TODO: Remove and find initial intent in RoutingComponent: [REDACTED_JIRA]
         data object Initial : Child()
 
         data class LegacyIntent(val intent: Intent) : Child()

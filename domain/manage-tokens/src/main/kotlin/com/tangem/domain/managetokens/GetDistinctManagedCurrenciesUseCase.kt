@@ -10,7 +10,7 @@ class GetDistinctManagedCurrenciesUseCase(
 ) {
 
     // FIXME: Add interception functionality to BatchFlow state and call this on domain
-    //  https://tangem.atlassian.net/browse/AND-9426
+    //  [REDACTED_JIRA]
     suspend operator fun invoke(
         batches: List<Batch<Int, List<ManagedCryptoCurrency>>>,
     ): List<Batch<Int, List<ManagedCryptoCurrency>>> = withContext(coroutineDispatchersProvider.default) {

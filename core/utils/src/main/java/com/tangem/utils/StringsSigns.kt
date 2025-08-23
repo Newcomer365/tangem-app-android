@@ -8,8 +8,12 @@ object StringsSigns {
     const val DASH_SIGN = "—"
     const val LOWER_SIGN = "<"
     const val TILDE_SIGN = "~"
+    const val COMA_SIGN = ","
     const val INFINITY_SIGN = "∞"
     const val NON_BREAKING_SPACE = '\u00A0'
     const val PERCENT = "%"
     const val THREE_STARS = "\u2217\u2217\u2217"
+    const val PASSWORD_VISUAL_CHAR = '\u2022'
+    const val APPROXIMATE = "≈"
+    const val WHITE_SPACE = " "
 }

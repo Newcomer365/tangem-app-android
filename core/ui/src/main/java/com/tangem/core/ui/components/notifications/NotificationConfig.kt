@@ -14,7 +14,7 @@ import com.tangem.core.ui.extensions.TextReference
  * @property onClick         lambda be invoked when notification is clicked
  * @property onCloseClick    lambda be invoked when close button is clicked
  *
- * @author Andrew Khokhlov on 23/06/2023
+[REDACTED_AUTHOR]
  */
 data class NotificationConfig(
     val subtitle: TextReference,
@@ -25,6 +25,7 @@ data class NotificationConfig(
     val onClick: (() -> Unit)? = null,
     val onCloseClick: (() -> Unit)? = null,
     val showArrowIcon: Boolean = onClick != null,
+    val iconTint: IconTint = IconTint.Unspecified,
 ) {
 
     sealed class ButtonsState {
@@ -55,5 +56,11 @@ data class NotificationConfig(
             val rightText: TextReference,
             val onRightClick: () -> Unit,
         ) : ButtonsState()
+    }
+
+    enum class IconTint {
+        Unspecified,
+        Accent,
+        Attention,
     }
 }

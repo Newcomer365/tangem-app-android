@@ -5,7 +5,7 @@ import com.squareup.moshi.ToJson
 import java.math.BigDecimal
 
 /**
- * Created by Anton Zhilenkov on 15.11.2022.
+[REDACTED_AUTHOR]
  */
 internal class BigDecimalAdapter {
     @FromJson

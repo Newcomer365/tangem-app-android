@@ -8,6 +8,6 @@ import kotlinx.collections.immutable.ImmutableList
  *
  * @property items items
  *
- * @author Andrew Khokhlov on 18/01/2025
+[REDACTED_AUTHOR]
  */
 internal data class HotCryptoUM(val items: ImmutableList<TokensListItemUM>)

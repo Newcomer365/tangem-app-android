@@ -11,7 +11,7 @@ internal typealias BlockchainProviderTypes = Map<Blockchain, List<ProviderType>>
 /**
  * Blockchain provider types store
  *
- * @author Andrew Khokhlov on 28/12/2024
+[REDACTED_AUTHOR]
  */
 @Singleton
 class BlockchainProviderTypesStore @Inject constructor() :

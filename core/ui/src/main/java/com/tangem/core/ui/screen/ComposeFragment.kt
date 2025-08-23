@@ -29,7 +29,7 @@ abstract class ComposeFragment : Fragment(), ComposeScreen {
         /*
          * We need to manually dispatch configuration changes to the Compose view.
          *
-         * This is necessary because the fragment is not recreated when the configuration changes, because
+
          * `android:configChanges="uiMode"` is set in the manifest.
          * */
         view?.dispatchConfigurationChanged(newConfig)

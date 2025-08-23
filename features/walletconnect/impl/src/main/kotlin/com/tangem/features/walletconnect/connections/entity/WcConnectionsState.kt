@@ -2,8 +2,6 @@ package com.tangem.features.walletconnect.connections.entity
 
 import com.tangem.core.ui.components.appbar.models.TopAppBarButtonUM
 import com.tangem.core.ui.components.dropdownmenu.TangemDropdownMenuItem
-import com.tangem.core.ui.extensions.TextReference
-import com.tangem.core.ui.extensions.stringReference
 import kotlinx.collections.immutable.ImmutableList
 
 internal data class WcConnectionsState(
@@ -26,7 +24,7 @@ internal data class WcConnectionsUM(
 internal data class WcConnectedAppInfo(
     val name: String,
     val iconUrl: String,
-    val subtitle: TextReference = stringReference("Connected App"),
-    val isVerified: Boolean = false,
+    val verifiedState: VerifiedDAppState,
+    val subtitle: String,
     val onClick: () -> Unit,
 )

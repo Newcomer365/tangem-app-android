@@ -7,6 +7,7 @@ import com.tangem.blockchain.common.transaction.Fee
 import com.tangem.blockchain.common.transaction.TransactionFee
 import com.tangem.common.extensions.isZero
 import com.tangem.common.ui.amountScreen.models.AmountState
+import com.tangem.domain.models.currency.CryptoCurrency
 import com.tangem.domain.staking.EstimateGasUseCase
 import com.tangem.domain.staking.model.stakekit.PendingAction
 import com.tangem.domain.staking.model.stakekit.StakingError
@@ -14,14 +15,13 @@ import com.tangem.domain.staking.model.stakekit.Yield
 import com.tangem.domain.staking.model.stakekit.action.StakingActionCommonType
 import com.tangem.domain.staking.model.stakekit.transaction.ActionParams
 import com.tangem.domain.staking.model.stakekit.transaction.StakingGasEstimate
-import com.tangem.domain.tokens.model.CryptoCurrency
 import com.tangem.domain.tokens.model.CryptoCurrencyStatus
 import com.tangem.domain.tokens.model.staking.getCurrentToken
 import com.tangem.domain.transaction.error.GetFeeError
 import com.tangem.domain.transaction.usecase.CreateApprovalTransactionUseCase
 import com.tangem.domain.transaction.usecase.GetFeeUseCase
 import com.tangem.domain.transaction.usecase.IsFeeApproximateUseCase
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.features.staking.impl.presentation.state.StakingStateController
 import com.tangem.features.staking.impl.presentation.state.StakingStates
 import com.tangem.features.staking.impl.presentation.state.utils.isCompositePendingActions
@@ -57,16 +57,16 @@ internal class StakingFeeTransactionLoader @AssistedInject constructor(
         val state = stateController.value
         val confirmationState = state.confirmationState as? StakingStates.ConfirmationState.Data
             ?: error("Illegal state")
-        val validatorState = state.validatorState as? StakingStates.ValidatorState.Data
-            ?: error("No validator provided")
+
+        val validatorAddress = (state.validatorState as? StakingStates.ValidatorState.Data)?.chosenValidator?.address
+            ?: state.balanceState?.validatorAddress
+            ?: error("No validator address provided")
 
         val amount = (state.amountState as? AmountState.Data)?.amountTextField?.cryptoAmount?.value
             ?: error("No amount provided")
 
         val pendingAction = confirmationState.pendingAction
         val pendingActions = confirmationState.pendingActions
-
-        val validatorAddress = validatorState.chosenValidator.address
 
         val isEnter = state.actionType is StakingActionCommonType.Enter
         val isApprovalNeeded = confirmationState.isApprovalNeeded
@@ -102,7 +102,7 @@ internal class StakingFeeTransactionLoader @AssistedInject constructor(
             ?: error("No available address")
 
         val gasEstimate = if (isCompositePendingActions(
-                networkId = cryptoCurrencyStatus.currency.network.id.value,
+                networkId = cryptoCurrencyStatus.currency.network.rawId,
                 pendingActions = pendingActions,
             )
         ) {

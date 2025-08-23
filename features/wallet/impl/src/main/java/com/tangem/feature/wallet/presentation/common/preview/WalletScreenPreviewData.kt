@@ -8,7 +8,7 @@ import com.tangem.core.ui.components.tokenlist.state.TokensListItemUM
 import com.tangem.core.ui.event.consumedEvent
 import com.tangem.core.ui.extensions.TextReference
 import com.tangem.core.ui.extensions.stringReference
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.feature.wallet.presentation.wallet.state.model.WalletAdditionalInfo
 import com.tangem.feature.wallet.impl.R
 import com.tangem.feature.wallet.presentation.common.WalletPreviewData.topBarConfig
@@ -117,13 +117,15 @@ internal object WalletScreenPreviewData {
             buttons = persistentListOf(buyButton),
             warnings = persistentListOf(
                 WalletNotification.Warning.SomeNetworksUnreachable,
+                WalletNotification.FinishWalletActivation { },
             ),
             bottomSheetConfig = null,
             tokensListState = textContentTokensState,
             nftState = WalletNFTItemUM.Content(
                 previews = persistentListOf(WalletNFTItemUM.Content.CollectionPreview.Image("img1")),
                 collectionsCount = 1,
-                assetsCount = 3,
+                allAssetsCount = 3,
+                noCollectionAssetsCount = 0,
                 isFlickering = false,
                 onItemClick = { },
             ),

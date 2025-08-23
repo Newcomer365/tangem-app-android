@@ -2,7 +2,7 @@ package com.tangem.features.onboarding.v2.entry.impl.routing
 
 import com.tangem.core.decompose.navigation.Route
 import com.tangem.domain.models.scan.ScanResponse
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.features.biometry.AskBiometryComponent
 import com.tangem.features.onboarding.v2.TitleProvider
 import com.tangem.features.onboarding.v2.done.api.OnboardingDoneComponent
@@ -24,7 +24,7 @@ sealed class OnboardingRoute : Route {
         val scanResponse: ScanResponse,
         val withSeedPhraseFlow: Boolean,
         val mode: OnboardingMultiWalletComponent.Mode,
-        val onDone: (UserWallet) -> Unit,
+        val onDone: (UserWallet.Cold) -> Unit,
     ) : OnboardingRoute()
 
     data class Visa(

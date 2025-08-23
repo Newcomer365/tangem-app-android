@@ -30,7 +30,7 @@ import kotlinx.coroutines.delay
  *
  * @param state block state
  *
- * @author Andrew Khokhlov on 30/09/2024
+[REDACTED_AUTHOR]
  */
 @Composable
 internal fun ListedOnBlock(state: ListedOnUM, modifier: Modifier = Modifier) {

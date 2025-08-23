@@ -15,7 +15,7 @@ import com.tangem.domain.wallets.models.UnlockWalletsError
  *
  * @property userWalletsListManager user wallets list manager
  *
- * @author Andrew Khokhlov on 07/08/2023
+[REDACTED_AUTHOR]
  */
 class UnlockWalletsUseCase(private val userWalletsListManager: UserWalletsListManager) {
 

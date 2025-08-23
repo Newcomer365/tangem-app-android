@@ -10,7 +10,7 @@ import com.tangem.domain.feedback.models.FeedbackEmailType
  *
  * @property resources resources
  *
- * @author Andrew Khokhlov on 20/05/2024
+[REDACTED_AUTHOR]
  */
 internal class EmailSubjectResolver(private val resources: Resources) {
 

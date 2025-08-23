@@ -8,7 +8,7 @@ import kotlin.reflect.KClass
 
 /**
  * Temporary solution to convert [AppRouter] to [Router].
- * This usually used in cases when you need to pass [Router] to a self-created component
+
  * (through manual ComponentContext creation).
  *
  * **Will be removed when all screens will be migrated to Decompose.**

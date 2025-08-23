@@ -3,14 +3,21 @@ package com.tangem.domain.walletconnect
 import app.cash.turbine.test
 import arrow.core.left
 import arrow.core.right
-import com.tangem.data.walletconnect.sign.FinalActionCollector
-import com.tangem.data.walletconnect.sign.MiddleActionCollector
-import com.tangem.data.walletconnect.sign.SignCollector
+import com.domain.blockaid.models.dapp.CheckDAppResult
+import com.tangem.common.test.domain.token.MockCryptoCurrencyFactory
+import com.tangem.common.test.domain.wallet.MockUserWalletFactory
+import com.tangem.core.analytics.api.AnalyticsEventHandler
+import com.tangem.data.walletconnect.sign.*
 import com.tangem.data.walletconnect.sign.SignStateConverter.toResult
 import com.tangem.data.walletconnect.sign.SignStateConverter.toSigning
-import com.tangem.data.walletconnect.sign.WcSignUseCaseDelegate
+import com.tangem.domain.walletconnect.model.WcRequestError
+import com.tangem.domain.walletconnect.model.WcSession
+import com.tangem.domain.walletconnect.model.sdkcopy.WcAppMetaData
+import com.tangem.domain.walletconnect.model.sdkcopy.WcSdkSession
+import com.tangem.domain.walletconnect.model.sdkcopy.WcSdkSessionRequest
 import com.tangem.domain.walletconnect.usecase.method.WcSignState
 import com.tangem.domain.walletconnect.usecase.method.WcSignStep
+import io.mockk.mockk
 import junit.framework.TestCase.assertEquals
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.FlowCollector
@@ -25,17 +32,59 @@ internal class WcSignUseCaseDelegateTest {
     private var finalActionCollector: FinalActionCollector<TestSignModel> =
         object : FinalActionCollector<TestSignModel> {}
     private val initSignModel = TestSignModel()
+    private val analytics: AnalyticsEventHandler = mockk<AnalyticsEventHandler>(relaxed = true)
+    private val simpleResult = "hex".right()
+    private val rawRequestMock = WcSdkSessionRequest(
+        topic = "",
+        chainId = "",
+        dAppMetaData = WcAppMetaData(
+            name = "",
+            description = "",
+            url = "",
+            icons = listOf(),
+            redirect = "",
+        ),
+        request = WcSdkSessionRequest.JSONRPCRequest(
+            id = 0L,
+            method = "",
+            params = "",
+        ),
+    )
+    private val context: WcMethodUseCaseContext = WcMethodUseCaseContext(
+        network = MockCryptoCurrencyFactory().ethereum.network,
+        accountAddress = "",
+        rawSdkRequest = rawRequestMock,
+        networkDerivationsCount = 1,
+        session = WcSession(
+            wallet = MockUserWalletFactory.create(),
+            networks = setOf(),
+            securityStatus = CheckDAppResult.FAILED_TO_VERIFY,
+            connectingTime = 0L,
+            sdkModel = WcSdkSession(
+                topic = "",
+                namespaces = mapOf(),
+                appMetaData = WcAppMetaData(
+                    name = "",
+                    description = "",
+                    url = "",
+                    icons = listOf(),
+                    redirect = "",
+                ),
+            ),
+            showWalletInfo = false,
+        ),
+    )
 
     private val initState = WcSignState(initSignModel, WcSignStep.PreSign)
     private val signing = initState.toSigning()
-    private val result = signing.toResult(Unit.right())
-    private val testException = RuntimeException("test")
+    private val result = signing.toResult(simpleResult)
+    private val testException = WcRequestError.UnknownError(RuntimeException("test"))
 
     private val successSign: suspend FlowCollector<WcSignState<TestSignModel>>.(
         currentState: WcSignState<TestSignModel>,
     ) -> Unit = { state ->
         delay(2)
-        emit(state.toResult(Unit.right()))
+        emit(state.toResult(simpleResult))
     }
 
     private val failedSign: suspend FlowCollector<WcSignState<TestSignModel>>.(
@@ -45,6 +94,16 @@ internal class WcSignUseCaseDelegateTest {
             delay(2)
             emit(state.toResult(testException.left()))
         }
+
+    private fun createUseCaseDelegate(
+        middleActionCollector: MiddleActionCollector<TestMiddleAction, TestSignModel>,
+        finalActionCollector: FinalActionCollector<TestSignModel>,
+    ) = WcSignUseCaseDelegate(
+        analytics = analytics,
+        context = context,
+        finalActionCollector = finalActionCollector,
+        middleActionCollector = middleActionCollector,
+    )
 
     @Before
     fun setup() {
@@ -59,7 +118,7 @@ internal class WcSignUseCaseDelegateTest {
                 successSign(state)
             }
         }
-        val useCase = WcSignUseCaseDelegate(
+        val useCase = createUseCaseDelegate(
             finalActionCollector = finalActionCollector,
             middleActionCollector = middleActionCollector,
         )
@@ -77,7 +136,7 @@ internal class WcSignUseCaseDelegateTest {
                 successSign(state)
             }
         }
-        val useCase = WcSignUseCaseDelegate(
+        val useCase = createUseCaseDelegate(
             finalActionCollector = finalActionCollector,
             middleActionCollector = middleActionCollector,
         )
@@ -99,7 +158,7 @@ internal class WcSignUseCaseDelegateTest {
                 failedSign(state)
             }
         }
-        val useCase = WcSignUseCaseDelegate(
+        val useCase = createUseCaseDelegate(
             finalActionCollector = finalActionCollector,
             middleActionCollector = middleActionCollector,
         )
@@ -115,15 +174,16 @@ internal class WcSignUseCaseDelegateTest {
 
     @Test
     fun `failed sign and catch unknown exception`() = runTest {
-        val exception = RuntimeException("asd")
-        val expectedErrorState = signing.toResult(exception.left())
+        val exception = RuntimeException("test")
+        val testException = WcRequestError.UnknownError(exception)
+        val expectedErrorState = signing.toResult(testException.left())
         finalActionCollector = object : FinalActionCollector<TestSignModel> {
             override suspend fun SignCollector<TestSignModel>.onSign(state: WcSignState<TestSignModel>) {
                 delay(2)
                 throw exception
             }
         }
-        val useCase = WcSignUseCaseDelegate(
+        val useCase = createUseCaseDelegate(
             finalActionCollector = finalActionCollector,
             middleActionCollector = middleActionCollector,
         )
@@ -145,7 +205,7 @@ internal class WcSignUseCaseDelegateTest {
                 emit(result)
             }
         }
-        val useCase = WcSignUseCaseDelegate(
+        val useCase = createUseCaseDelegate(
             finalActionCollector = finalActionCollector,
             middleActionCollector = middleActionCollector,
         )
@@ -176,7 +236,7 @@ internal class WcSignUseCaseDelegateTest {
                 emit(expectedSignResult)
             }
         }
-        val useCase = WcSignUseCaseDelegate(
+        val useCase = createUseCaseDelegate(
             finalActionCollector = finalActionCollector,
             middleActionCollector = middleActionCollector,
         )
@@ -229,7 +289,7 @@ internal class WcSignUseCaseDelegateTest {
                 emit(signModel.copy(testStr = middleAction.newTestStr))
             }
         }
-        val useCase = WcSignUseCaseDelegate(
+        val useCase = createUseCaseDelegate(
             finalActionCollector = finalActionCollector,
             middleActionCollector = middleActionCollector,
         )
@@ -276,7 +336,7 @@ internal class WcSignUseCaseDelegateTest {
                 delay(4)
             }
         }
-        val useCase = WcSignUseCaseDelegate(
+        val useCase = createUseCaseDelegate(
             finalActionCollector = finalActionCollector,
             middleActionCollector = middleActionCollector,
         )

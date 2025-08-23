@@ -10,7 +10,7 @@ import com.tangem.feature.wallet.impl.R
  * @property blockchain blockchain
  * @property imageResId image res id
  *
- * @author Andrew Khokhlov on 19/08/2024
+[REDACTED_AUTHOR]
  */
 internal enum class NoteImage(
     val blockchain: Blockchain,

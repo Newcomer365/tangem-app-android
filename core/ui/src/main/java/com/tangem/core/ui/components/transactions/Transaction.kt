@@ -44,7 +44,7 @@ import java.util.UUID
  * @see <a href = "https://www.figma.com/file/RU7AIgwHtGdMfy83T5UOoR/iOS?type=design&node-id=446-438&t=71jPDxMMk4e0
  * a025-4">Figma Component</a>
  *
- * @author Andrew Khokhlov on 16/06/2023
+[REDACTED_AUTHOR]
  */
 @Composable
 @Suppress("LongMethod")

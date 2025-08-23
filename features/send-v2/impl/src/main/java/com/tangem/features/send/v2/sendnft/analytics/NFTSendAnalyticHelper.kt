@@ -4,10 +4,11 @@ import com.tangem.core.analytics.api.AnalyticsEventHandler
 import com.tangem.core.analytics.models.AnalyticsParam
 import com.tangem.core.analytics.models.Basic
 import com.tangem.core.decompose.di.ModelScoped
-import com.tangem.domain.tokens.model.CryptoCurrency
+import com.tangem.domain.models.currency.CryptoCurrency
 import com.tangem.features.send.v2.sendnft.ui.state.NFTSendUM
-import com.tangem.features.send.v2.subcomponents.destination.ui.state.DestinationTextFieldUM
-import com.tangem.features.send.v2.subcomponents.destination.ui.state.DestinationUM
+import com.tangem.features.send.v2.api.subcomponents.destination.entity.DestinationTextFieldUM
+import com.tangem.features.send.v2.api.subcomponents.destination.entity.DestinationUM
+import com.tangem.features.send.v2.common.analytics.CommonSendAnalyticEvents.Companion.NFT_SEND_CATEGORY
 import com.tangem.features.send.v2.subcomponents.fee.ui.state.FeeSelectorUM
 import com.tangem.features.send.v2.subcomponents.fee.ui.state.FeeUM
 import javax.inject.Inject
@@ -26,13 +27,15 @@ internal class NFTSendAnalyticHelper @Inject constructor(
             NFTSendAnalyticEvents.TransactionScreenOpened(
                 token = cryptoCurrency.symbol,
                 feeType = feeType,
+                blockchain = cryptoCurrency.network.name,
+                nonceNotEmpty = feeSelectorUM.nonce != null,
             ),
         )
         analyticsEventHandler.send(
             Basic.TransactionSent(
                 sentFrom = AnalyticsParam.TxSentFrom.NFT(
                     blockchain = cryptoCurrency.network.name,
-                    token = cryptoCurrency.symbol,
+                    token = NFT_SEND_CATEGORY, // should send "NFT" in token param
                     feeType = feeType,
                 ),
                 memoType = getSendTransactionMemoType(destinationUM?.memoTextField),

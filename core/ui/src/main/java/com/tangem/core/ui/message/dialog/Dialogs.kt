@@ -9,7 +9,7 @@ import com.tangem.core.ui.message.DialogMessage
 import com.tangem.core.ui.message.EventMessageAction
 
 /**
- * @author Andrew Khokhlov on 20/01/2025
+[REDACTED_AUTHOR]
  */
 object Dialogs {
 

@@ -14,16 +14,16 @@ import com.tangem.core.ui.message.DialogMessage
 import com.tangem.core.ui.message.SnackbarMessage
 import com.tangem.domain.appcurrency.model.AppCurrency
 import com.tangem.domain.demo.IsDemoCardUseCase
+import com.tangem.domain.models.network.Network
 import com.tangem.domain.onramp.model.OnrampSource
 import com.tangem.domain.redux.ReduxStateHolder
 import com.tangem.domain.tokens.legacy.TradeCryptoAction
-import com.tangem.domain.tokens.model.Network
 import com.tangem.domain.tokens.model.TokenActionsState
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.features.markets.impl.R
 import com.tangem.features.markets.portfolio.impl.loader.PortfolioData
 import com.tangem.features.markets.portfolio.impl.ui.state.TokenActionsBSContentUM
-import com.tangem.features.onramp.OnrampFeatureToggles
+import com.tangem.features.send.v2.api.SendFeatureToggles
 import com.tangem.utils.Provider
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -41,14 +41,11 @@ internal class TokenActionsHandler @AssistedInject constructor(
     @Assisted private val onHandleQuickAction: (HandledQuickAction) -> Unit,
     private val isDemoCardUseCase: IsDemoCardUseCase,
     private val messageSender: UiMessageSender,
-    private val onrampFeatureToggles: OnrampFeatureToggles,
     private val shareManager: ShareManager,
+    private val sendFeatureToggles: SendFeatureToggles,
 ) {
 
     private val disabledActionsInDemoMode = buildSet {
-        if (!onrampFeatureToggles.isFeatureEnabled) {
-            add(TokenActionsBSContentUM.Action.Buy)
-        }
         add(TokenActionsBSContentUM.Action.Sell)
     }
 
@@ -59,7 +56,8 @@ internal class TokenActionsHandler @AssistedInject constructor(
                 cryptoCurrencyData = cryptoCurrencyData,
             ),
         )
-        if (handleDemoMode(action, cryptoCurrencyData.userWallet)) return
+        val userWallet = cryptoCurrencyData.userWallet
+        if (userWallet is UserWallet.Cold && handleDemoMode(action, userWallet)) return
 
         when (action) {
             TokenActionsBSContentUM.Action.Buy -> onBuyClick(cryptoCurrencyData)
@@ -72,7 +70,7 @@ internal class TokenActionsHandler @AssistedInject constructor(
         }
     }
 
-    private fun handleDemoMode(action: TokenActionsBSContentUM.Action, userWallet: UserWallet): Boolean {
+    private fun handleDemoMode(action: TokenActionsBSContentUM.Action, userWallet: UserWallet.Cold): Boolean {
         val demoCard = isDemoCardUseCase.invoke(userWallet.cardId)
         val needShowDemoWarning = demoCard && disabledActionsInDemoMode.contains(action)
 
@@ -131,12 +129,11 @@ internal class TokenActionsHandler @AssistedInject constructor(
     }
 
     private fun onBuyClick(cryptoCurrencyData: PortfolioData.CryptoCurrencyData) {
-        reduxStateHolder.dispatch(
-            TradeCryptoAction.Buy(
-                userWallet = cryptoCurrencyData.userWallet,
+        router.push(
+            AppRoute.Onramp(
+                userWalletId = cryptoCurrencyData.userWallet.walletId,
+                currency = cryptoCurrencyData.status.currency,
                 source = OnrampSource.MARKETS,
-                cryptoCurrencyStatus = cryptoCurrencyData.status,
-                appCurrencyCode = currentAppCurrency().code,
             ),
         )
     }
@@ -162,12 +159,18 @@ internal class TokenActionsHandler @AssistedInject constructor(
     }
 
     private fun onSendClick(cryptoCurrencyData: PortfolioData.CryptoCurrencyData) {
-        router.push(
+        val route = if (sendFeatureToggles.isSendWithSwapEnabled) {
+            AppRoute.SendEntryPoint(
+                userWalletId = cryptoCurrencyData.userWallet.walletId,
+                currency = cryptoCurrencyData.status.currency,
+            )
+        } else {
             AppRoute.Send(
                 userWalletId = cryptoCurrencyData.userWallet.walletId,
                 currency = cryptoCurrencyData.status.currency,
-            ),
-        )
+            )
+        }
+        router.push(route)
     }
 
     private fun onStakeClick(cryptoCurrencyData: PortfolioData.CryptoCurrencyData) {

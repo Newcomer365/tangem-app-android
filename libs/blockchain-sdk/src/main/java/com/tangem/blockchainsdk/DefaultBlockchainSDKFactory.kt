@@ -20,7 +20,7 @@ internal typealias BlockchainProvidersResponse = Map<String, List<ProviderModel>
  * @property walletManagerFactoryCreator     wallet manager factory creator
  * @param dispatchers                     coroutine dispatchers provider
  *
- * @author Andrew Khokhlov on 04/04/2024
+[REDACTED_AUTHOR]
  */
 internal class DefaultBlockchainSDKFactory(
     private val blockchainProvidersTypesManager: BlockchainProvidersTypesManager,
@@ -45,7 +45,7 @@ internal class DefaultBlockchainSDKFactory(
         return combine(
             flow = environmentConfigStorage.getConfig().map { it.blockchainSdkConfig },
             flow2 = blockchainProvidersTypesManager.get(),
-            // flow3 = subscribe on feature toggles changes, TODO: https://tangem.atlassian.net/browse/AND-7067
+            // flow3 = subscribe on feature toggles changes, TODO: [REDACTED_JIRA]
             transform = walletManagerFactoryCreator::create,
         )
             // don't use Lazily because some features (WC) require initialized factory on app started

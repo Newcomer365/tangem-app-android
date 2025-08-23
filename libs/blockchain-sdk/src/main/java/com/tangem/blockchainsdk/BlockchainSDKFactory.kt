@@ -5,7 +5,7 @@ import com.tangem.blockchain.common.WalletManagerFactory
 /**
  * Blockchain SDK components factory
  *
- * @author Andrew Khokhlov on 04/04/2024
+[REDACTED_AUTHOR]
  */
 interface BlockchainSDKFactory {
 

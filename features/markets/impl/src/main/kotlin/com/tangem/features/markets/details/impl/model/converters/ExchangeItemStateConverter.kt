@@ -14,7 +14,7 @@ import com.tangem.utils.converter.Converter
 /**
  * Converter from [TokenMarketExchange] to [TokenItemState]
  *
- * @author Andrew Khokhlov on 02/10/2024
+[REDACTED_AUTHOR]
  */
 internal object ExchangeItemStateConverter : Converter<TokenMarketExchange, TokenItemState> {
 

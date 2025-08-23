@@ -1,7 +1,7 @@
 package com.tangem.feature.wallet.presentation.wallet.state.transformers
 
-import com.tangem.domain.wallets.models.UserWallet
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.feature.wallet.child.wallet.model.intents.WalletClickIntents
 import com.tangem.feature.wallet.presentation.wallet.domain.WalletImageResolver
 import com.tangem.feature.wallet.presentation.wallet.state.model.WalletScreenState
@@ -15,7 +15,7 @@ import kotlinx.collections.immutable.toImmutableList
  * @property newUserWallet new user wallet
  * @property clickIntents  click intents
  *
- * @author Andrew Khokhlov on 23/11/2023
+[REDACTED_AUTHOR]
  */
 internal class ReinitializeWalletTransformer(
     private val prevWalletId: UserWalletId,

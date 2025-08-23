@@ -8,7 +8,7 @@ import com.tangem.domain.staking.model.StakingID
 import java.math.BigDecimal
 
 /**
- * @author Andrew Khokhlov on 21/04/2025
+[REDACTED_AUTHOR]
  */
 object MockYieldDTOFactory {
 

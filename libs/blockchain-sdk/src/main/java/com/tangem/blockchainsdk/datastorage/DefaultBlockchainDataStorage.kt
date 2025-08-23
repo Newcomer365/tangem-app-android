@@ -11,7 +11,7 @@ import com.tangem.datasource.local.preferences.utils.getSyncOrNull
  *
  * @property appPreferencesStore app preferences store
  *
- * @author Andrew Khokhlov on 02/02/2024
+[REDACTED_AUTHOR]
  */
 internal class DefaultBlockchainDataStorage(
     private val appPreferencesStore: AppPreferencesStore,

@@ -2,7 +2,7 @@ package com.tangem.tap.common.analytics.paramsInterceptor
 
 import com.tangem.core.analytics.api.ParamsInterceptor
 import com.tangem.core.analytics.models.AnalyticsEvent
-import com.tangem.domain.common.util.cardTypesResolver
+import com.tangem.domain.card.common.util.cardTypesResolver
 import com.tangem.domain.models.scan.ProductType
 import com.tangem.domain.models.scan.ScanResponse
 import com.tangem.domain.wallets.builder.UserWalletIdBuilder
@@ -16,7 +16,7 @@ import com.tangem.tap.store
 import kotlinx.coroutines.runBlocking
 
 /**
- * Created by Anton Zhilenkov on 17.02.2023.
+[REDACTED_AUTHOR]
  */
 class CardContextInterceptor(
     private val scanResponse: ScanResponse,
@@ -40,9 +40,6 @@ class CardContextInterceptor(
         params[AnalyticsParam.BATCH] = card.batchId
         params[AnalyticsParam.PRODUCT_TYPE] = getProductType()
         params[AnalyticsParam.FIRMWARE] = card.firmwareVersion.stringValue
-        if (userWalletId != null) {
-            params[AnalyticsParam.USER_WALLET_ID] = userWalletId.stringValue
-        }
 
         ParamCardCurrencyConverter().convert(scanResponse.cardTypesResolver)?.let {
             params[AnalyticsParam.CURRENCY] = it.value

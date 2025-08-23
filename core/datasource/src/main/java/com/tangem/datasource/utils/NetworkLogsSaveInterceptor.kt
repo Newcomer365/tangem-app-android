@@ -23,7 +23,7 @@ private const val JSON_INDENT_SPACES = 4
  *
  * @property appLogsStore app logs store
  *
- * @author Andrew Khokhlov on 26/02/2024
+[REDACTED_AUTHOR]
  */
 class NetworkLogsSaveInterceptor(
     private val appLogsStore: AppLogsStore,

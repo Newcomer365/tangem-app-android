@@ -8,7 +8,7 @@ import com.tangem.domain.models.scan.ProductType
 /**
  * Repository for managing with CardSDK config
  *
- * @author Andrew Khokhlov on 12/07/2023
+[REDACTED_AUTHOR]
  */
 interface CardSdkConfigRepository {
 
@@ -36,7 +36,4 @@ interface CardSdkConfigRepository {
 
     /** Set linked terminal by [isLinked] */
     fun setLinkedTerminal(isLinked: Boolean?)
-
-    /** Set [flag] that determines whether to use Prod environment for Tangem API */
-    fun setTangemApiProdEnvFlag(flag: Boolean)
 }

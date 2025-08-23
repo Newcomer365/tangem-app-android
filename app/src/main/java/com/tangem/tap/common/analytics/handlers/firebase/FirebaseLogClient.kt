@@ -4,13 +4,22 @@ import com.tangem.common.json.MoshiJsonConverter
 import com.tangem.tap.common.analytics.AnalyticsEventsLogger
 
 /**
- * Created by Anton Zhilenkov on 22/09/2022.
+[REDACTED_AUTHOR]
  */
 internal class FirebaseLogClient(
     jsonConverter: MoshiJsonConverter,
 ) : FirebaseAnalyticsClient {
 
     private val logger: AnalyticsEventsLogger = AnalyticsEventsLogger(FirebaseAnalyticsHandler.ID, jsonConverter)
+    private var userId: String? = null
+
+    override fun setUserId(userId: String) {
+        this.userId = userId
+    }
+
+    override fun clearUserId() {
+        this.userId = null
+    }
 
     override fun logEvent(event: String, params: Map<String, String>) {
         logger.logEvent(event, params)

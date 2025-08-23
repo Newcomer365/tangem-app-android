@@ -13,9 +13,11 @@ import com.tangem.core.decompose.model.getOrCreateModel
 import com.tangem.core.ui.components.SystemBarsIconsDisposable
 import com.tangem.core.ui.utils.ChangeRootBackgroundColorEffect
 import com.tangem.core.ui.utils.findActivity
+import com.tangem.features.hotwallet.HotWalletFeatureToggles
 import com.tangem.tap.common.redux.AppState
 import com.tangem.tap.features.home.api.HomeComponent
 import com.tangem.tap.features.home.compose.StoriesScreen
+import com.tangem.tap.features.home.compose.StoriesScreenV2
 import com.tangem.tap.features.home.redux.HomeAction
 import com.tangem.tap.features.home.redux.HomeState
 import com.tangem.tap.store
@@ -28,6 +30,7 @@ import org.rekotlin.StoreSubscriber
 internal class DefaultHomeComponent @AssistedInject constructor(
     @Assisted appComponentContext: AppComponentContext,
     @Assisted params: Unit,
+    private val hotWalletFeatureToggles: HotWalletFeatureToggles,
 ) : HomeComponent, AppComponentContext by appComponentContext, StoreSubscriber<HomeState> {
 
     private val model: HomeModel = getOrCreateModel()
@@ -57,12 +60,22 @@ internal class DefaultHomeComponent @AssistedInject constructor(
         val activity = LocalContext.current.findActivity()
         BackHandler(onBack = activity::finish)
         SystemBarsIconsDisposable(darkIcons = false)
-        StoriesScreen(
-            homeState = homeState,
-            onScanButtonClick = model::onScanClick,
-            onShopButtonClick = model::onShopClick,
-            onSearchTokensClick = model::onSearchClick,
-        )
+        if (hotWalletFeatureToggles.isHotWalletEnabled) {
+            StoriesScreenV2(
+                homeState = homeState,
+                onCreateNewWalletButtonClick = model::onCreateNewWalletScreen,
+                onAddExistingWalletButtonClick = model::onAddExistingWalletScreen,
+                onScanButtonClick = model::onScanClick,
+            )
+        } else {
+            StoriesScreen(
+                homeState = homeState,
+                onScanButtonClick = model::onScanClick,
+                onShopButtonClick = model::onShopClick,
+                onSearchTokensClick = model::onSearchClick,
+            )
+        }
+
         ChangeRootBackgroundColorEffect(Color(color = 0xFF010101))
     }
 

@@ -8,7 +8,8 @@ import com.tangem.core.decompose.context.AppComponentContext
 import com.tangem.core.decompose.model.getOrCreateModel
 import com.tangem.core.ui.decompose.ComposableContentComponent
 import com.tangem.domain.nft.models.NFTAsset
-import com.tangem.domain.wallets.models.UserWalletId
+import com.tangem.domain.nft.models.NFTCollection
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.features.nft.collections.model.NFTCollectionsModel
 import com.tangem.features.nft.collections.ui.NFTCollections
 import dagger.assisted.Assisted
@@ -31,7 +32,7 @@ internal class NFTCollectionsComponent @AssistedInject constructor(
     data class Params(
         val userWalletId: UserWalletId,
         val onBackClick: () -> Unit,
-        val onAssetClick: (asset: NFTAsset, collectionName: String) -> Unit,
+        val onAssetClick: (asset: NFTAsset, collection: NFTCollection) -> Unit,
         val onReceiveClick: () -> Unit,
     )
 }

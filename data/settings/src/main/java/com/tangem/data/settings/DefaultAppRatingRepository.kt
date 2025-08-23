@@ -28,7 +28,7 @@ internal class DefaultAppRatingRepository(
     }
 
     override fun isReadyToShow(): Flow<Boolean> {
-        // TODO: https://tangem.atlassian.net/browse/AND-4682
+        // TODO: [REDACTED_JIRA]
         return combine(
             appPreferencesStore.get(key = PreferencesKeys.USER_WAS_INTERACT_WITH_RATING_KEY, default = false),
             appPreferencesStore.get(

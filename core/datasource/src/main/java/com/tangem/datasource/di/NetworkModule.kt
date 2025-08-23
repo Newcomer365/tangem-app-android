@@ -6,23 +6,26 @@ import com.tangem.core.analytics.api.AnalyticsErrorHandler
 import com.tangem.datasource.BuildConfig
 import com.tangem.datasource.api.common.blockaid.BlockAidApi
 import com.tangem.datasource.api.common.config.ApiConfig
+import com.tangem.datasource.api.common.config.ApiConfig.Companion.MOCKED_BUILD_TYPE
 import com.tangem.datasource.api.common.config.ApiConfigs
 import com.tangem.datasource.api.common.config.managers.ApiConfigsManager
 import com.tangem.datasource.api.common.config.managers.DevApiConfigsManager
+import com.tangem.datasource.api.common.config.managers.MockApiConfigsManager
 import com.tangem.datasource.api.common.config.managers.ProdApiConfigsManager
 import com.tangem.datasource.api.common.response.ApiResponseCallAdapterFactory
 import com.tangem.datasource.api.express.TangemExpressApi
 import com.tangem.datasource.api.markets.TangemTechMarketsApi
 import com.tangem.datasource.api.onramp.OnrampApi
+import com.tangem.datasource.api.pay.TangemPayApi
 import com.tangem.datasource.api.stakekit.StakeKitApi
 import com.tangem.datasource.api.tangemTech.TangemTechApi
 import com.tangem.datasource.api.tangemTech.TangemTechApiV2
-import com.tangem.datasource.api.visa.TangemVisaApi
 import com.tangem.datasource.local.logs.AppLogsStore
 import com.tangem.datasource.local.preferences.AppPreferencesStore
 import com.tangem.datasource.utils.*
 import com.tangem.datasource.utils.RequestHeader.AppVersionPlatformHeaders
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
+import com.tangem.utils.info.AppInfoProvider
 import com.tangem.utils.version.AppVersionProvider
 import dagger.Module
 import dagger.Provides
@@ -43,6 +46,10 @@ internal object NetworkModule {
     private const val TANGEM_TECH_MARKETS_SERVICE_TIMEOUT_SECONDS = 60L
     private const val STAKE_KIT_API_TIMEOUT_SECONDS = 60L
 
+    private val excludedApiForLogging: Set<ApiConfig.ID> = setOf(
+        ApiConfig.ID.StakeKit,
+    )
+
     @Provides
     @Singleton
     fun provideApiConfigManager(
@@ -50,10 +57,10 @@ internal object NetworkModule {
         appPreferencesStore: AppPreferencesStore,
         dispatchers: CoroutineDispatcherProvider,
     ): ApiConfigsManager {
-        return if (BuildConfig.TESTER_MENU_ENABLED) {
-            DevApiConfigsManager(apiConfigs, appPreferencesStore, dispatchers)
-        } else {
-            ProdApiConfigsManager(apiConfigs)
+        return when {
+            BuildConfig.BUILD_TYPE == MOCKED_BUILD_TYPE -> MockApiConfigsManager(apiConfigs, dispatchers)
+            BuildConfig.TESTER_MENU_ENABLED -> DevApiConfigsManager(apiConfigs, appPreferencesStore, dispatchers)
+            else -> ProdApiConfigsManager(apiConfigs)
         }
     }
 
@@ -158,6 +165,7 @@ internal object NetworkModule {
         @ApplicationContext context: Context,
         analyticsErrorHandler: AnalyticsErrorHandler,
         appVersionProvider: AppVersionProvider,
+        appInfoProvider: AppInfoProvider,
     ): TangemTechApiV2 {
         return provideTangemTechApiInternal(
             moshi = moshi,
@@ -165,6 +173,7 @@ internal object NetworkModule {
             appVersionProvider = appVersionProvider,
             baseUrl = PROD_V2_TANGEM_TECH_BASE_URL,
             analyticsErrorHandler = analyticsErrorHandler,
+            appInfoProvider = appInfoProvider,
         )
     }
 
@@ -199,9 +208,9 @@ internal object NetworkModule {
         analyticsErrorHandler: AnalyticsErrorHandler,
         apiConfigsManager: ApiConfigsManager,
         appLogsStore: AppLogsStore,
-    ): TangemVisaApi {
-        return createApi<TangemVisaApi>(
-            id = ApiConfig.ID.TangemVisa,
+    ): TangemPayApi {
+        return createApi<TangemPayApi>(
+            id = ApiConfig.ID.TangemPay,
             moshi = moshi,
             context = context,
             apiConfigsManager = apiConfigsManager,
@@ -214,15 +223,17 @@ internal object NetworkModule {
         )
     }
 
+    @Suppress("LongParameterList")
     @Deprecated("use createApi instead")
     private inline fun <reified T> provideTangemTechApiInternal(
         moshi: Moshi,
         context: Context,
         appVersionProvider: AppVersionProvider,
+        appInfoProvider: AppInfoProvider,
         baseUrl: String,
         analyticsErrorHandler: AnalyticsErrorHandler,
         timeouts: Timeouts = Timeouts(),
-        requestHeaders: List<RequestHeader> = listOf(AppVersionPlatformHeaders(appVersionProvider)),
+        requestHeaders: List<RequestHeader> = listOf(AppVersionPlatformHeaders(appVersionProvider, appInfoProvider)),
     ): T {
         val client = OkHttpClient.Builder()
             .applyTimeoutAnnotations()
@@ -317,12 +328,18 @@ internal object NetworkModule {
                         }
                         b
                     }
-                    .addLoggers(context)
+                    .addLoggers(context = context, id = id)
                     .clientBuilder()
                     .build(),
             )
             .build()
             .create(T::class.java)
+    }
+
+    private fun OkHttpClient.Builder.addLoggers(context: Context, id: ApiConfig.ID): OkHttpClient.Builder {
+        if (id in excludedApiForLogging) return this
+
+        return addLoggers(context)
     }
 
     private data class Timeouts(

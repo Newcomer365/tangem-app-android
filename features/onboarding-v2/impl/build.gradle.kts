@@ -16,6 +16,7 @@ dependencies {
     implementation(projects.features.onboardingV2.api)
     implementation(projects.features.manageTokens.api)
     implementation(projects.features.biometry.api)
+    implementation(projects.features.hotWallet.api)
 
     /** Core modules */
     implementation(projects.core.configToggles)
@@ -36,6 +37,7 @@ dependencies {
     /** Domain */
     implementation(projects.domain.models)
     implementation(projects.domain.feedback)
+    implementation(projects.domain.feedback.models)
     implementation(projects.domain.core)
     implementation(projects.domain.card)
     implementation(projects.domain.wallets)

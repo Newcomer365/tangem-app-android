@@ -29,7 +29,7 @@ import com.tangem.feature.wallet.presentation.wallet.state.model.WalletBottomShe
  *
  * @param config component config
  *
- * @author Andrew Khokhlov on 16/07/2023
+[REDACTED_AUTHOR]
  */
 @Composable
 internal fun WalletBottomSheet(config: TangemBottomSheetConfig) {

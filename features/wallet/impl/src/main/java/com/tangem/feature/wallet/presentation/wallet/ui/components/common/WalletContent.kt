@@ -15,7 +15,7 @@ import com.tangem.feature.wallet.presentation.wallet.ui.components.multicurrency
  * @param txHistoryItems transaction history items
  * @param modifier       modifier
  *
- * @author Andrew Khokhlov on 07/08/2023
+[REDACTED_AUTHOR]
  */
 internal fun LazyListScope.contentItems(
     state: WalletState,

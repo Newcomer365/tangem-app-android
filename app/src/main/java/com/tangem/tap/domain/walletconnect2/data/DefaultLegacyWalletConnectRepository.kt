@@ -8,7 +8,8 @@ import com.reown.android.relay.ConnectionType
 import com.reown.walletkit.client.Wallet
 import com.reown.walletkit.client.WalletKit
 import com.tangem.core.analytics.api.AnalyticsEventHandler
-import com.tangem.data.walletconnect.pair.unsupportedDApps
+import com.tangem.data.walletconnect.pair.UnsupportedDApps
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.walletconnect.WcPairService
 import com.tangem.domain.walletconnect.model.WcPairRequest
 import com.tangem.domain.walletconnect.model.legacy.Account
@@ -64,14 +65,18 @@ internal class DefaultLegacyWalletConnectRepositoryFacade constructor(
         if (isNewWc) stub.updateSessions() else legacy.updateSessions()
     }
 
-    override fun pair(uri: String, source: SourceType) {
+    override fun pair(userWalletId: UserWalletId, uri: String, source: SourceType) {
         val src = when (source) {
             SourceType.QR -> WcPairRequest.Source.QR
             SourceType.DEEPLINK -> WcPairRequest.Source.DEEPLINK
             SourceType.CLIPBOARD -> WcPairRequest.Source.CLIPBOARD
             SourceType.ETC -> WcPairRequest.Source.ETC
         }
-        if (isNewWc) wcPairService.pair(WcPairRequest(uri, src)) else legacy.pair(uri, source)
+        if (isNewWc) {
+            wcPairService.pair(WcPairRequest(uri = uri, source = src, userWalletId = userWalletId))
+        } else {
+            legacy.pair(userWalletId = userWalletId, uri = uri, source = source)
+        }
     }
 
     override fun disconnect(topic: String) {
@@ -110,7 +115,7 @@ internal class LegacyWalletConnectRepositoryStub : LegacyWalletConnectRepository
 
     override fun updateSessions() = Unit
 
-    override fun pair(uri: String, source: SourceType) = Unit
+    override fun pair(userWalletId: UserWalletId, uri: String, source: SourceType) = Unit
 
     override fun disconnect(topic: String) = Unit
 
@@ -211,7 +216,7 @@ internal class DefaultLegacyWalletConnectRepository(
                 Timber.i("sessionProposal: $sessionProposal")
                 this@DefaultLegacyWalletConnectRepository.sessionProposal = sessionProposal
 
-                if (sessionProposal.name in unsupportedDApps) {
+                if (sessionProposal.name in UnsupportedDApps.list) {
                     Timber.i("Unsupported DApp")
                     scope.launch {
                         _events.emit(
@@ -405,7 +410,7 @@ internal class DefaultLegacyWalletConnectRepository(
         this.userNamespaces = userNamespaces
     }
 
-    override fun pair(uri: String, source: SourceType) {
+    override fun pair(userWalletId: UserWalletId, uri: String, source: SourceType) {
         analyticsHandler.send(WalletConnect.NewSessionInitiated(source = source))
         WalletKit.pair(
             params = Wallet.Params.Pair(uri),
@@ -455,7 +460,7 @@ internal class DefaultLegacyWalletConnectRepository(
             proposerPublicKey = sessionProposal.proposerPublicKey,
             namespaces = preparedRequiredNamespaces.ifEmpty {
                 sessionProposal.createPreparedOptionalNamespaces(userChains)
-            },
+            }.filterValues { it.accounts.isNotEmpty() && it.chains?.isNotEmpty() == true },
         )
 
         Timber.i("Session approval is prepared for sending: $sessionApproval")

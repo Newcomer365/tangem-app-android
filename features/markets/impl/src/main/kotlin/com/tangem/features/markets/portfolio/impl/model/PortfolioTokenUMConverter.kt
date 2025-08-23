@@ -7,7 +7,7 @@ import com.tangem.domain.appcurrency.model.AppCurrency
 import com.tangem.domain.tokens.model.CryptoCurrencyStatus
 import com.tangem.domain.tokens.model.ScenarioUnavailabilityReason
 import com.tangem.domain.tokens.model.TokenActionsState
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.features.markets.portfolio.impl.loader.PortfolioData
 import com.tangem.features.markets.portfolio.impl.ui.state.PortfolioTokenUM
 import com.tangem.features.markets.portfolio.impl.ui.state.QuickActionUM
@@ -18,7 +18,7 @@ import kotlinx.collections.immutable.toImmutableList
 /**
  * Converter from [UserWallet] and [CryptoCurrencyStatus] to [PortfolioTokenUM]
  *
- * @author Andrew Khokhlov on 26/08/2024
+[REDACTED_AUTHOR]
  */
 internal class PortfolioTokenUMConverter(
     private val appCurrency: AppCurrency,
@@ -63,6 +63,10 @@ internal class PortfolioTokenUMConverter(
                         action = TokenActionsBSContentUM.Action.Receive,
                         cryptoCurrencyData = cryptoData,
                     )
+                    QuickActionUM.Stake -> tokenActionsHandler.handle(
+                        action = TokenActionsBSContentUM.Action.Stake,
+                        cryptoCurrencyData = cryptoData,
+                    )
                 }
             },
             onQuickActionLongClick = {
@@ -83,6 +87,7 @@ internal class PortfolioTokenUMConverter(
                     is TokenActionsState.ActionState.Buy -> QuickActionUM.Buy
                     is TokenActionsState.ActionState.Swap -> QuickActionUM.Exchange(showBadge = action.showBadge)
                     is TokenActionsState.ActionState.Receive -> QuickActionUM.Receive
+                    is TokenActionsState.ActionState.Stake -> QuickActionUM.Stake
                     else -> null
                 }?.let(::add)
             }

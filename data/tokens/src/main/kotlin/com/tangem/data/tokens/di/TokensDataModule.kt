@@ -2,14 +2,20 @@ package com.tangem.data.tokens.di
 
 import com.tangem.blockchainsdk.utils.ExcludedBlockchains
 import com.tangem.data.common.cache.CacheRegistry
-import com.tangem.data.tokens.repository.*
+import com.tangem.data.common.currency.CardCryptoCurrencyFactory
+import com.tangem.data.common.currency.ResponseCryptoCurrenciesFactory
+import com.tangem.data.common.currency.UserTokensSaver
+import com.tangem.data.tokens.repository.DefaultCurrenciesRepository
+import com.tangem.data.tokens.repository.DefaultCurrencyChecksRepository
+import com.tangem.data.tokens.repository.DefaultPolkadotAccountHealthCheckRepository
 import com.tangem.datasource.api.tangemTech.TangemTechApi
 import com.tangem.datasource.exchangeservice.swap.ExpressServiceLoader
-import com.tangem.datasource.local.network.NetworksStatusesStore
 import com.tangem.datasource.local.preferences.AppPreferencesStore
-import com.tangem.datasource.local.quote.QuotesStore
+import com.tangem.datasource.local.token.UserTokensResponseStore
 import com.tangem.datasource.local.userwallet.UserWalletsStore
-import com.tangem.domain.tokens.repository.*
+import com.tangem.domain.tokens.repository.CurrenciesRepository
+import com.tangem.domain.tokens.repository.CurrencyChecksRepository
+import com.tangem.domain.tokens.repository.PolkadotAccountHealthCheckRepository
 import com.tangem.domain.walletmanager.WalletManagersFacade
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import dagger.Module
@@ -26,63 +32,29 @@ internal object TokensDataModule {
     @Singleton
     fun provideCurrenciesRepository(
         tangemTechApi: TangemTechApi,
-        appPreferencesStore: AppPreferencesStore,
+        userTokensResponseStore: UserTokensResponseStore,
         userWalletsStore: UserWalletsStore,
         walletManagersFacade: WalletManagersFacade,
         cacheRegistry: CacheRegistry,
         dispatchers: CoroutineDispatcherProvider,
         expressServiceLoader: ExpressServiceLoader,
         excludedBlockchains: ExcludedBlockchains,
+        cardCryptoCurrencyFactory: CardCryptoCurrencyFactory,
+        tokensSaver: UserTokensSaver,
+        responseCryptoCurrenciesFactory: ResponseCryptoCurrenciesFactory,
     ): CurrenciesRepository {
         return DefaultCurrenciesRepository(
             tangemTechApi = tangemTechApi,
             userWalletsStore = userWalletsStore,
             walletManagersFacade = walletManagersFacade,
             cacheRegistry = cacheRegistry,
-            appPreferencesStore = appPreferencesStore,
+            userTokensResponseStore = userTokensResponseStore,
             expressServiceLoader = expressServiceLoader,
             dispatchers = dispatchers,
             excludedBlockchains = excludedBlockchains,
-        )
-    }
-
-    @Provides
-    @Singleton
-    fun provideQuotesRepository(
-        tangemTechApi: TangemTechApi,
-        appPreferencesStore: AppPreferencesStore,
-        quotesStore: QuotesStore,
-        cacheRegistry: CacheRegistry,
-        dispatchers: CoroutineDispatcherProvider,
-    ): QuotesRepository {
-        return DefaultQuotesRepository(
-            tangemTechApi = tangemTechApi,
-            appPreferencesStore = appPreferencesStore,
-            quotesStore = quotesStore,
-            cacheRegistry = cacheRegistry,
-            dispatchers = dispatchers,
-        )
-    }
-
-    @Provides
-    @Singleton
-    fun provideNetworksRepository(
-        networksStatusesStore: NetworksStatusesStore,
-        walletManagersFacade: WalletManagersFacade,
-        userWalletsStore: UserWalletsStore,
-        appPreferencesStore: AppPreferencesStore,
-        cacheRegistry: CacheRegistry,
-        dispatchers: CoroutineDispatcherProvider,
-        excludedBlockchains: ExcludedBlockchains,
-    ): NetworksRepository {
-        return DefaultNetworksRepository(
-            networksStatusesStore = networksStatusesStore,
-            walletManagersFacade = walletManagersFacade,
-            userWalletsStore = userWalletsStore,
-            appPreferencesStore = appPreferencesStore,
-            cacheRegistry = cacheRegistry,
-            dispatchers = dispatchers,
-            excludedBlockchains = excludedBlockchains,
+            cardCryptoCurrencyFactory = cardCryptoCurrencyFactory,
+            userTokensSaver = tokensSaver,
+            responseCryptoCurrenciesFactory = responseCryptoCurrenciesFactory,
         )
     }
 

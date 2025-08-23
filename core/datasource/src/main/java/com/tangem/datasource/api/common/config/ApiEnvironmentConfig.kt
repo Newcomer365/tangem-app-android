@@ -9,7 +9,7 @@ import com.tangem.utils.ProviderSuspend
  * @property baseUrl     base url
  * @property headers     headers
  *
- * @author Andrew Khokhlov on 13/08/2024
+[REDACTED_AUTHOR]
  */
 data class ApiEnvironmentConfig(
     val environment: ApiEnvironment,

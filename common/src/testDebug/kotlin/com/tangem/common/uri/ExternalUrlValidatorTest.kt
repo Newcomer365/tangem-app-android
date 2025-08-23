@@ -6,7 +6,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 /**
- * @author Andrew Khokhlov on 23/12/2024
+[REDACTED_AUTHOR]
  */
 @RunWith(Parameterized::class)
 class ExternalUrlValidatorTest(private val model: Model) {

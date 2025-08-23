@@ -17,7 +17,7 @@ import javax.inject.Inject
  * @property blockchainDataStorage blockchain data storage
  * @property blockchainSDKLogger   blockchain SDK logger
  *
- * @author Andrew Khokhlov on 16/04/2024
+[REDACTED_AUTHOR]
  */
 internal class WalletManagerFactoryCreator @Inject constructor(
     private val accountCreator: AccountCreator,

@@ -31,7 +31,7 @@ private const val AMPLITUDE_MULTIPLIER = 0.5f
  *
  * @param lazyListState lazy list state
  *
- * @author Andrew Khokhlov on 01/07/2023
+[REDACTED_AUTHOR]
  */
 internal fun Modifier.changeWalletAnimator(lazyListState: LazyListState) = composed {
     val offset by remember(lazyListState) { derivedStateOf { lazyListState.firstVisibleItemScrollOffset } }

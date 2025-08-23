@@ -6,7 +6,7 @@ import com.tangem.core.ui.extensions.TextReference
 /**
  * Transaction component state
  *
- * @author Andrew Khokhlov on 16/06/2023
+[REDACTED_AUTHOR]
  */
 sealed interface TransactionState {
 

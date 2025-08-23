@@ -3,7 +3,7 @@ package com.tangem.core.configtoggle.version
 /**
  * Version contract to evaluate availability of feature toggle
  *
- * @author Andrew Khokhlov on 08/02/2023
+[REDACTED_AUTHOR]
  */
 internal object VersionAvailabilityContract {
 

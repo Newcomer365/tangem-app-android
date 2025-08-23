@@ -9,7 +9,7 @@ import com.tangem.features.markets.impl.R
 /**
  * "Listed on" block UI model
  *
- * @author Andrew Khokhlov on 30/09/2024
+[REDACTED_AUTHOR]
  */
 internal sealed interface ListedOnUM {
 

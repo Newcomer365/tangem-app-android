@@ -12,7 +12,7 @@ import java.math.BigDecimal
  * @property volumeInUsd   aggregated volume in USD
  * @property trustScore    trust score
  *
- * @author Andrew Khokhlov on 30/09/2024
+[REDACTED_AUTHOR]
  */
 data class TokenMarketExchange(
     val id: String,

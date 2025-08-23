@@ -14,19 +14,20 @@ import com.tangem.domain.card.SetCardWasScannedUseCase
 import com.tangem.domain.feedback.GetCardInfoUseCase
 import com.tangem.domain.feedback.SendFeedbackEmailUseCase
 import com.tangem.domain.feedback.models.FeedbackEmailType
+import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.networks.multi.MultiNetworkStatusFetcher
 import com.tangem.domain.promo.ShouldShowPromoWalletUseCase
 import com.tangem.domain.promo.models.PromoId
+import com.tangem.domain.quotes.multi.MultiQuoteStatusFetcher
 import com.tangem.domain.settings.NeverToSuggestRateAppUseCase
 import com.tangem.domain.settings.RemindToRateAppLaterUseCase
-import com.tangem.domain.tokens.FetchTokenListUseCase
-import com.tangem.domain.tokens.FetchTokenListUseCase.RefreshMode
-import com.tangem.domain.tokens.TokensFeatureToggles
-import com.tangem.domain.tokens.model.CryptoCurrency
+import com.tangem.domain.staking.multi.MultiYieldBalanceFetcher
 import com.tangem.domain.tokens.model.analytics.TokenSwapPromoAnalyticsEvent
 import com.tangem.domain.wallets.legacy.UserWalletsListManager.Lockable.UnlockType
 import com.tangem.domain.wallets.models.UnlockWalletsError
-import com.tangem.domain.wallets.models.UserWallet
+import com.tangem.domain.models.wallet.UserWallet
+import com.tangem.domain.models.wallet.requireColdWallet
 import com.tangem.domain.wallets.usecase.GetUserWalletUseCase
 import com.tangem.domain.wallets.usecase.SeedPhraseNotificationUseCase
 import com.tangem.domain.wallets.usecase.UnlockWalletsUseCase
@@ -42,6 +43,9 @@ import com.tangem.feature.wallet.presentation.wallet.state.model.WalletEvent
 import com.tangem.feature.wallet.presentation.wallet.state.transformers.CloseBottomSheetTransformer
 import com.tangem.feature.wallet.presentation.wallet.state.utils.WalletEventSender
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -83,6 +87,8 @@ internal interface WalletWarningsClickIntents {
     fun onSeedPhraseSecondNotificationAccept()
 
     fun onSeedPhraseSecondNotificationReject()
+
+    fun onFinishWalletActivationClick()
 }
 
 @Suppress("LongParameterList")
@@ -91,7 +97,6 @@ internal class WalletWarningsClickIntentsImplementor @Inject constructor(
     private val stateHolder: WalletStateController,
     private val walletEventSender: WalletEventSender,
     private val derivePublicKeysUseCase: DerivePublicKeysUseCase,
-    private val fetchTokenListUseCase: FetchTokenListUseCase,
     private val setCardWasScannedUseCase: SetCardWasScannedUseCase,
     private val neverToSuggestRateAppUseCase: NeverToSuggestRateAppUseCase,
     private val remindToRateAppLaterUseCase: RemindToRateAppLaterUseCase,
@@ -105,8 +110,9 @@ internal class WalletWarningsClickIntentsImplementor @Inject constructor(
     private val sendFeedbackEmailUseCase: SendFeedbackEmailUseCase,
     private val seedPhraseNotificationUseCase: SeedPhraseNotificationUseCase,
     private val urlOpener: UrlOpener,
-    private val tokensFeatureToggles: TokensFeatureToggles,
     private val multiNetworkStatusFetcher: MultiNetworkStatusFetcher,
+    private val multiQuoteStatusFetcher: MultiQuoteStatusFetcher,
+    private val multiYieldBalanceFetcher: MultiYieldBalanceFetcher,
     private val appRouter: AppRouter,
 ) : BaseWalletClickIntents(), WalletWarningsClickIntents {
 
@@ -118,7 +124,7 @@ internal class WalletWarningsClickIntentsImplementor @Inject constructor(
 
     private fun prepareAndStartOnboardingProcess() {
         modelScope.launch(dispatchers.main) {
-            getSelectedUserWallet()?.let {
+            getSelectedUserWallet()?.requireColdWallet()?.let {
                 router.openOnboardingScreen(
                     scanResponse = it.scanResponse,
                     continueBackup = true,
@@ -131,7 +137,9 @@ internal class WalletWarningsClickIntentsImplementor @Inject constructor(
         modelScope.launch(dispatchers.main) {
             val userWallet = getSelectedUserWallet() ?: return@launch
 
-            setCardWasScannedUseCase(cardId = userWallet.cardId)
+            if (userWallet is UserWallet.Cold) {
+                setCardWasScannedUseCase(cardId = userWallet.cardId)
+            }
         }
     }
 
@@ -148,22 +156,7 @@ internal class WalletWarningsClickIntentsImplementor @Inject constructor(
             ).fold(
                 ifLeft = { Timber.e(it, "Failed to derive public keys") },
                 ifRight = {
-                    if (tokensFeatureToggles.isNetworksLoadingRefactoringEnabled) {
-                        multiNetworkStatusFetcher(
-                            params = MultiNetworkStatusFetcher.Params(
-                                userWalletId = userWallet.walletId,
-                                networks = missedAddressCurrencies.map(CryptoCurrency::network).toSet(),
-                            ),
-                        )
-                    } else {
-                        fetchTokenListUseCase(
-                            userWalletId = userWallet.walletId,
-                            mode = RefreshMode.SKIP_CURRENCIES,
-                            currencies = missedAddressCurrencies,
-                        ).onLeft {
-                            Timber.e("Unable to refresh token list: $it")
-                        }
-                    }
+                    fetchCryptoCurrencies(userWalletId = userWallet.walletId, currencies = missedAddressCurrencies)
                 },
             )
         }
@@ -248,7 +241,8 @@ internal class WalletWarningsClickIntentsImplementor @Inject constructor(
         modelScope.launch(dispatchers.main) {
             neverToSuggestRateAppUseCase()
 
-            val scanResponse = getSelectedUserWallet()?.scanResponse ?: return@launch
+            val scanResponse =
+                getSelectedUserWallet()?.requireColdWallet()?.scanResponse ?: return@launch // TODO [REDACTED_TASK_KEY]
             val cardInfo = getCardInfoUseCase(scanResponse).getOrNull() ?: return@launch
 
             sendFeedbackEmailUseCase(type = FeedbackEmailType.RateCanBeBetter(cardInfo = cardInfo))
@@ -289,7 +283,7 @@ internal class WalletWarningsClickIntentsImplementor @Inject constructor(
     }
 
     override fun onSupportClick() {
-        val scanResponse = getSelectedUserWallet()?.scanResponse ?: return
+        val scanResponse = getSelectedUserWallet()?.requireColdWallet()?.scanResponse ?: return // TODO [REDACTED_TASK_KEY]
         val cardInfo = getCardInfoUseCase(scanResponse).getOrNull() ?: return
 
         modelScope.launch {
@@ -376,6 +370,45 @@ internal class WalletWarningsClickIntentsImplementor @Inject constructor(
 
         modelScope.launch {
             seedPhraseNotificationUseCase.rejectSecond(userWalletId = userWallet.walletId)
+        }
+    }
+
+    override fun onFinishWalletActivationClick() {
+        // TODO implement wallet activation process
+    }
+
+    private suspend fun fetchCryptoCurrencies(userWalletId: UserWalletId, currencies: List<CryptoCurrency>) {
+        coroutineScope {
+            listOf(
+                async {
+                    multiNetworkStatusFetcher(
+                        params = MultiNetworkStatusFetcher.Params(
+                            userWalletId = userWalletId,
+                            networks = currencies.map(CryptoCurrency::network).toSet(),
+                        ),
+                    )
+                        .onLeft { Timber.e("Unable to fetch networks: $it") }
+                },
+                async {
+                    multiQuoteStatusFetcher(
+                        params = MultiQuoteStatusFetcher.Params(
+                            currenciesIds = currencies.mapNotNull { it.id.rawCurrencyId }.toSet(),
+                            appCurrencyId = null,
+                        ),
+                    )
+                        .onLeft { Timber.e("Unable to fetch quotes: $it") }
+                },
+                async {
+                    multiYieldBalanceFetcher(
+                        params = MultiYieldBalanceFetcher.Params(
+                            userWalletId = userWalletId,
+                            currencyIdWithNetworkMap = currencies.associate { it.id to it.network },
+                        ),
+                    )
+                        .onLeft { Timber.e("Unable to fetch yield balances: $it") }
+                },
+            )
+                .awaitAll()
         }
     }
 

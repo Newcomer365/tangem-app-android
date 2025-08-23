@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.retryWhen
  *
  * @param Data data type of [Flow]
  *
- * @author Andrew Khokhlov on 05/03/2025
+[REDACTED_AUTHOR]
  */
 interface FlowProducer<Data : Any> {
 

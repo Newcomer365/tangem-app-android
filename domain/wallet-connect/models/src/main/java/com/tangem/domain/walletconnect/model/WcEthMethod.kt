@@ -13,7 +13,7 @@ sealed interface WcEthMethod : WcMethod {
         val account: String,
         val dataForSign: String,
     ) : WcEthMethod {
-        val humanMsg: String = params.message.contents
+        val humanMsg: String = params.message?.contents.orEmpty()
     }
 
     data class SendTransaction(
@@ -22,5 +22,13 @@ sealed interface WcEthMethod : WcMethod {
 
     data class SignTransaction(
         val transaction: WcEthTransactionParams,
+    ) : WcEthMethod
+
+    data class AddEthereumChain(
+        val rawChain: WcEthAddChain,
+    ) : WcEthMethod
+
+    data class SwitchEthereumChain(
+        val rawChain: WcEthAddChain,
     ) : WcEthMethod
 }
