@@ -10,6 +10,7 @@ import com.reown.walletkit.client.Wallet
 import com.tangem.core.analytics.api.AnalyticsEventHandler
 import com.tangem.data.walletconnect.utils.WC_TAG
 import com.tangem.data.walletconnect.utils.WcSdkSessionConverter
+import com.tangem.data.walletconnect.utils.getDappOriginUrl
 import com.tangem.domain.blockaid.BlockAidVerifier
 import com.tangem.domain.walletconnect.WcAnalyticEvents
 import com.tangem.domain.walletconnect.model.*
@@ -51,7 +52,12 @@ internal class DefaultWcPairUseCase @AssistedInject constructor(
             val pairResult = sdkDelegate.pair(uri)
                 .onLeft {
                     Timber.tag(WC_TAG).e(it, "Failed to call pair $pairRequest")
-                    analytics.send(WcAnalyticEvents.PairFailed(it.code))
+                    analytics.send(
+                        WcAnalyticEvents.PairFailed(
+                            errorCode = it.code,
+                            errorMessage = it.message,
+                        ),
+                    )
                     emit(WcPairState.Error(it))
                 }
                 .getOrNull() ?: return@flow
@@ -73,7 +79,12 @@ internal class DefaultWcPairUseCase @AssistedInject constructor(
 
             val proposalState = buildProposalState(sdkSessionProposal, sdkVerifyContext)
                 .onLeft {
-                    analytics.send(WcAnalyticEvents.PairFailed(it.code))
+                    analytics.send(
+                        WcAnalyticEvents.PairFailed(
+                            errorCode = it.code,
+                            errorMessage = it.message,
+                        ),
+                    )
                     emit(WcPairState.Error(it))
                 }
                 .getOrNull() ?: return@flow
@@ -100,7 +111,12 @@ internal class DefaultWcPairUseCase @AssistedInject constructor(
             ).map { settledSession ->
                 val newSession = WcSession(
                     wallet = sessionForApprove.wallet,
-                    sdkModel = WcSdkSessionConverter.convert(settledSession.session),
+                    sdkModel = WcSdkSessionConverter.convert(
+                        value = WcSdkSessionConverter.Input(
+                            originUrl = sdkVerifyContext.getDappOriginUrl(),
+                            session = settledSession.session,
+                        ),
+                    ),
                     securityStatus = proposalState.dAppSession.securityStatus,
                     networks = sessionForApprove.network.toSet(),
                     connectingTime = DateTime.now().millis,
@@ -109,13 +125,19 @@ internal class DefaultWcPairUseCase @AssistedInject constructor(
                 sessionsManager.saveSession(newSession)
                 analytics.send(
                     WcAnalyticEvents.DAppConnected(
-                        proposalState.dAppSession,
-                        sessionForApprove,
+                        sessionProposal = proposalState.dAppSession,
+                        sessionForApprove = sessionForApprove,
+                        securityStatus = proposalState.dAppSession.securityStatus,
                     ),
                 )
                 newSession
             }.onLeft {
-                analytics.send(WcAnalyticEvents.DAppConnectionFailed(it.code))
+                analytics.send(
+                    WcAnalyticEvents.DAppConnectionFailed(
+                        errorCode = it.code,
+                        errorMessage = it.message,
+                    ),
+                )
                 sdkDelegate.rejectSession(sdkSessionProposal.proposerPublicKey)
                 Timber.tag(WC_TAG).e(it, "Failed to approve session ${sdkSessionProposal.name}")
             }
@@ -182,8 +204,10 @@ internal class DefaultWcPairUseCase @AssistedInject constructor(
             .values.map { it.available.plus(it.required) }.flatten().toSet()
         analytics.send(
             WcAnalyticEvents.PairRequested(
+                dAppName = sessionProposal.name,
+                dAppUrl = sessionProposal.url,
                 network = requestedNetworks,
-                verificationInfo,
+                domainVerification = verificationInfo,
             ),
         )
         val appMetaData = WcAppMetaData(
