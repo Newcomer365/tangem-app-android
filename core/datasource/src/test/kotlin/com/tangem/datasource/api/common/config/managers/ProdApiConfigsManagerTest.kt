@@ -149,7 +149,7 @@ internal class ProdApiConfigsManagerTest {
                     -> "[REDACTED_ENV_URL]"
                     EXTERNAL_BUILD_TYPE,
                     RELEASE_BUILD_TYPE,
-                    -> "[REDACTED_ENV_URL]"
+                    -> "https://express.tangem.com/v1/"
                     else -> error("Unknown build type [${BuildConfig.BUILD_TYPE}]")
                 },
                 headers = mapOf(

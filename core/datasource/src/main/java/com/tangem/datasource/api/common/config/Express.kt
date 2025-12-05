@@ -81,7 +81,7 @@ internal class Express(
 
     private fun createProdEnvironment(): ApiEnvironmentConfig = ApiEnvironmentConfig(
         environment = ApiEnvironment.PROD,
-        baseUrl = "[REDACTED_ENV_URL]",
+        baseUrl = "https://express.tangem.com/v1/",
         headers = createHeaders(isProd = true),
     )
 
