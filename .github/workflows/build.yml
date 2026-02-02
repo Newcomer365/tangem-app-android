@@ -55,14 +55,15 @@ jobs:
 
     - name: Extract VERSION_NAME from tangem_dependencies.toml
       run: |
-        LINE=$(grep 'tangemCardSdk' gradle/tangem_dependencies.toml)
-        VERSION_NAME=$(echo "$LINE" | grep -oP 'releases-\K[0-9]+\.[0-9]+\.[0-9]+')
+        LINE=$(grep '^tangemCardSdk' gradle/tangem_dependencies.toml)
+        VERSION_NAME=$(echo "$LINE" | grep -oP 'releases-\K[^"]+')
         if [ -z "$VERSION_NAME" ]; then
-          echo "VERSION_NAME is empty. Check tangem_dependencies.toml format"
+          echo "VERSION_NAME is empty"
           exit 1
         fi
         echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
         echo "VERSION_NAME=$VERSION_NAME"
+
 
     - name: Clone external repository (tangem-app-config)
       run: |
@@ -145,6 +146,7 @@ jobs:
         files: app/build/outputs/apk/release/tangem_${{ env.VERSION_NAME }}.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
 
 
