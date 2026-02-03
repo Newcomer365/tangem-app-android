@@ -109,7 +109,7 @@
   <string name="app_settings_off_saved_wallet_alert_message">При отключении функции сохранения кошелька все ранее сохраненные кошельки будут удалены из приложения.</string>
   <string name="app_settings_on_require_access_code_alert_message">Это удалит все сохранённые коды доступа к кошелькам. Любое дальнейшее взаимодействие с кошельком будет требовать ввода кода доступа.</string>
   <string name="app_settings_require_access_code">Требуется код доступа</string>
-  <string name="app_settings_require_access_code_footer">Эта опция отключает использование биометрии для выполнения чувствительных действий. Каждый раз, например при подписании транзакции, вам потребуется вводить код доступа.</string>
+  <string name="app_settings_require_access_code_footer">Эта опция отключает использование биометрии для выполнения чувствительных действий. Каждый раз, например, при подписании транзакции, вам потребуется вводить код доступа.</string>
   <string name="app_settings_saved_access_codes">Сохранение кода доступа</string>
   <string name="app_settings_saved_access_codes_footer">Подключите функцию хранения кодов доступа от карт на телефоне в зашифрованном виде, и при работе с картой или кольцом вместо кода доступа будет запрашиваться биометрическая аутентификация.</string>
   <string name="app_settings_saved_wallet">Cохранение кошелька</string>
@@ -737,7 +737,7 @@
   <string name="markets_loading_no_data_title">Нет данных</string>
   <string name="markets_pulse_common_title">Пульс рынка</string>
   <string name="markets_quick_actions">Быстрые действия</string>
-  <string name="markets_search_header_title">Поиск на рынке</string>
+  <string name="markets_search_header_title">Поиск токенов</string>
   <string name="markets_search_result_title">Результат</string>
   <string name="markets_search_see_tokens_under_100k">Токены с капитализацией меньше 100к USD</string>
   <string name="markets_search_show_tokens">Показать токены</string>
@@ -925,6 +925,9 @@
   <string name="notification_sepa_title">Покупайте крипту через SEPA</string>
   <string name="notification_visa_waitlist_promo_text">Присоединяйтесь к списку ожидания и получите уникальную платёжную карту, не похожую ни на одну другую.</string>
   <string name="notification_visa_waitlist_promo_title">Tangem Visa Card</string>
+  <string name="notification_yield_promo_button">Условия программы</string>
+  <string name="notification_yield_promo_text">Внесите депозит от $100, удерживайте его 30 дней и получите бонус $10</string>
+  <string name="notification_yield_promo_title">Подключите Режим доходности!</string>
   <string name="onboarding_access_code_feature_1_description">Установите единый код доступа для защиты всех ваших карт или колец</string>
   <string name="onboarding_access_code_feature_1_title">Защита</string>
   <string name="onboarding_access_code_feature_2_description">Установите индивидуальный код доступа для каждой карты или кольца позже.</string>
@@ -1079,6 +1082,7 @@
   <string name="onramp_transaction_status_footer_text">Вы можете закрыть этот экран и проверить статус транзакции на экране информации о токене.</string>
   <string name="onramp_up_to_rate">До</string>
   <string name="onramp_via">Через</string>
+  <string name="onramp_via_provider">через %s</string>
   <string name="onramp_you_will_pay_title">Вы заплатите</string>
   <string name="organize_tokens_group">Группы</string>
   <string name="organize_tokens_sort_by_balance">По балансу</string>
@@ -1799,7 +1803,17 @@
   <string name="warning_button_ok">Понятно!</string>
   <string name="warning_button_really_cool">Очень круто!</string>
   <string name="warning_button_refresh">Обновить</string>
+  <string name="warning_clore_migration_button">Начать миграцию</string>
+  <string name="warning_clore_migration_copy_button">Копировать</string>
+  <string name="warning_clore_migration_error_signing_not_supported">Подписание сообщений не поддерживается в этой сети</string>
+  <string name="warning_clore_migration_error_wallet_manager_not_found">Невозможно подписать сообщение. Пожалуйста, попробуй позже.</string>
   <string name="warning_clore_migration_message">Согласно официальной документации Clore, все монеты, полученные до 21 декабря, будут мигрированы в токен Clore (ERC-20); монеты, полученные после этой даты, — нет. Решение для перевода находится в разработке — следите за обновлениями.</string>
+  <string name="warning_clore_migration_message_label">Сообщение</string>
+  <string name="warning_clore_migration_open_portal_button">Открыть портал клейма</string>
+  <string name="warning_clore_migration_sheet_description">Чтобы сохранить доступ к своим средствам, начните миграцию в соответствии с официальной инструкцией Clore.</string>
+  <string name="warning_clore_migration_sheet_title">Миграция сети Clore</string>
+  <string name="warning_clore_migration_sign_button">Подписать</string>
+  <string name="warning_clore_migration_signature_label">Подпись</string>
   <string name="warning_clore_migration_title">Миграция сети Clore</string>
   <string name="warning_demo_mode_message">Вы находитесь в режиме демо</string>
   <string name="warning_demo_mode_title">Демо режим включен</string>
