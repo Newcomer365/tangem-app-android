@@ -96,7 +96,10 @@ jobs:
         echo "key_alias=${{ secrets.KEY_ALIAS }}" >> app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
         echo "key_password=${{ secrets.KEY_PASSWORD }}" >> app/src/main/assets/tangem-app-config/android/keystore/debug_keystore.properties
 
-    
+    - name: Refresh Tangem SDK dependency
+      run: |
+        rm -rf ~/.gradle/caches/modules-2/files-2.1/com.tangem.tangem-sdk-kotlin
+        ./gradlew clean --refresh-dependencies
 
     
     - name: Build and Sign APK
@@ -146,6 +149,7 @@ jobs:
         files: app/build/outputs/apk/release/tangem_${{ env.VERSION_NAME }}.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
 
 
