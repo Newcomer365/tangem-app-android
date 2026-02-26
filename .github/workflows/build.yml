@@ -65,12 +65,12 @@ jobs:
         echo "VERSION_NAME=$VERSION_NAME"
 
 
-    - name: Clone external repository (tangem-app-config)
-      run: |
-        git clone https://github.com/Newcomer365/tangem-app-config.git
-        mkdir -p app/src/main/assets/tangem-app-config/
-        rm -rf app/src/main/assets/tangem-app-config/*
-        cp -r tangem-app-config/* app/src/main/assets/tangem-app-config/
+    #- name: Clone external repository (tangem-app-config)
+      #run: |
+        #git clone https://github.com/Newcomer365/tangem-app-config.git
+        #mkdir -p app/src/main/assets/tangem-app-config/
+        #rm -rf app/src/main/assets/tangem-app-config/*
+        #cp -r tangem-app-config/* app/src/main/assets/tangem-app-config/
 
     - name: Decode and extract package name from google-services.json
       run: |
@@ -146,6 +146,7 @@ jobs:
         files: app/build/outputs/apk/release/tangem_${{ env.VERSION_NAME }}.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
 
 
