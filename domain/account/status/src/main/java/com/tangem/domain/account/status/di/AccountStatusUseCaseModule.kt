@@ -7,6 +7,7 @@ import com.tangem.domain.account.status.usecase.*
 import com.tangem.domain.account.status.utils.CryptoCurrencyBalanceFetcher
 import com.tangem.domain.account.status.utils.CryptoCurrencyMetadataCleaner
 import com.tangem.domain.account.supplier.SingleAccountListSupplier
+import com.tangem.domain.common.wallets.UserWalletsListRepository
 import com.tangem.domain.express.ExpressServiceFetcher
 import com.tangem.domain.networks.multi.MultiNetworkStatusFetcher
 import com.tangem.domain.networks.multi.MultiNetworkStatusSupplier
@@ -36,12 +37,12 @@ internal object AccountStatusUseCaseModule {
     @Provides
     @Singleton
     fun provideGetAccountCurrencyByAddressUseCase(
-        accountsCRUDRepository: AccountsCRUDRepository,
+        userWalletsListRepository: UserWalletsListRepository,
         multiNetworkStatusSupplier: MultiNetworkStatusSupplier,
         singleAccountListSupplier: SingleAccountListSupplier,
     ): GetAccountCurrencyByAddressUseCase {
         return GetAccountCurrencyByAddressUseCase(
-            accountsCRUDRepository = accountsCRUDRepository,
+            userWalletsListRepository = userWalletsListRepository,
             multiNetworkStatusSupplier = multiNetworkStatusSupplier,
             singleAccountListSupplier = singleAccountListSupplier,
         )
@@ -50,12 +51,12 @@ internal object AccountStatusUseCaseModule {
     @Provides
     @Singleton
     fun provideGetCryptoCurrencyActionsUseCaseV2(
-        accountsCRUDRepository: AccountsCRUDRepository,
+        userWalletsListRepository: UserWalletsListRepository,
         singleAccountStatusListSupplier: SingleAccountStatusListSupplier,
         getCryptoCurrencyActionsUseCase: GetCryptoCurrencyActionsUseCase,
     ): GetCryptoCurrencyActionsUseCaseV2 {
         return GetCryptoCurrencyActionsUseCaseV2(
-            accountsCRUDRepository = accountsCRUDRepository,
+            userWalletsListRepository = userWalletsListRepository,
             singleAccountStatusListSupplier = singleAccountStatusListSupplier,
             getCryptoCurrencyActionsUseCase = getCryptoCurrencyActionsUseCase,
         )
@@ -66,8 +67,8 @@ internal object AccountStatusUseCaseModule {
     fun provideApplyTokenListSortingUseCaseV2(
         accountsCRUDRepository: AccountsCRUDRepository,
         dispatchers: CoroutineDispatcherProvider,
-    ): ApplyTokenListSortingUseCaseV2 {
-        return ApplyTokenListSortingUseCaseV2(
+    ): ApplyTokenListSortingUseCase {
+        return ApplyTokenListSortingUseCase(
             accountsCRUDRepository = accountsCRUDRepository,
             dispatchers = dispatchers,
         )
@@ -140,8 +141,8 @@ internal object AccountStatusUseCaseModule {
     @Singleton
     fun provideToggleTokenListSortingUseCaseV2(
         dispatchers: CoroutineDispatcherProvider,
-    ): ToggleTokenListSortingUseCaseV2 {
-        return ToggleTokenListSortingUseCaseV2(
+    ): ToggleTokenListSortingUseCase {
+        return ToggleTokenListSortingUseCase(
             dispatchers = dispatchers,
         )
     }
@@ -150,8 +151,8 @@ internal object AccountStatusUseCaseModule {
     @Singleton
     fun provideToggleTokenListGroupingUseCaseV2(
         dispatchers: CoroutineDispatcherProvider,
-    ): ToggleTokenListGroupingUseCaseV2 {
-        return ToggleTokenListGroupingUseCaseV2(
+    ): ToggleTokenListGroupingUseCase {
+        return ToggleTokenListGroupingUseCase(
             dispatchers = dispatchers,
         )
     }

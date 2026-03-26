@@ -11,19 +11,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import com.tangem.core.ui.R
-import com.tangem.core.ui.components.flicker
 import com.tangem.core.ui.components.notifications.NotificationConfig
 import com.tangem.core.ui.components.notifications.NotificationConfig.ButtonsState
 import com.tangem.core.ui.ds.button.*
+import com.tangem.core.ui.ds.image.TangemIcon
+import com.tangem.core.ui.ds.image.TangemIconUM
 import com.tangem.core.ui.extensions.*
 import com.tangem.core.ui.res.TangemTheme
 import com.tangem.core.ui.res.TangemThemePreviewRedesign
@@ -35,21 +38,39 @@ import kotlinx.collections.immutable.persistentListOf
  *
  * @param messageUM   Data model containing message properties.
  * @param modifier    Modifier to be applied to the message component.
- * @param content     Optional composable content to be displayed alongside the title and subtitle.
  */
 @Composable
 fun TangemMessage(
     messageUM: TangemMessageUM,
     modifier: Modifier = Modifier,
-    content: @Composable (RowScope.() -> Unit)? = null,
+    contentColor: Color = TangemTheme.colors2.surface.level3,
 ) {
     TangemMessage(
-        modifier = modifier,
+        modifier = modifier
+            .conditional(messageUM.onClick != null) {
+                clickableSingle(onClick = requireNotNull(messageUM.onClick))
+            },
         title = messageUM.title,
         subtitle = messageUM.subtitle,
         messageEffect = messageUM.messageEffect,
         isCentered = messageUM.isCentered,
-        content = content,
+        content = {
+            if (messageUM.iconUM != null) {
+                TangemIcon(
+                    tangemIconUM = messageUM.iconUM,
+                    modifier = Modifier
+                        .align(
+                            if (messageUM.buttonsUM.isEmpty()) {
+                                Alignment.CenterVertically
+                            } else {
+                                Alignment.Top
+                            },
+                        )
+                        .size(TangemTheme.dimens2.x7),
+                )
+            }
+        },
+        contentColor = contentColor,
         onCloseClick = messageUM.onCloseClick,
         buttons = {
             messageUM.buttonsUM.fastForEach { buttonUM ->
@@ -73,7 +94,11 @@ fun TangemMessage(
  * @see com.tangem.core.ui.components.notifications.Notification for legacy component.
  */
 @Composable
-fun TangemMessage(config: NotificationConfig, modifier: Modifier = Modifier) {
+fun TangemMessage(
+    config: NotificationConfig,
+    modifier: Modifier = Modifier,
+    contentColor: Color = TangemTheme.colors2.surface.level3,
+) {
     val buttonState = config.buttonsState
     TangemMessage(
         title = config.title,
@@ -101,6 +126,7 @@ fun TangemMessage(config: NotificationConfig, modifier: Modifier = Modifier) {
                 )
             }
         },
+        contentColor = contentColor,
         buttons = if (buttonState != null) {
             {
                 TangemMessageLegacyButtons(buttonState = buttonState)
@@ -129,10 +155,11 @@ fun TangemMessage(
     title: TextReference? = null,
     subtitle: TextReference? = null,
     messageEffect: TangemMessageEffect = TangemMessageEffect.None,
-    content: (@Composable RowScope.() -> Unit)? = null,
-    buttons: (@Composable RowScope.() -> Unit)? = null,
     onCloseClick: (() -> Unit)? = null,
     isCentered: Boolean = false,
+    contentColor: Color = TangemTheme.colors2.surface.level3,
+    content: (@Composable RowScope.() -> Unit)? = null,
+    buttons: (@Composable RowScope.() -> Unit)? = null,
 ) {
     val alignment = if (isCentered) {
         Alignment.CenterHorizontally
@@ -146,6 +173,7 @@ fun TangemMessage(
                 .messageEffectBackground(
                     messageEffect = messageEffect,
                     radius = TangemTheme.dimens2.x6,
+                    contentColor = contentColor,
                 ),
         )
         Column(
@@ -160,8 +188,9 @@ fun TangemMessage(
                 subtitle = subtitle,
                 alignment = alignment,
                 content = content,
+                isCentered = isCentered,
             )
-            if (buttons != null && !isCentered) {
+            if (buttons != null) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier
@@ -191,8 +220,14 @@ private fun TangemMessageContent(
     title: TextReference? = null,
     subtitle: TextReference? = null,
     alignment: Alignment.Horizontal = Alignment.Start,
+    isCentered: Boolean = false,
     content: (@Composable RowScope.() -> Unit)? = null,
 ) {
+    val textAlign = if (isCentered) {
+        TextAlign.Center
+    } else {
+        TextAlign.Start
+    }
     Row(
         horizontalArrangement = Arrangement.spacedBy(TangemTheme.dimens2.x2),
         modifier = Modifier.padding(TangemTheme.dimens2.x1),
@@ -208,10 +243,12 @@ private fun TangemMessageContent(
                     style = TangemTheme.typography2.bodySemibold16,
                     color = TangemTheme.colors2.text.neutral.primary,
                     maxLines = 1,
+                    textAlign = textAlign,
                 )
             }
             if (subtitle != null) {
                 Text(
+                    textAlign = textAlign,
                     text = subtitle.resolveAnnotatedReference(),
                     style = TangemTheme.typography2.captionSemibold12,
                     color = TangemTheme.colors2.text.neutral.secondary,
@@ -310,15 +347,19 @@ private class TangemMessagePreviewProvider : PreviewParameterProvider<TangemMess
     override val values: Sequence<TangemMessageUM>
         get() = sequenceOf(
             TangemMessageUM(
+                id = "1",
                 title = stringReference("Title text"),
                 subtitle = stringReference("Subtext"),
+                iconUM = TangemIconUM.Icon(R.drawable.ic_attention_default_24),
                 messageEffect = TangemMessageEffect.None,
                 isCentered = true,
             ),
             TangemMessageUM(
+                id = "2",
                 title = stringReference("Title text"),
                 subtitle = stringReference("Subtext"),
                 messageEffect = TangemMessageEffect.Magic,
+                iconUM = TangemIconUM.Icon(R.drawable.ic_attention_default_24),
                 isCentered = false,
                 buttonsUM = persistentListOf(
                     TangemMessageButtonUM(
@@ -335,6 +376,7 @@ private class TangemMessagePreviewProvider : PreviewParameterProvider<TangemMess
                 ),
             ),
             TangemMessageUM(
+                id = "3",
                 title = stringReference("Title text"),
                 subtitle = stringReference("Subtext"),
                 messageEffect = TangemMessageEffect.Card,
@@ -348,6 +390,7 @@ private class TangemMessagePreviewProvider : PreviewParameterProvider<TangemMess
                 ),
             ),
             TangemMessageUM(
+                id = "4",
                 title = stringReference("Title text"),
                 subtitle = stringReference("Subtext"),
                 messageEffect = TangemMessageEffect.Warning,
@@ -372,9 +415,8 @@ private fun TangemMessage2_Preview() {
             content = {
                 Box(
                     modifier = Modifier
-                        .size(TangemTheme.dimens2.x10)
+                        .size(TangemTheme.dimens2.x7)
                         .clip(RoundedCornerShape(TangemTheme.dimens2.x2))
-                        .flicker(isFlickering = true)
                         .background(TangemTheme.colors2.text.neutral.primary),
                 )
             },

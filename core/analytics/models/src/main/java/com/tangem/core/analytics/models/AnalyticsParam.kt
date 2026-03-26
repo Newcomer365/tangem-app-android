@@ -97,6 +97,8 @@ sealed class AnalyticsParam {
         data object NewsList : ScreensSources("News List")
         data object NewsLink : ScreensSources("News Link")
         data object NewsPage : ScreensSources("News Page")
+        data object Portfolio : ScreensSources("Portfolio")
+        data object Staking : ScreensSources("Staking")
     }
 
     sealed class TxSentFrom(val value: String) {
@@ -292,6 +294,7 @@ sealed class AnalyticsParam {
         const val ACCOUNT_DERIVATION = "Account Derivation"
         const val REFERRAL = "Referral"
         const val REFERRAL_ID = "Referral_ID"
+        const val SEARCHED = "Searched"
     }
 }
 

@@ -1,6 +1,7 @@
 package com.tangem.features.onramp.swap.availablepairs.entity.converters
 
 import com.tangem.common.ui.account.AccountCryptoPortfolioItemStateConverter
+import com.tangem.common.ui.account.TokensListPortfolioItemConverter
 import com.tangem.core.ui.components.tokenlist.state.TokensListItemUM
 import com.tangem.domain.appcurrency.model.AppCurrency
 import com.tangem.domain.models.TotalFiatBalance
@@ -15,7 +16,7 @@ internal class LoadingAccountTokenItemConverter(
     override fun convert(value: AccountStatus.CryptoPortfolio): TokensListItemUM.Portfolio {
         val (account, currencies) = value
 
-        return TokensListItemUM.Portfolio(
+        return TokensListPortfolioItemConverter(
             tokenItemUM = AccountCryptoPortfolioItemStateConverter(
                 appCurrency = appCurrency,
                 account = account,
@@ -23,7 +24,9 @@ internal class LoadingAccountTokenItemConverter(
             ).convert(TotalFiatBalance.Failed),
             isExpanded = true,
             isCollapsable = false,
-            tokens = currencies.flattenCurrencies().map(LoadingTokenListItemConverter::convert).toPersistentList(),
-        )
+            tokens = currencies.flattenCurrencies()
+                .map { LoadingTokenListItemConverter.convert(it.currency) }
+                .toPersistentList(),
+        ).convert(Unit)
     }
 }

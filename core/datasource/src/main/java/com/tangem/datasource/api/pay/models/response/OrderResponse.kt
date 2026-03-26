@@ -12,7 +12,7 @@ data class OrderResponse(
         @Json(name = "id") val id: String,
         @Json(name = "customer_id") val customerId: String?,
         @Json(name = "type") val type: String?,
-        @Json(name = "status") val status: String,
+        @Json(name = "status") val status: Status,
         @Json(name = "step") val step: String?,
         @Json(name = "data") val data: Data,
         @Json(name = "step_change_code") val stepChangeCode: Int?,
@@ -27,6 +27,22 @@ data class OrderResponse(
             @Json(name = "emboss_name") val embossName: String?,
             @Json(name = "product_instance_id") val productInstanceId: String?,
             @Json(name = "payment_account_id") val paymentAccountId: String?,
+            @Json(name = "transaction_hash") val transactionHash: String?,
         )
+
+        @JsonClass(generateAdapter = false)
+        enum class Status {
+            @Json(name = "NEW")
+            NEW,
+
+            @Json(name = "PROCESSING")
+            PROCESSING,
+
+            @Json(name = "COMPLETED")
+            COMPLETED,
+
+            @Json(name = "CANCELED")
+            CANCELED,
+        }
     }
 }

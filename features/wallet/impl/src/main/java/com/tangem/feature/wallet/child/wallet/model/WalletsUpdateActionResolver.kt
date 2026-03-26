@@ -12,6 +12,7 @@ import com.tangem.feature.wallet.presentation.wallet.state.model.WalletCardState
 import com.tangem.feature.wallet.presentation.wallet.state.model.WalletNotification
 import com.tangem.feature.wallet.presentation.wallet.state.model.WalletScreenState
 import com.tangem.feature.wallet.presentation.wallet.state.model.WalletState
+import com.tangem.feature.wallet.presentation.wallet.state.model.WalletType
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -82,6 +83,9 @@ internal class WalletsUpdateActionResolver @Inject constructor(
             isWalletsCountChanged(state, wallets) -> {
                 getChangeWalletsListAction(state, wallets, selectedWallet)
             }
+            isWalletsOrderChanged(state, wallets) -> {
+                Action.ReorderWallets(wallets = wallets)
+            }
             isAnotherWalletSelected(state, selectedWallet) -> {
                 Action.ReinitializeNewWallet(
                     prevWalletId = state.getPrevSelectedWallet().id,
@@ -107,7 +111,7 @@ internal class WalletsUpdateActionResolver @Inject constructor(
             when (walletState) {
                 is WalletState.MultiCurrency -> {
                     val wallet = wallets.firstOrNull { it.walletId == walletState.walletCardState.id }
-                    walletState.type == WalletState.MultiCurrency.WalletType.Hot && wallet is UserWallet.Cold
+                    walletState.type == WalletType.Hot && wallet is UserWallet.Cold
                 }
                 else -> false
             }
@@ -119,6 +123,13 @@ internal class WalletsUpdateActionResolver @Inject constructor(
         val walletsSize = wallets.size
 
         return prevWalletsSize != walletsSize
+    }
+
+    private fun isWalletsOrderChanged(state: WalletScreenState, wallets: List<UserWallet>): Boolean {
+        val prevWalletIds = state.wallets.map { it.walletCardState.id }
+        val newWalletIds = wallets.map { it.walletId }
+
+        return prevWalletIds != newWalletIds
     }
 
     private fun getChangeWalletsListAction(
@@ -202,7 +213,7 @@ internal class WalletsUpdateActionResolver @Inject constructor(
             val previousState = state.wallets.firstOrNull { it.walletCardState.id == wallet.walletId }
                 ?: return@filter false
             wallet is UserWallet.Cold && previousState is WalletState.MultiCurrency &&
-                previousState.type == WalletState.MultiCurrency.WalletType.Hot
+                previousState.type == WalletType.Hot
         }
         return Action.ReinitializeWallets(selectedWallet, walletsToUpdate)
     }
@@ -393,6 +404,15 @@ internal class WalletsUpdateActionResolver @Inject constructor(
         data class ReloadWallets(
             val wallets: List<UserWallet>,
         ) : Action()
+
+        data class ReorderWallets(
+            val wallets: List<UserWallet>,
+        ) : Action() {
+
+            override fun toString(): String {
+                return "ReorderWallets(wallets = ${wallets.joinToString { it.walletId.toString() }})"
+            }
+        }
 
         data object EmptyWallets : Action()
 

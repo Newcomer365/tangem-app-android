@@ -3,12 +3,9 @@ package com.tangem.features.staking.impl.presentation.state
 import com.tangem.common.ui.amountScreen.models.AmountState
 import com.tangem.common.ui.navigationButtons.NavigationButtonsState
 import com.tangem.core.navigation.url.UrlOpener
-import com.tangem.core.ui.event.consumedEvent
-import com.tangem.core.ui.event.triggeredEvent
 import com.tangem.core.ui.extensions.TextReference
 import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.domain.staking.model.stakekit.action.StakingActionCommonType
-import com.tangem.features.staking.impl.presentation.state.events.StakingEvent
 import com.tangem.features.staking.impl.presentation.state.stub.StakingClickIntentsStub
 import com.tangem.features.staking.impl.presentation.state.transformers.SetButtonsStateTransformer
 import com.tangem.features.staking.impl.presentation.state.transformers.SetTitleTransformer
@@ -18,11 +15,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import com.tangem.core.decompose.di.ModelScoped
+import com.tangem.core.ui.HoldToConfirmButtonFeatureToggles
+import com.tangem.domain.models.wallet.isColdWallet
+import com.tangem.domain.models.wallet.isHotWallet
 import javax.inject.Inject
 
 @ModelScoped
 internal class StakingStateController @Inject constructor(
     urlOpener: UrlOpener,
+    private val holdToConfirmButtonFeatureToggles: HoldToConfirmButtonFeatureToggles,
 ) {
 
     val value: StakingUiState get() = uiState.value
@@ -35,9 +36,11 @@ internal class StakingStateController @Inject constructor(
     private val titleTransformer = SetTitleTransformer
 
     fun initializeWithUserWallet(userWallet: UserWallet) {
-        mutableUiState.update {
-            it.copy(
-                showColdWalletInteractionIcon = userWallet is UserWallet.Cold,
+        mutableUiState.update { state ->
+            state.copy(
+                showColdWalletInteractionIcon = userWallet.isColdWallet,
+                shouldShowHoldToConfirmButton = holdToConfirmButtonFeatureToggles.isHoldToConfirmEnabled &&
+                    userWallet.isHotWallet,
             )
         }
     }
@@ -66,16 +69,6 @@ internal class StakingStateController @Inject constructor(
         mutableUiState.update(function = titleTransformer::transform)
     }
 
-    fun updateEvent(event: StakingEvent?) {
-        mutableUiState.update {
-            it.copy(event = event?.let { triggeredEvent(event, ::dismissAlert) } ?: consumedEvent())
-        }
-    }
-
-    fun dismissAlert() {
-        mutableUiState.update { it.copy(event = consumedEvent()) }
-    }
-
     private fun getInitialState(): StakingUiState {
         return StakingUiState(
             title = TextReference.EMPTY,
@@ -92,12 +85,12 @@ internal class StakingStateController @Inject constructor(
             rewardsValidatorsState = StakingStates.RewardsValidatorsState.Empty(),
             confirmationState = StakingStates.ConfirmationState.Empty(),
             isBalanceHidden = false,
-            event = consumedEvent(),
             bottomSheetConfig = null,
             actionType = StakingActionCommonType.Enter(skipEnterAmount = false),
             buttonsState = NavigationButtonsState.Empty,
             balanceState = null,
             showColdWalletInteractionIcon = true,
+            shouldShowHoldToConfirmButton = false,
         )
     }
 }

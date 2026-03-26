@@ -73,15 +73,6 @@ android {
         }
     }
 
-    buildTypes {
-        debug {
-            buildConfigField("String", "BUILD_TYPE", "\"debug\"")
-        }
-        release {
-            buildConfigField("String", "BUILD_TYPE", "\"release\"")
-        }
-    }
-
 }
 
 configurations.all {
@@ -152,6 +143,7 @@ dependencies {
     implementation(projects.domain.manageTokens)
     implementation(projects.domain.nft)
     implementation(projects.domain.nft.models)
+    implementation(projects.domain.offramp)
     implementation(projects.domain.onramp)
     implementation(projects.domain.promo)
     implementation(projects.domain.promo.models)
@@ -167,6 +159,7 @@ dependencies {
     implementation(projects.domain.blockaid)
     implementation(projects.domain.hotWallet)
     implementation(projects.domain.news)
+    implementation(projects.domain.earn)
 
     implementation(projects.common)
     implementation(projects.common.routing)
@@ -220,6 +213,7 @@ dependencies {
     implementation(projects.data.yieldSupply)
     implementation(projects.data.hotWallet)
     implementation(projects.data.news)
+    implementation(projects.data.earn)
 
     /** Features */
     implementation(projects.features.referral.impl)
@@ -302,6 +296,8 @@ dependencies {
     implementation(projects.features.tokenRecieve.impl)
     implementation(projects.features.yieldSupply.api)
     implementation(projects.features.yieldSupply.impl)
+    implementation(projects.features.approval.api)
+    implementation(projects.features.approval.impl)
 
     /** AndroidX libraries */
     implementation(deps.androidx.core.ktx)
@@ -378,6 +374,8 @@ dependencies {
     implementation(deps.amplitude)
     implementation(deps.appsflyer)
     implementation(deps.appsflyer.oaid)
+    implementation(deps.customerio.analytics)
+    implementation(deps.customerio.messaging)
     implementation("com.android.installreferrer:installreferrer:2.2")
     implementation(deps.spongecastle.core)
     implementation(deps.lottie)

@@ -2,7 +2,6 @@ package com.tangem.tap.routing.utils
 
 import com.tangem.common.routing.AppRoute
 import com.tangem.core.decompose.context.AppComponentContext
-import com.tangem.domain.models.PortfolioId
 import com.tangem.domain.qrscanning.models.SourceType
 import com.tangem.feature.qrscanning.QrScanningComponent
 import com.tangem.feature.referral.api.ReferralComponent
@@ -18,7 +17,6 @@ import com.tangem.features.details.component.DetailsComponent
 import com.tangem.features.disclaimer.api.components.DisclaimerComponent
 import com.tangem.features.feed.entry.components.FeedEntryComponent
 import com.tangem.features.feed.entry.components.FeedEntryRoute
-import com.tangem.features.feed.entry.featuretoggle.FeedFeatureToggle
 import com.tangem.features.home.api.HomeComponent
 import com.tangem.features.hotwallet.*
 import com.tangem.features.kyc.KycComponent
@@ -26,7 +24,6 @@ import com.tangem.features.managetokens.component.ChooseManagedTokensComponent
 import com.tangem.features.managetokens.component.ManageTokensComponent
 import com.tangem.features.managetokens.component.ManageTokensMode
 import com.tangem.features.managetokens.component.ManageTokensSource
-import com.tangem.features.markets.details.MarketsTokenDetailsComponent
 import com.tangem.features.markets.tokenlist.MarketsTokenListComponent
 import com.tangem.features.nft.component.NFTComponent
 import com.tangem.features.onboarding.v2.entry.OnboardingEntryComponent
@@ -52,7 +49,6 @@ import com.tangem.tap.features.details.ui.cardsettings.api.CardSettingsComponent
 import com.tangem.tap.features.details.ui.cardsettings.coderecovery.api.AccessCodeRecoveryComponent
 import com.tangem.tap.features.details.ui.resetcard.api.ResetCardComponent
 import com.tangem.tap.features.details.ui.securitymode.api.SecurityModeComponent
-import com.tangem.tap.features.welcome.component.WelcomeComponent
 import com.tangem.tap.routing.component.RoutingComponent.Child
 import dagger.hilt.android.scopes.ActivityScoped
 import javax.inject.Inject
@@ -68,7 +64,6 @@ internal class ChildFactory @Inject constructor(
     private val walletHardwareBackupComponentFactory: WalletHardwareBackupComponent.Factory,
     private val disclaimerComponentFactory: DisclaimerComponent.Factory,
     private val manageTokensComponentFactory: ManageTokensComponent.Factory,
-    private val marketsTokenDetailsComponentFactory: MarketsTokenDetailsComponent.Factory,
     private val marketsTokenListComponentFactory: MarketsTokenListComponent.FactoryScreen,
     private val onrampComponentFactory: OnrampComponent.Factory,
     private val onrampSuccessComponentFactory: OnrampSuccessComponent.Factory,
@@ -76,7 +71,6 @@ internal class ChildFactory @Inject constructor(
     private val sellCryptoComponentFactory: SellCryptoComponent.Factory,
     private val swapSelectTokensComponentFactory: SwapSelectTokensComponent.Factory,
     private val onboardingEntryComponentFactory: OnboardingEntryComponent.Factory,
-    private val welcomeComponentFactory: WelcomeComponent.Factory,
     private val newWelcomeComponentFactory: NewWelcomeComponent.Factory,
     private val storiesComponentFactory: StoriesComponent.Factory,
     private val stakingComponentFactory: StakingComponent.Factory,
@@ -118,9 +112,7 @@ internal class ChildFactory @Inject constructor(
     private val tangemPayOnboardingComponentFactory: TangemPayOnboardingComponent.Factory,
     private val kycComponentFactory: KycComponent.Factory,
     private val yieldSupplyEntryComponentFactory: YieldSupplyEntryComponent.Factory,
-    private val hotWalletFeatureToggles: HotWalletFeatureToggles,
     private val feedEntryComponentFactory: FeedEntryComponent.Factory,
-    private val feedFeatureToggle: FeedFeatureToggle,
 ) {
 
     @Suppress("LongMethod", "CyclomaticComplexMethod")
@@ -150,11 +142,7 @@ internal class ChildFactory @Inject constructor(
                     AppRoute.ManageTokens.Source.ACCOUNT -> ManageTokensSource.ACCOUNT
                 }
 
-                val mode = when (val portfolio = route.portfolioId) {
-                    is PortfolioId.Account -> ManageTokensMode.Account(portfolio.accountId)
-                    is PortfolioId.Wallet -> ManageTokensMode.Wallet(portfolio.userWalletId)
-                    null -> ManageTokensMode.None
-                }
+                val mode = route.accountId?.let { ManageTokensMode.Account(it) } ?: ManageTokensMode.None
 
                 createComponentChild(
                     context = context,
@@ -163,21 +151,11 @@ internal class ChildFactory @Inject constructor(
                 )
             }
             is AppRoute.Welcome -> {
-                if (hotWalletFeatureToggles.isHotWalletEnabled) {
-                    createComponentChild(
-                        context = context,
-                        params = Unit,
-                        componentFactory = newWelcomeComponentFactory,
-                    )
-                } else {
-                    createComponentChild(
-                        context = context,
-                        params = WelcomeComponent.Params(
-                            launchMode = route.launchMode,
-                        ),
-                        componentFactory = welcomeComponentFactory,
-                    )
-                }
+                createComponentChild(
+                    context = context,
+                    params = Unit,
+                    componentFactory = newWelcomeComponentFactory,
+                )
             }
             is AppRoute.WalletSettings -> {
                 createComponentChild(
@@ -206,39 +184,21 @@ internal class ChildFactory @Inject constructor(
                 )
             }
             is AppRoute.MarketsTokenDetails -> {
-                if (feedFeatureToggle.isFeedEnabled) {
-                    createComponentChild(
-                        context = context,
-                        params = FeedEntryRoute.MarketTokenDetails(
-                            token = route.token,
-                            appCurrency = route.appCurrency,
-                            shouldShowPortfolio = route.shouldShowPortfolio,
-                            analyticsParams = route.analyticsParams?.let { params ->
-                                FeedEntryRoute.MarketTokenDetails.AnalyticsParams(
-                                    blockchain = params.blockchain,
-                                    source = params.source,
-                                )
-                            },
-                        ),
-                        componentFactory = feedEntryComponentFactory,
-                    )
-                } else {
-                    createComponentChild(
-                        context = context,
-                        params = MarketsTokenDetailsComponent.Params(
-                            token = route.token,
-                            appCurrency = route.appCurrency,
-                            shouldShowPortfolio = route.shouldShowPortfolio,
-                            analyticsParams = route.analyticsParams?.let { params ->
-                                MarketsTokenDetailsComponent.AnalyticsParams(
-                                    blockchain = params.blockchain,
-                                    source = params.source,
-                                )
-                            },
-                        ),
-                        componentFactory = marketsTokenDetailsComponentFactory,
-                    )
-                }
+                createComponentChild(
+                    context = context,
+                    params = FeedEntryRoute.MarketTokenDetails(
+                        token = route.token,
+                        appCurrency = route.appCurrency,
+                        shouldShowPortfolio = route.shouldShowPortfolio,
+                        analyticsParams = route.analyticsParams?.let { params ->
+                            FeedEntryRoute.MarketTokenDetails.AnalyticsParams(
+                                blockchain = params.blockchain,
+                                source = params.source,
+                            )
+                        },
+                    ),
+                    componentFactory = feedEntryComponentFactory,
+                )
             }
             is AppRoute.Onramp -> {
                 createComponentChild(

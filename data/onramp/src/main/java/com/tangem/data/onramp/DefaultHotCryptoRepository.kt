@@ -17,11 +17,11 @@ import com.tangem.datasource.api.tangemTech.models.UserTokensResponse
 import com.tangem.datasource.api.tangemTech.models.account.toUserTokensResponse
 import com.tangem.datasource.appcurrency.AppCurrencyResponseStore
 import com.tangem.datasource.exchangeservice.hotcrypto.HotCryptoResponseStore
-import com.tangem.datasource.local.token.UserTokensResponseStore
-import com.tangem.datasource.local.userwallet.UserWalletsStore
-import com.tangem.domain.account.featuretoggle.AccountsFeatureToggles
 import com.tangem.domain.card.common.extensions.canHandleBlockchain
 import com.tangem.domain.card.common.extensions.canHandleToken
+import com.tangem.domain.common.wallets.UserWalletsListRepository
+import com.tangem.domain.common.wallets.getSyncStrict
+import com.tangem.domain.common.wallets.loadAndGet
 import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.onramp.model.HotCryptoCurrency
@@ -41,7 +41,6 @@ import timber.log.Timber
  *
  * @property excludedBlockchains      excluded blockchains
  * @property hotCryptoResponseStore   store of `HotCryptoResponse`
- * @property userWalletsStore         store of `UserWallet`
  * @property tangemTechApi            tangem tech api
  * @property appCurrencyResponseStore store of current app currency
  * @property dispatchers              dispatchers
@@ -54,11 +53,9 @@ import timber.log.Timber
 internal class DefaultHotCryptoRepository(
     private val excludedBlockchains: ExcludedBlockchains,
     private val hotCryptoResponseStore: HotCryptoResponseStore,
-    private val userWalletsStore: UserWalletsStore,
+    private val userWalletsListRepository: UserWalletsListRepository,
     private val tangemTechApi: TangemTechApi,
     private val appCurrencyResponseStore: AppCurrencyResponseStore,
-    private val accountsFeatureToggles: AccountsFeatureToggles,
-    private val userTokensResponseStore: UserTokensResponseStore,
     private val walletAccountsFetcher: WalletAccountsFetcher,
     private val dispatchers: CoroutineDispatcherProvider,
     private val analyticsEventHandler: AnalyticsEventHandler,
@@ -88,29 +85,24 @@ internal class DefaultHotCryptoRepository(
         return hotCryptoResponseStore.get()
             .map { it[userWalletId] }
             .filterNotNull()
-            .map {
-                val userWallet = userWalletsStore.getSyncOrNull(userWalletId)
-                    ?: error("UserWalletId [$userWalletId] not found")
+            .map { response ->
+                val userWallet = userWalletsListRepository.getSyncStrict(userWalletId)
 
                 HotCryptoCurrencyConverter(
                     userWallet = userWallet,
-                    imageHost = it.imageHost,
+                    imageHost = response.imageHost,
                     excludedBlockchains = excludedBlockchains,
                 )
-                    .convertList(input = it.tokens)
+                    .convertList(input = response.tokens)
                     .filterNotNull()
             }
     }
 
     private fun getWalletsWithTokensFlow(): Flow<Map<UserWallet, List<UserTokensResponse.Token>>> {
-        return userWalletsStore.userWallets.flatMapLatest { userWallets ->
+        return userWalletsListRepository.loadAndGet().flatMapLatest { userWallets ->
             val flows = userWallets.map { userWallet ->
-                if (accountsFeatureToggles.isFeatureEnabled) {
-                    walletAccountsFetcher.get(userWalletId = userWallet.walletId).map { it.toUserTokensResponse() }
-                } else {
-                    userTokensResponseStore.get(userWalletId = userWallet.walletId)
-                }
-                    .map { userWallet to it?.tokens.orEmpty() }
+                walletAccountsFetcher.get(userWalletId = userWallet.walletId).map { it.toUserTokensResponse() }
+                    .map { userWallet to it.tokens }
             }
 
             combine(flows) { it.toMap() }
@@ -131,12 +123,13 @@ internal class DefaultHotCryptoRepository(
             tangemTechApi.getHotCrypto(currencyId = appCurrencyId).getOrThrow()
         }
             .onSuccess { Timber.d("HotCrypto is successfully updated") }
-            .onFailure {
-                Timber.e(it, "Unable to fetch hot crypto")
+            .onFailure { throwable ->
+                Timber.e(throwable, "Unable to fetch hot crypto")
 
+                val httpException = throwable as? ApiResponseError.HttpException
                 analyticsEventHandler.send(
                     event = MainScreenAnalyticsEvent.HotTokenError(
-                        errorCode = (it as? ApiResponseError.HttpException)?.code?.numericCode?.toString().orEmpty(),
+                        errorCode = httpException?.code?.numericCode?.toString().orEmpty(),
                     ),
                 )
             }
@@ -164,11 +157,11 @@ internal class DefaultHotCryptoRepository(
     }
 
     private fun List<HotCryptoResponse.Token>.applyTokensIdMigrations(): List<HotCryptoResponse.Token> {
-        return this.map {
-            if (it.id == OLD_POLYGON_NAME) {
-                it.copy(id = NEW_POLYGON_NAME)
+        return this.map { token ->
+            if (token.id == OLD_POLYGON_NAME) {
+                token.copy(id = NEW_POLYGON_NAME)
             } else {
-                it
+                token
             }
         }
     }

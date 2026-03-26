@@ -1,12 +1,12 @@
 package com.tangem.features.feed.model.news.list.statemanager
 
-import com.tangem.common.ui.news.ArticleConfigUM
 import com.tangem.domain.models.news.ShortArticle
 import com.tangem.domain.news.model.NewsListBatchingContext
 import com.tangem.domain.news.model.NewsListConfig
 import com.tangem.domain.news.usecase.GetNewsListBatchFlowUseCase
 import com.tangem.features.feed.model.converter.ShortArticleToArticleConfigUMConverter
 import com.tangem.features.feed.model.converter.distinctBatchesContent
+import com.tangem.features.feed.ui.feed.components.articles.ArticleConfigUM
 import com.tangem.pagination.Batch
 import com.tangem.pagination.BatchAction
 import com.tangem.pagination.PaginationStatus
@@ -15,6 +15,7 @@ import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -29,7 +30,7 @@ internal open class NewsListBatchFlowManager(
 ) {
     private val actionsFlow = MutableSharedFlow<BatchAction<Int, NewsListConfig, Nothing>>()
     private val converter by lazy {
-        ShortArticleToArticleConfigUMConverter(isTrending = Provider { false })
+        ShortArticleToArticleConfigUMConverter(null)
     }
 
     private val batchFlow = getNewsListBatchFlowUseCase(
@@ -55,13 +56,22 @@ internal open class NewsListBatchFlowManager(
             initialValue = persistentListOf(),
         )
 
-    val uiItems: StateFlow<ImmutableList<ArticleConfigUM>>
-        get() = batchFlow.state
-            .map { batchListState ->
-                batchListState.data
-                    .flatMap { batch -> batch.data }
-                    .let { articles -> converter.convert(articles) }
+    val uiItems: StateFlow<ImmutableList<ArticleConfigUM>> =
+        batchFlow.state
+            .scan(persistentListOf<ArticleConfigUM>() to -1) { (accItems, lastProcessedBatchIndex), newState ->
+                if (newState.data.size <= lastProcessedBatchIndex) {
+                    val newItems = converter.convert(newState.data.flatMap { it.data })
+                        .toPersistentList()
+
+                    newItems to newState.data.lastIndex
+                } else {
+                    val newBatches = newState.data.subList(lastProcessedBatchIndex + 1, newState.data.size)
+                    val newShortArticles = newBatches.flatMap { it.data }
+                    val newItems = converter.convert(newShortArticles)
+                    accItems.addAll(newItems) to newState.data.lastIndex
+                }
             }
+            .map { (items, _) -> items }
             .distinctUntilChanged()
             .stateIn(
                 scope = modelScope,

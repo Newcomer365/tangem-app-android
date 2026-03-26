@@ -18,17 +18,22 @@ import com.tangem.common.ui.markets.models.MarketsListItemUM
 import com.tangem.core.analytics.api.AnalyticsErrorHandler
 import com.tangem.core.analytics.api.AnalyticsEventHandler
 import com.tangem.core.analytics.models.AnalyticsParam
+import com.tangem.core.analytics.models.AnalyticsParam.ScreensSources
 import com.tangem.core.analytics.models.Basic
+import com.tangem.core.analytics.models.event.SwapAnalyticsEvent
 import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
+import com.tangem.core.decompose.ui.UiMessageSender
 import com.tangem.core.navigation.url.UrlOpener
 import com.tangem.core.ui.HoldToConfirmButtonFeatureToggles
-import com.tangem.core.ui.extensions.TextReference
-import com.tangem.core.ui.extensions.resourceReference
+import com.tangem.core.ui.R
+import com.tangem.core.ui.extensions.*
+import com.tangem.core.ui.message.DialogMessage
+import com.tangem.core.ui.message.EventMessageAction
 import com.tangem.core.ui.utils.InputNumberFormatter
+import com.tangem.core.ui.utils.parseBigDecimal
 import com.tangem.datasource.local.appsflyer.AppsFlyerStore
-import com.tangem.domain.account.featuretoggle.AccountsFeatureToggles
 import com.tangem.domain.account.status.model.AccountCryptoCurrencyStatus
 import com.tangem.domain.account.status.usecase.GetAccountCurrencyStatusUseCase
 import com.tangem.domain.account.usecase.IsAccountsModeEnabledUseCase
@@ -43,7 +48,9 @@ import com.tangem.domain.feedback.SendFeedbackEmailUseCase
 import com.tangem.domain.feedback.models.BlockchainErrorInfo
 import com.tangem.domain.feedback.models.FeedbackEmailType
 import com.tangem.domain.markets.GetMarketsTokenListFlowUseCase
-import com.tangem.domain.markets.GetTokenMarketInfoUseCase
+import com.tangem.domain.markets.TokenMarketInfo
+import com.tangem.domain.markets.TokenMarketListConfig
+import com.tangem.domain.markets.toSerializableParam
 import com.tangem.domain.models.account.Account
 import com.tangem.domain.models.currency.CryptoCurrency
 import com.tangem.domain.models.currency.CryptoCurrencyStatus
@@ -73,7 +80,7 @@ import com.tangem.domain.wallets.usecase.GetWalletsUseCase
 import com.tangem.feature.swap.analytics.StoriesEvents
 import com.tangem.feature.swap.analytics.SwapEvents
 import com.tangem.feature.swap.component.SwapFeeSelectorBlockComponent
-import com.tangem.feature.swap.converters.TokenMarketInfoToParamsConverter
+import com.tangem.feature.swap.converters.SwapTransactionErrorStateConverter
 import com.tangem.feature.swap.domain.SwapInteractor
 import com.tangem.feature.swap.domain.TransactionFeeResult
 import com.tangem.feature.swap.domain.TxFeeSealedState
@@ -83,19 +90,20 @@ import com.tangem.feature.swap.domain.models.SwapAmount
 import com.tangem.feature.swap.domain.models.domain.*
 import com.tangem.feature.swap.domain.models.ui.*
 import com.tangem.feature.swap.models.AddToPortfolioRoute
+import com.tangem.feature.swap.models.SwapAlertUM
 import com.tangem.feature.swap.models.SwapStateHolder
 import com.tangem.feature.swap.models.UiActions
 import com.tangem.feature.swap.models.market.SwapMarketsListBatchFlowManager
 import com.tangem.feature.swap.models.market.state.SwapMarketState
 import com.tangem.feature.swap.models.states.SwapNotificationUM
-import com.tangem.feature.swap.presentation.R
 import com.tangem.feature.swap.router.SwapNavScreen
 import com.tangem.feature.swap.router.SwapRouter
 import com.tangem.feature.swap.ui.StateBuilder
 import com.tangem.feature.swap.utils.formatToUIRepresentation
+import com.tangem.features.approval.api.GiveApprovalComponent
+import com.tangem.features.approval.api.GiveApprovalFeatureToggles
 import com.tangem.features.feed.components.market.details.portfolio.add.AddToPortfolioComponent
 import com.tangem.features.feed.components.market.details.portfolio.add.AddToPortfolioManager
-import com.tangem.features.send.v2.api.SendFeatureToggles
 import com.tangem.features.send.v2.api.entity.FeeSelectorUM
 import com.tangem.features.send.v2.api.subcomponents.feeSelector.FeeSelectorReloadTrigger
 import com.tangem.features.swap.SwapComponent
@@ -105,11 +113,8 @@ import com.tangem.utils.Provider
 import com.tangem.utils.TangemBlogUrlBuilder.RESOURCE_TO_LEARN_ABOUT_APPROVING_IN_SWAP
 import com.tangem.utils.coroutines.*
 import com.tangem.utils.isNullOrZero
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -120,6 +125,7 @@ import javax.inject.Inject
 
 typealias SuccessLoadedSwapData = Map<SwapProvider, SwapState.QuotesLoadedState>
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @Suppress("LongParameterList", "LargeClass")
 @Stable
 @ModelScoped
@@ -147,21 +153,20 @@ internal class SwapModel @Inject constructor(
     router: AppRouter,
     private val isAccountsModeEnabledUseCase: IsAccountsModeEnabledUseCase,
     private val getAccountCurrencyStatusUseCase: GetAccountCurrencyStatusUseCase,
-    private val accountsFeatureToggles: AccountsFeatureToggles,
     private val getTangemPayCurrencyStatusUseCase: GetTangemPayCurrencyStatusUseCase,
     private val tangemPayWithdrawUseCase: TangemPayWithdrawUseCase,
     private val iGaslessFeeSupportedForNetwork: IsGaslessFeeSupportedForNetwork,
     private val feeSelectorReloadTrigger: FeeSelectorReloadTrigger,
-    private val sendFeatureToggles: SendFeatureToggles,
     private val getMarketsTokenListFlowUseCase: GetMarketsTokenListFlowUseCase,
-    swapFeatureToggles: SwapFeatureToggles,
+    private val swapFeatureToggles: SwapFeatureToggles,
     private val addToPortfolioManagerFactory: AddToPortfolioManager.Factory,
-    private val getTokenMarketInfoUseCase: GetTokenMarketInfoUseCase,
     private val excludedBlockchains: ExcludedBlockchains,
     private val getUserWalletsUseCase: GetWalletsUseCase,
     private val getTangemPayCustomerIdUseCase: GetTangemPayCustomerIdUseCase,
     private val appsFlyerStore: AppsFlyerStore,
     private val holdToConfirmButtonFeatureToggles: HoldToConfirmButtonFeatureToggles,
+    private val messageSender: UiMessageSender,
+    giveApprovalFeatureToggles: GiveApprovalFeatureToggles,
 ) : Model() {
 
     private val params = paramsContainer.require<SwapComponent.Params>()
@@ -225,7 +230,7 @@ internal class SwapModel @Inject constructor(
     val feeSelectorRepository = FeeSelectorRepository()
 
     // shows currency order (direct - swap initial to selected, reversed = selected to initial)
-    var isOrderReversed by mutableStateOf(false)
+    private var isOrderReversed by mutableStateOf(false)
     private val lastAmount = mutableStateOf(INITIAL_AMOUNT)
     private val lastReducedBalanceBy = mutableStateOf(BigDecimal.ZERO)
     private val swapRouter: SwapRouter = SwapRouter(router = router)
@@ -235,12 +240,12 @@ internal class SwapModel @Inject constructor(
     private var toAccountCurrencyStatus: AccountCryptoCurrencyStatus? = null
 
     /**
-     * If accountsFeatureToggles is off OR user came from Tangem Pay -> fromAccountCurrencyStatus == null
-     * If accountsFeatureToggles is on AND user didn't come from Tangem Pay -> fromAccountCurrencyStatus != null
+     * If user came from Tangem Pay -> fromAccountCurrencyStatus == null
+     * If user didn't come from Tangem Pay -> fromAccountCurrencyStatus != null
      *
      * Remove when accounts are integrated into Tangem Pay
      */
-    private val canUseFromAccountCurrencyStatus = accountsFeatureToggles.isFeatureEnabled && tangemPayInput == null
+    private val canUseFromAccountCurrencyStatus = tangemPayInput == null
 
     private val isUserResolvableError: (SwapState) -> Boolean = { swapState ->
         swapState is SwapState.SwapError &&
@@ -259,10 +264,26 @@ internal class SwapModel @Inject constructor(
 
     private val searchQueryState = MutableStateFlow("")
     private val visibleMarketItemIds = MutableStateFlow<List<CryptoCurrency.RawID>>(emptyList())
+    private val visibleDefaultMarketItemIds = MutableStateFlow<List<CryptoCurrency.RawID>>(emptyList())
+    private var latestMarketsState: SwapMarketState? = null
+
+    private val defaultMarketsListManager by lazy {
+        SwapMarketsListBatchFlowManager(
+            getMarketsTokenListFlowUseCase = getMarketsTokenListFlowUseCase,
+            batchFlowType = GetMarketsTokenListFlowUseCase.BatchFlowType.Main,
+            order = TokenMarketListConfig.Order.Trending,
+            currentAppCurrency = Provider { selectedAppCurrencyFlow.value },
+            currentSearchText = Provider { null },
+            modelScope = modelScope,
+            dispatchers = dispatchers,
+        )
+    }
+
     private val searchMarketsListManager by lazy {
         SwapMarketsListBatchFlowManager(
             getMarketsTokenListFlowUseCase = getMarketsTokenListFlowUseCase,
             batchFlowType = GetMarketsTokenListFlowUseCase.BatchFlowType.Search,
+            order = TokenMarketListConfig.Order.ByRating,
             currentAppCurrency = Provider { selectedAppCurrencyFlow.value },
             currentSearchText = Provider { searchQueryState.value },
             modelScope = modelScope,
@@ -274,19 +295,50 @@ internal class SwapModel @Inject constructor(
         get() = swapRouter.currentScreen
 
     val bottomSheetNavigation: SlotNavigation<AddToPortfolioRoute> = SlotNavigation()
+    val approvalSlotNavigation = SlotNavigation<Unit>()
+    private val shouldUseGaslessApproval: Boolean = giveApprovalFeatureToggles.isGaslessApprovalEnabled
+
+    val approvalCallback = object : GiveApprovalComponent.Callback {
+        override fun onApproveClick() {
+            sendPermissionApproveClickedEvent()
+        }
+
+        override fun onApproveDone() {
+            approvalSlotNavigation.dismiss()
+            updateWalletBalance()
+            uiState = stateBuilder.loadingPermissionState(uiState)
+            startLoadingQuotesFromLastState(isSilent = true)
+        }
+
+        override fun onApproveFailed() {
+            approvalSlotNavigation.dismiss()
+            showAlert()
+        }
+
+        override fun onCancelClick() {
+            approvalSlotNavigation.dismiss()
+            startLoadingQuotesFromLastState(isSilent = true)
+            analyticsEventHandler.send(SwapEvents.ButtonPermissionCancelClicked())
+        }
+    }
+
     val addToPortfolioCallback = object : AddToPortfolioComponent.Callback {
         override fun onDismiss() = bottomSheetNavigation.dismiss()
 
         override fun onSuccess(addedToken: CryptoCurrency) {
             modelScope.launch {
                 bottomSheetNavigation.dismiss()
-                uiState.selectTokenState?.let { currentSelectState ->
-                    uiState = uiState.copy(
-                        selectTokenState = currentSelectState.copy(
-                            marketsState = null,
-                        ),
-                    )
-                }
+                analyticsEventHandler.send(
+                    SwapEvents.ChooseTokenScreenResult(isTokenChosen = true, token = addedToken.symbol),
+                )
+                analyticsEventHandler.send(
+                    SwapAnalyticsEvent.TokenSelected(
+                        token = addedToken.symbol,
+                        source = ScreensSources.Markets,
+                        isSearched = searchQueryState.value.isNotEmpty(),
+                    ),
+                )
+                searchQueryState.value = ""
                 getAccountCurrencyStatusUseCase.invoke(userWalletId, addedToken)
                     .firstOrNull {
                         it.status.value is CryptoCurrencyStatus.Loaded
@@ -322,7 +374,8 @@ internal class SwapModel @Inject constructor(
                 }
 
                 if (fromAccountStatus == null) {
-                    uiState = stateBuilder.addAlert(uiState = uiState, onDismiss = swapRouter::back)
+                    showAlert()
+                    swapRouter.back()
                 } else {
                     fromAccountCurrencyStatus = fromAccountStatus
                     toAccountCurrencyStatus = toAccountStatus
@@ -340,7 +393,8 @@ internal class SwapModel @Inject constructor(
                 }
 
                 if (fromStatus == null) {
-                    uiState = stateBuilder.addAlert(uiState = uiState, onDismiss = swapRouter::back)
+                    showAlert()
+                    swapRouter.back()
                 } else {
                     initialFromStatus = fromStatus
                     initialToStatus = toStatus
@@ -363,50 +417,7 @@ internal class SwapModel @Inject constructor(
             }
             .launchIn(modelScope)
 
-        if (swapFeatureToggles.isMarketListFeatureEnabled) {
-            combine(
-                flow = searchQueryState
-                    .onEach { searchQuery ->
-                        searchMarketsListManager.reload(searchQuery)
-                    },
-                flow2 = searchMarketsListManager.uiItems,
-                flow3 = searchMarketsListManager.isInInitialLoadingErrorState,
-                flow4 = searchMarketsListManager.isSearchNotFoundState,
-                flow5 = searchMarketsListManager.totalCount.filterNotNull(),
-            ) { searchQuery, uiItems, isError, isSearchNotFound, total ->
-                when {
-                    searchQuery.isEmpty() -> {
-                        visibleMarketItemIds.value = emptyList()
-                        null
-                    }
-                    isError -> SwapMarketState.LoadingError(
-                        onRetryClicked = { searchMarketsListManager.reload(searchQuery) },
-                    )
-                    isSearchNotFound -> SwapMarketState.SearchNothingFound
-                    uiItems.isEmpty() -> SwapMarketState.Loading
-                    else -> SwapMarketState.Content(
-                        items = uiItems,
-                        loadMore = { searchMarketsListManager.loadMore() },
-                        onItemClick = { item ->
-                            addToPortfolioItem(item)
-                        },
-                        visibleIdsChanged = { visibleMarketItemIds.value = it },
-                        total = total,
-                    )
-                }
-            }
-                .distinctUntilChanged()
-                .onEach { marketsState ->
-                    uiState.selectTokenState?.let { currentSelectState ->
-                        uiState = uiState.copy(
-                            selectTokenState = currentSelectState.copy(
-                                marketsState = marketsState,
-                            ),
-                        )
-                    }
-                }
-                .launchIn(modelScope)
-        }
+        subscribeMarketTokens()
 
         modelScope.launch {
             visibleMarketItemIds.mapNotNull { rawIDS ->
@@ -417,6 +428,18 @@ internal class SwapModel @Inject constructor(
                 }
             }.distinctUntilChanged().collectLatest { visibleBatchKeys ->
                 searchMarketsListManager.loadCharts(visibleBatchKeys)
+            }
+        }
+
+        modelScope.launch {
+            visibleDefaultMarketItemIds.mapNotNull { rawIds ->
+                if (rawIds.isNotEmpty()) {
+                    defaultMarketsListManager.getBatchKeysByItemIds(rawIds)
+                } else {
+                    null
+                }
+            }.distinctUntilChanged().collectLatest { visibleBatchKeys ->
+                defaultMarketsListManager.loadCharts(visibleBatchKeys)
             }
         }
     }
@@ -444,6 +467,41 @@ internal class SwapModel @Inject constructor(
         analyticsEventHandler.send(SwapEvents.ChooseTokenScreenOpened(hasAvailableTokens = isAnyAvailableTokens))
     }
 
+    private fun subscribeMarketTokens() {
+        if (swapFeatureToggles.isMarketListFeatureEnabled) {
+            // Switch between default and search market flows
+            searchQueryState
+                .map { it.isEmpty() }
+                .distinctUntilChanged()
+                .flatMapLatest { isDefaultMode ->
+                    if (isDefaultMode) {
+                        visibleMarketItemIds.value = emptyList()
+                        createDefaultMarketsFlow()
+                    } else {
+                        visibleDefaultMarketItemIds.value = emptyList()
+                        createSearchMarketsFlow()
+                    }
+                }
+                .onEach { marketsState ->
+                    latestMarketsState = marketsState
+                    applyMarketsState(marketsState)
+                }
+                .launchIn(modelScope)
+
+            // Reload search markets when query changes
+            searchQueryState
+                .onEach { searchQuery ->
+                    if (searchQuery.isNotEmpty()) {
+                        searchMarketsListManager.reload(searchQuery)
+                    }
+                }
+                .launchIn(modelScope)
+
+            // Initial load of default markets
+            defaultMarketsListManager.reload()
+        }
+    }
+
     @Suppress("LongMethod")
     private fun initTokens(isReverseFromTo: Boolean) {
         modelScope.launch(dispatchers.main) {
@@ -452,25 +510,25 @@ internal class SwapModel @Inject constructor(
             }.onSuccess { state ->
                 updateTokensState(state)
 
-                val (selectedCurrency, selectedAccount) = if (accountsFeatureToggles.isFeatureEnabled) {
-                    val selectedAccountCurrency = toAccountCurrencyStatus ?: swapInteractor.getInitialCurrencyToSwapV2(
-                        initialCryptoCurrency = initialCurrencyFrom,
-                        state = state,
-                        isReverseFromTo = isReverseFromTo,
-                    )?.let { accountSwapCurrency ->
-                        AccountCryptoCurrencyStatus(
-                            account = accountSwapCurrency.account,
-                            status = accountSwapCurrency.cryptoCurrencyStatus,
+                val (selectedCurrency, selectedAccount) = run {
+                    var selectedAccountCurrency = toAccountCurrencyStatus
+
+                    if (selectedAccountCurrency == null) {
+                        val amountSwapCurrency = swapInteractor.getInitialCurrencyToSwap(
+                            initialCryptoCurrency = initialCurrencyFrom,
+                            state = state,
+                            isReverseFromTo = isReverseFromTo,
                         )
+
+                        if (amountSwapCurrency != null) {
+                            selectedAccountCurrency = AccountCryptoCurrencyStatus(
+                                account = amountSwapCurrency.account,
+                                status = amountSwapCurrency.cryptoCurrencyStatus,
+                            )
+                        }
                     }
+
                     selectedAccountCurrency?.status to selectedAccountCurrency?.account
-                } else {
-                    val selectedCurrency = initialToStatus ?: swapInteractor.getInitialCurrencyToSwap(
-                        initialCryptoCurrency = initialCurrencyFrom,
-                        state = state,
-                        isReverseFromTo = isReverseFromTo,
-                    )
-                    selectedCurrency to null
                 }
 
                 applyInitialTokenChoice(
@@ -486,13 +544,10 @@ internal class SwapModel @Inject constructor(
                     dataState.fromCryptoCurrency
                 }
 
-                fromCryptoCurrency?.let { cryptoCurrency ->
-                    dataState = dataState.copy(
-                        feePaidCryptoCurrency = getFeePaidCryptoCurrencyStatusSyncUseCase(
-                            userWalletId = userWalletId,
-                            cryptoCurrencyStatus = cryptoCurrency,
-                        ).getOrNull(),
-                    )
+                if (fromCryptoCurrency != null) {
+                    updateFeePaidCryptoCurrencyFor(fromCryptoCurrency)
+                } else {
+                    Timber.e("updateFeePaidCryptoCurrencyFor failed: fromCryptoCurrency is null")
                 }
 
                 subscribeToCoinBalanceUpdatesIfNeeded()
@@ -614,6 +669,18 @@ internal class SwapModel @Inject constructor(
             toAccount = toAccount,
             tokensDataState = state,
         )
+
+        if (handleSwapNotSupported(
+                state = state,
+                fromToken = fromCurrencyStatus,
+                toToken = toCurrencyStatus,
+                fromAccount = fromAccount,
+                toAccount = toAccount,
+            )
+        ) {
+            return
+        }
+
         startLoadingQuotes(
             fromToken = fromCurrencyStatus,
             fromAccount = fromAccount,
@@ -628,17 +695,20 @@ internal class SwapModel @Inject constructor(
     private fun updateTokensState(tokenDataState: TokensDataStateExpress) {
         val tokensDataState = if (isOrderReversed) tokenDataState.fromGroup else tokenDataState.toGroup
 
-        uiState = if (accountsFeatureToggles.isFeatureEnabled) {
-            stateBuilder.addTokensToStateV2(
-                uiState = uiState,
-                tokensDataState = tokensDataState,
-                isAccountsMode = isAccountsMode,
-            )
-        } else {
-            stateBuilder.addTokensToState(
-                uiState = uiState,
-                tokensDataState = tokensDataState,
-                fromToken = dataState.fromCryptoCurrency?.currency ?: initialCurrencyFrom,
+        uiState = stateBuilder.addTokensToStateV2(
+            uiState = uiState,
+            tokensDataState = tokensDataState,
+            isAccountsMode = isAccountsMode,
+        )
+        latestMarketsState?.let(::applyMarketsState)
+    }
+
+    private fun applyMarketsState(marketsState: SwapMarketState) {
+        uiState.selectTokenState?.let { currentSelectState ->
+            uiState = uiState.copy(
+                selectTokenState = currentSelectState.copy(
+                    marketsState = marketsState,
+                ),
             )
         }
     }
@@ -698,6 +768,22 @@ internal class SwapModel @Inject constructor(
                 updateFeeBlock = updateFeeBlock,
             )
         }
+    }
+
+    private suspend fun updateFeePaidCryptoCurrencyFor(fromToken: CryptoCurrencyStatus) {
+        dataState = dataState.copy(
+            feePaidCryptoCurrency = getFeePaidCryptoCurrencyStatusSyncUseCase(
+                userWalletId = userWalletId,
+                cryptoCurrencyStatus = fromToken,
+            )
+                .onLeft { Timber.e("Unable to get fee paid crypto currency status for ${fromToken.currency.id}") }
+                .onRight { currencyStatus ->
+                    if (currencyStatus == null) {
+                        Timber.e("Fee paid crypto currency status is null for ${fromToken.currency.id}")
+                    }
+                }
+                .getOrNull(),
+        )
     }
 
     private fun loadQuotesTask(
@@ -971,7 +1057,8 @@ internal class SwapModel @Inject constructor(
         val fee = getSelectedFee()
 
         if (fee == null && tangemPayInput?.isWithdrawal != true) {
-            makeDefaultAlert(resourceReference(R.string.swapping_fee_estimation_error_text))
+            Timber.e("onSwapClick: fee is null and isWithdrawal is ${tangemPayInput?.isWithdrawal}")
+            showAlert(resourceReference(R.string.swapping_fee_estimation_error_text))
             modelScope.launch {
                 delay(SWAP_IN_PROGRESS_DELAY)
                 startLoadingQuotesFromLastState()
@@ -997,7 +1084,8 @@ internal class SwapModel @Inject constructor(
                 when (swapTransactionState) {
                     is SwapTransactionState.TxSent -> {
                         if (fee == null) {
-                            makeDefaultAlert(resourceReference(R.string.swapping_fee_estimation_error_text))
+                            Timber.e("onSwapClick: onSuccess: fee is null after swap")
+                            showAlert(resourceReference(R.string.swapping_fee_estimation_error_text))
                             return@onSuccess
                         }
                         sendSuccessSwapEvent(
@@ -1041,21 +1129,11 @@ internal class SwapModel @Inject constructor(
                         swapRouter.openScreen(SwapNavScreen.Success)
                     }
                     SwapTransactionState.DemoMode -> {
-                        uiState = stateBuilder.createDemoModeAlert(
-                            uiState = uiState,
-                            onDismiss = { uiState = stateBuilder.clearAlert(uiState) },
-                            isReverseSwapPossible = isReverseSwapPossible(),
-                        )
+                        showDemoModeAlert()
                     }
                     is SwapTransactionState.Error -> {
                         startLoadingQuotesFromLastState()
-                        uiState = stateBuilder.createErrorTransactionAlert(
-                            uiState = uiState,
-                            error = swapTransactionState,
-                            onDismiss = { uiState = stateBuilder.clearAlert(uiState) },
-                            onSupportClick = ::onFailedTxEmailClick,
-                            isReverseSwapPossible = isReverseSwapPossible(),
-                        )
+                        showTransactionErrorAlert(swapTransactionState)
                     }
                     is SwapTransactionState.TangemPayWithdrawalData -> {
                         processTangemPayWithdrawal(swapTransactionState = swapTransactionState)
@@ -1064,7 +1142,7 @@ internal class SwapModel @Inject constructor(
             }.onFailure { error ->
                 Timber.e(error)
                 startLoadingQuotesFromLastState()
-                makeDefaultAlert()
+                showAlert()
             }
         }
     }
@@ -1075,6 +1153,7 @@ internal class SwapModel @Inject constructor(
             cryptoAmount = swapTransactionState.cryptoAmount,
             cryptoCurrencyId = swapTransactionState.cryptoCurrencyId,
             receiverCexAddress = swapTransactionState.cexAddress,
+            exchangeData = swapTransactionState.exchangeData,
         )
             .onLeft {
                 startLoadingQuotesFromLastState()
@@ -1155,7 +1234,7 @@ internal class SwapModel @Inject constructor(
                     }
                 val feeForPermission = when (val fee = approveDataModel.fee) {
                     TxFeeState.Empty -> {
-                        makeDefaultAlert(resourceReference(R.string.swapping_fee_estimation_error_text))
+                        showAlert(resourceReference(R.string.swapping_fee_estimation_error_text))
                         Timber.e("Fee should not be Empty")
                         return@launch
                     }
@@ -1171,7 +1250,7 @@ internal class SwapModel @Inject constructor(
                             fromTokenStatus = fromCryptoCurrency,
                             approveType = approveType,
                             txFee = feeForPermission,
-                            spenderAddress = approveDataModel.spenderAddress,
+                            spenderAddress = requireNotNull(dataState.approveDataModel).spenderAddress,
                         ),
                     )
                 }.onSuccess { swapTransactionState ->
@@ -1185,29 +1264,19 @@ internal class SwapModel @Inject constructor(
                             startLoadingQuotesFromLastState(isSilent = true)
                         }
                         is SwapTransactionState.Error -> {
-                            uiState = stateBuilder.createErrorTransactionAlert(
-                                uiState = uiState,
-                                error = swapTransactionState,
-                                onDismiss = { uiState = stateBuilder.clearAlert(uiState) },
-                                onSupportClick = ::onFailedTxEmailClick,
-                                isReverseSwapPossible = isReverseSwapPossible(),
-                            )
+                            showTransactionErrorAlert(swapTransactionState)
                         }
                         SwapTransactionState.DemoMode -> {
-                            uiState = stateBuilder.createDemoModeAlert(
-                                uiState = uiState,
-                                onDismiss = { uiState = stateBuilder.clearAlert(uiState) },
-                                isReverseSwapPossible = isReverseSwapPossible(),
-                            )
+                            showDemoModeAlert()
                         }
                         is SwapTransactionState.TangemPayWithdrawalData -> {
                             processTangemPayWithdrawal(swapTransactionState = swapTransactionState)
                         }
                     }
-                }.onFailure { makeDefaultAlert() }
+                }.onFailure { showAlert() }
             }.onFailure { error ->
                 Timber.e(error.message.orEmpty())
-                makeDefaultAlert()
+                showAlert()
             }
         }
     }
@@ -1276,7 +1345,17 @@ internal class SwapModel @Inject constructor(
         val (foundToken, foundAccount) = getSelectedTokenAndAccount(tokens, id)
 
         foundToken?.currency?.symbol?.let { symbol ->
-            analyticsEventHandler.send(SwapEvents.ChooseTokenScreenResult(isTokenChosen = true, token = symbol))
+            analyticsEventHandler.send(
+                SwapEvents.ChooseTokenScreenResult(isTokenChosen = true, token = symbol),
+            )
+
+            analyticsEventHandler.send(
+                SwapAnalyticsEvent.TokenSelected(
+                    token = symbol,
+                    source = ScreensSources.Portfolio,
+                    isSearched = searchQueryState.value.isNotEmpty(),
+                ),
+            )
         }
 
         if (foundToken != null) {
@@ -1288,11 +1367,7 @@ internal class SwapModel @Inject constructor(
                 fromToken = foundToken
                 fromAccount = foundAccount
                 toToken = initialFromStatus
-                toAccount = if (accountsFeatureToggles.isFeatureEnabled) {
-                    fromAccountCurrencyStatus?.account
-                } else {
-                    null
-                }
+                toAccount = fromAccountCurrencyStatus?.account
 
                 val newToken = fromToken.currency as? CryptoCurrency.Coin
                 if (newToken != null) {
@@ -1306,11 +1381,7 @@ internal class SwapModel @Inject constructor(
                 }
             } else {
                 fromToken = initialFromStatus
-                fromAccount = if (accountsFeatureToggles.isFeatureEnabled) {
-                    fromAccountCurrencyStatus?.account
-                } else {
-                    null
-                }
+                fromAccount = fromAccountCurrencyStatus?.account
                 toToken = foundToken
                 toAccount = foundAccount
 
@@ -1337,16 +1408,29 @@ internal class SwapModel @Inject constructor(
                 toAccount = toAccount,
                 selectedProvider = null,
             )
-            startLoadingQuotes(
-                fromToken = fromToken,
-                fromAccount = fromAccount,
-                toToken = toToken,
-                toAccount = toAccount,
-                amount = lastAmount.value,
-                reduceBalanceBy = lastReducedBalanceBy.value,
-                toProvidersList = findSwapProviders(fromToken, toToken),
-            )
             swapRouter.openScreen(SwapNavScreen.Main)
+            if (handleSwapNotSupported(
+                    state = tokens,
+                    fromToken = fromToken,
+                    toToken = toToken,
+                    fromAccount = fromAccount,
+                    toAccount = toAccount,
+                )
+            ) {
+                return
+            }
+            modelScope.launch {
+                updateFeePaidCryptoCurrencyFor(fromToken)
+                startLoadingQuotes(
+                    fromToken = fromToken,
+                    fromAccount = fromAccount,
+                    toToken = toToken,
+                    toAccount = toAccount,
+                    amount = lastAmount.value,
+                    reduceBalanceBy = lastReducedBalanceBy.value,
+                    toProvidersList = findSwapProviders(fromToken, toToken),
+                )
+            }
             updateTokensState(tokens)
         }
     }
@@ -1355,26 +1439,16 @@ internal class SwapModel @Inject constructor(
         tokens: TokensDataStateExpress,
         id: String,
     ): Pair<CryptoCurrencyStatus?, Account.CryptoPortfolio?> {
-        return if (accountsFeatureToggles.isFeatureEnabled) {
-            val accountCryptoCurrencyStatus = if (isOrderReversed) {
-                tokens.fromGroup
-            } else {
-                tokens.toGroup
-            }.accountCurrencyList.firstNotNullOfOrNull { accountSwapAvailability ->
-                accountSwapAvailability.currencyList.firstOrNull { accountSwapCurrency ->
-                    accountSwapCurrency.cryptoCurrencyStatus.currency.id.value == id
-                }
-            }
-            accountCryptoCurrencyStatus?.cryptoCurrencyStatus to accountCryptoCurrencyStatus?.account
+        val accountCryptoCurrencyStatus = if (isOrderReversed) {
+            tokens.fromGroup
         } else {
-            if (isOrderReversed) {
-                tokens.fromGroup
-            } else {
-                tokens.toGroup
-            }.available.firstOrNull { swapAvailability ->
-                swapAvailability.currencyStatus.currency.id.value == id
-            }?.currencyStatus to null
+            tokens.toGroup
+        }.accountCurrencyList.firstNotNullOfOrNull { accountSwapAvailability ->
+            accountSwapAvailability.currencyList.firstOrNull { accountSwapCurrency ->
+                accountSwapCurrency.cryptoCurrencyStatus.currency.id.value == id
+            }
         }
+        return accountCryptoCurrencyStatus?.cryptoCurrencyStatus to accountCryptoCurrencyStatus?.account
     }
 
     @Suppress("LongMethod", "CyclomaticComplexMethod")
@@ -1385,79 +1459,44 @@ internal class SwapModel @Inject constructor(
     ) {
         Timber.d("Subscribe to ${coin.id} balance updates")
 
-        if (accountsFeatureToggles.isFeatureEnabled) {
-            getAccountCurrencyStatusUseCase(
-                userWalletId = userWalletId,
-                currency = coin,
-            ).distinctUntilChanged { old, new -> old.status.value.amount == new.status.value.amount } // Check only balance changes
-                .onEach { (account, currencyStatus) ->
-                    Timber.d("${coin.id} balance is ${currencyStatus.value.amount ?: "null"}")
+        getAccountCurrencyStatusUseCase(
+            userWalletId = userWalletId,
+            currency = coin,
+        ).distinctUntilChanged { old, new -> old.status.value.amount == new.status.value.amount } // Check only balance changes
+            .onEach { (account, currencyStatus) ->
+                Timber.d("${coin.id} balance is ${currencyStatus.value.amount ?: "null"}")
 
-                    if (isFromCurrency) {
-                        dataState = dataState.copy(
-                            feePaidCryptoCurrency = getFeePaidCryptoCurrencyStatusSyncUseCase(
-                                userWalletId = userWalletId,
-                                cryptoCurrencyStatus = currencyStatus,
-                            ).getOrNull() ?: currencyStatus,
-                        )
-                    }
-
-                    uiState = when {
-                        isFromCurrency && currencyStatus.currency.id == dataState.fromCryptoCurrency?.currency?.id -> {
-                            dataState = dataState.copy(
-                                fromCryptoCurrency = currencyStatus,
-                                fromAccount = account,
-                            )
-                            stateBuilder.updateSendCurrencyBalance(uiState, currencyStatus)
-                        }
-                        !isFromCurrency && currencyStatus.currency.id == dataState.toCryptoCurrency?.currency?.id -> {
-                            dataState = dataState.copy(
-                                toCryptoCurrency = currencyStatus,
-                                toAccount = account,
-                            )
-                            stateBuilder.updateReceiveCurrencyBalance(uiState, currencyStatus)
-                        }
-                        else -> {
-                            uiState
-                        }
-                    }
-                    startLoadingQuotesFromLastState(isSilent = true)
+                if (isFromCurrency) {
+                    dataState = dataState.copy(
+                        feePaidCryptoCurrency = getFeePaidCryptoCurrencyStatusSyncUseCase(
+                            userWalletId = userWalletId,
+                            cryptoCurrencyStatus = currencyStatus,
+                        ).getOrNull() ?: currencyStatus,
+                    )
                 }
-        } else {
-            getSingleCryptoCurrencyStatusUseCase.invokeMultiWallet(
-                userWalletId = userWalletId,
-                currencyId = coin.id,
-                isSingleWalletWithTokens = false,
-            ).mapNotNull { either -> (either as? Either.Right)?.value }
-                .distinctUntilChanged { old, new -> old.value.amount == new.value.amount } // Check only balance changes
-                .onEach { status ->
-                    Timber.d("${coin.id} balance is ${status.value.amount ?: "null"}")
 
-                    if (isFromCurrency) {
+                uiState = when {
+                    isFromCurrency && currencyStatus.currency.id == dataState.fromCryptoCurrency?.currency?.id -> {
                         dataState = dataState.copy(
-                            feePaidCryptoCurrency = getFeePaidCryptoCurrencyStatusSyncUseCase(
-                                userWalletId = userWalletId,
-                                cryptoCurrencyStatus = status,
-                            ).getOrNull() ?: status,
+                            fromCryptoCurrency = currencyStatus,
+                            fromAccount = account,
                         )
+                        stateBuilder.updateSendCurrencyBalance(uiState, currencyStatus)
                     }
-
-                    uiState = when {
-                        isFromCurrency && status.currency.id == dataState.fromCryptoCurrency?.currency?.id -> {
-                            dataState = dataState.copy(fromCryptoCurrency = status)
-                            stateBuilder.updateSendCurrencyBalance(uiState, status)
-                        }
-                        !isFromCurrency && status.currency.id == dataState.toCryptoCurrency?.currency?.id -> {
-                            dataState = dataState.copy(toCryptoCurrency = status)
-                            stateBuilder.updateReceiveCurrencyBalance(uiState, status)
-                        }
-                        else -> {
-                            uiState
-                        }
+                    !isFromCurrency && currencyStatus.currency.id == dataState.toCryptoCurrency?.currency?.id -> {
+                        dataState = dataState.copy(
+                            toCryptoCurrency = currencyStatus,
+                            toAccount = account,
+                        )
+                        stateBuilder.updateReceiveCurrencyBalance(uiState, currencyStatus)
                     }
-                    startLoadingQuotesFromLastState(isSilent = true)
+                    else -> {
+                        uiState
+                    }
                 }
-        }.flowOn(dispatchers.main)
+                startLoadingQuotesFromLastState(isSilent = true)
+            }
+            .flowOn(dispatchers.main)
             .launchIn(modelScope)
             .saveIn(if (isFromCurrency) fromTokenBalanceJobHolder else toTokenBalanceJobHolder)
     }
@@ -1479,6 +1518,7 @@ internal class SwapModel @Inject constructor(
                     toAccount = newToAccount,
                 )
                 isOrderReversed = !isOrderReversed
+                updateFeePaidCryptoCurrencyFor(newFromToken)
                 dataState.tokensDataState?.let { tokensDataState ->
                     updateTokensState(tokensDataState)
                 }
@@ -1583,12 +1623,95 @@ internal class SwapModel @Inject constructor(
         return inputNumberFormatter.getValidatedNumberWithFixedDecimals(amount, maxDecimals)
     }
 
-    private fun makeDefaultAlert() {
-        uiState = stateBuilder.addAlert(uiState)
+    private fun showAlert(message: TextReference = resourceReference(R.string.common_unknown_error)) {
+        messageSender.send(SwapAlertUM.genericError(onConfirmClick = { }, message = message))
     }
 
-    private fun makeDefaultAlert(message: TextReference) {
-        uiState = stateBuilder.addAlert(uiState, message)
+    private fun showDemoModeAlert() {
+        messageSender.send(
+            DialogMessage(
+                title = resourceReference(id = R.string.warning_demo_mode_title),
+                message = resourceReference(id = R.string.warning_demo_mode_message),
+                firstAction = EventMessageAction(
+                    title = resourceReference(id = R.string.common_ok),
+                    onClick = {},
+                ),
+            ),
+        )
+    }
+
+    private fun showTransactionErrorAlert(
+        error: SwapTransactionState.Error,
+        onSupportClick: (String) -> Unit = ::onFailedTxEmailClick,
+    ) {
+        val errorAlert = SwapTransactionErrorStateConverter(
+            onDismiss = {},
+            onSupportClick = onSupportClick,
+        ).convert(error)
+        errorAlert?.let { messageSender.send(it) }
+    }
+
+    private fun onTangemPaySupportClick(txId: String) {
+        modelScope.launch {
+            val metaInfo = getWalletMetaInfoUseCase(userWallet.walletId).getOrNull() ?: return@launch
+            val customerId = getTangemPayCustomerIdUseCase(userWallet.walletId).getOrNull().orEmpty()
+            val email = FeedbackEmailType.Visa.Withdrawal(
+                walletMetaInfo = metaInfo,
+                customerId = customerId,
+                providerName = dataState.selectedProvider?.name.orEmpty(),
+                txId = txId,
+            )
+            analyticsEventHandler.send(Basic.ButtonSupport(source = ScreensSources.Swap))
+            sendFeedbackEmailUseCase(email)
+        }
+    }
+
+    private fun showSwapInfoAlert(isPriceImpact: Boolean, token: String, provider: SwapProvider) {
+        messageSender.send(
+            SwapAlertUM.informationAlert(
+                message = buildSwapInfoMessage(isPriceImpact, token, provider),
+                onConfirmClick = {},
+            ),
+        )
+    }
+
+    private fun buildSwapInfoMessage(isPriceImpact: Boolean, token: String, provider: SwapProvider): TextReference {
+        val slippage = provider.slippage?.let { "${it.parseBigDecimal(1)}%" }
+        val messages = buildList {
+            when (provider.type) {
+                ExchangeProviderType.CEX -> {
+                    if (slippage != null) {
+                        add(
+                            resourceReference(
+                                id = R.string.swapping_alert_cex_description_with_slippage,
+                                formatArgs = wrappedList(token, slippage),
+                            ),
+                        )
+                    } else {
+                        add(resourceReference(R.string.swapping_alert_cex_description, wrappedList(token)))
+                    }
+                }
+                ExchangeProviderType.DEX,
+                ExchangeProviderType.DEX_BRIDGE,
+                -> {
+                    if (isPriceImpact) {
+                        add(resourceReference(R.string.swapping_high_price_impact_description))
+                        add(stringReference("\n\n"))
+                    }
+                    if (slippage != null) {
+                        add(
+                            resourceReference(
+                                id = R.string.swapping_alert_dex_description_with_slippage,
+                                formatArgs = wrappedList(slippage),
+                            ),
+                        )
+                    } else {
+                        add(resourceReference(R.string.swapping_alert_dex_description, wrappedList(token)))
+                    }
+                }
+            }
+        }
+        return combinedReference(messages.toWrappedList())
     }
 
     @Suppress("LongMethod", "CyclomaticComplexMethod")
@@ -1636,10 +1759,14 @@ internal class SwapModel @Inject constructor(
             openPermissionBottomSheet = {
                 singleTaskScheduler.cancelTask()
                 sendGivePermissionClickedEvent()
-                uiState = stateBuilder.showPermissionBottomSheet(uiState) {
-                    startLoadingQuotesFromLastState(isSilent = true)
-                    analyticsEventHandler.send(SwapEvents.ButtonPermissionCancelClicked())
-                    uiState = stateBuilder.dismissBottomSheet(uiState)
+                if (shouldUseGaslessApproval) {
+                    approvalSlotNavigation.activate(Unit)
+                } else {
+                    uiState = stateBuilder.showPermissionBottomSheet(uiState) {
+                        startLoadingQuotesFromLastState(isSilent = true)
+                        analyticsEventHandler.send(SwapEvents.ButtonPermissionCancelClicked())
+                        uiState = stateBuilder.dismissBottomSheet(uiState)
+                    }
                 }
             },
             onAmountSelected = { onAmountSelected(it) },
@@ -1708,14 +1835,7 @@ internal class SwapModel @Inject constructor(
                 val selectedProvider = dataState.selectedProvider ?: return@UiActions
                 val currencySymbol = dataState.toCryptoCurrency?.currency?.symbol ?: return@UiActions
                 val isPriceImpact = uiState.priceImpact is PriceImpact.Value
-                uiState = stateBuilder.createAlert(
-                    uiState = uiState,
-                    isPriceImpact = isPriceImpact,
-                    token = currencySymbol,
-                    provider = selectedProvider,
-                    isReverseSwapPossible = isReverseSwapPossible(),
-                    onDismiss = { uiState = stateBuilder.clearAlert(uiState) },
-                )
+                showSwapInfoAlert(isPriceImpact, currencySymbol, selectedProvider)
             },
             onLinkClick = urlOpener::openUrl,
             onSelectTokenClick = {
@@ -1856,20 +1976,61 @@ internal class SwapModel @Inject constructor(
             toToken.currency.id.value
         }
 
-        return if (accountsFeatureToggles.isFeatureEnabled) {
-            groupToFind.accountCurrencyList.firstNotNullOfOrNull { (_, currencyList) ->
-                currencyList.find { accountSwapCurrency ->
-                    idToFind == accountSwapCurrency.cryptoCurrencyStatus.currency.id.value &&
-                        accountSwapCurrency.isAvailable
-                }
-            }?.providers
-        } else {
-            groupToFind.available.find { swapAvailability ->
-                idToFind == swapAvailability.currencyStatus.currency.id.value
-            }?.providers
-        }
+        return groupToFind.accountCurrencyList.firstNotNullOfOrNull { (_, currencyList) ->
+            currencyList.find { accountSwapCurrency ->
+                idToFind == accountSwapCurrency.cryptoCurrencyStatus.currency.id.value &&
+                    accountSwapCurrency.isAvailable
+            }
+        }?.providers
             ?.filterForTangemPayWithdrawal()
             .orEmpty()
+    }
+
+    /**
+     * @return true if swap is not supported and UI was updated to show error state
+     */
+    private fun handleSwapNotSupported(
+        state: TokensDataStateExpress,
+        fromToken: CryptoCurrencyStatus,
+        toToken: CryptoCurrencyStatus,
+        fromAccount: Account.CryptoPortfolio?,
+        toAccount: Account.CryptoPortfolio?,
+    ): Boolean {
+        val selectedCurrency = if (isOrderReversed) fromToken else toToken
+        if (isTokenAvailableForSwap(state, selectedCurrency, isOrderReversed)) return false
+
+        analyticsEventHandler.send(
+            SwapEvents.NoticeUnavailableToSwapPair(
+                sendToken = fromToken.currency.symbol,
+                receiveToken = toToken.currency.symbol,
+                sendBlockchain = fromToken.currency.network.name,
+                receiveBlockchain = toToken.currency.network.name,
+            ),
+        )
+        uiState = stateBuilder.createSwapNotSupportedState(
+            uiStateHolder = uiState,
+            fromToken = fromToken,
+            toToken = toToken,
+            fromAccount = fromAccount,
+            toAccount = toAccount,
+        )
+        return true
+    }
+
+    private fun isTokenAvailableForSwap(
+        state: TokensDataStateExpress,
+        selectedCurrency: CryptoCurrencyStatus,
+        isReverseFromTo: Boolean,
+    ): Boolean {
+        val group = if (isReverseFromTo) state.fromGroup else state.toGroup
+        val idToFind = selectedCurrency.currency.id.value
+
+        return group.accountCurrencyList.any { (_, currencyList) ->
+            currencyList.any { accountSwapCurrency ->
+                idToFind == accountSwapCurrency.cryptoCurrencyStatus.currency.id.value &&
+                    accountSwapCurrency.isAvailable
+            }
+        }
     }
 
     private fun List<SwapProvider>.filterForTangemPayWithdrawal(): List<SwapProvider> {
@@ -1904,14 +2065,10 @@ internal class SwapModel @Inject constructor(
 
         val chosen = if (isOrderReversed) from else to
 
-        return if (accountsFeatureToggles.isFeatureEnabled) {
-            currenciesGroup.accountCurrencyList.flatMap { accountSwapAvailability ->
-                accountSwapAvailability.currencyList.map { accountSwapCurrency ->
-                    accountSwapCurrency.cryptoCurrencyStatus
-                }
+        return currenciesGroup.accountCurrencyList.flatMap { accountSwapAvailability ->
+            accountSwapAvailability.currencyList.map { accountSwapCurrency ->
+                accountSwapCurrency.cryptoCurrencyStatus
             }
-        } else {
-            currenciesGroup.available.map { swapAvailability -> swapAvailability.currencyStatus }
         }.map { currencyStatus -> currencyStatus.currency }.contains(chosen.currency)
     }
 
@@ -1999,29 +2156,10 @@ internal class SwapModel @Inject constructor(
     }
 
     private fun onTangemPayWithdrawalError(txId: String?) {
-        uiState = stateBuilder.createErrorTransactionAlert(
-            uiState = uiState,
+        showTransactionErrorAlert(
             error = SwapTransactionState.Error.TangemPayWithdrawalError(txId.orEmpty()),
-            onDismiss = { uiState = stateBuilder.clearAlert(uiState) },
-            onSupportClick = {
-                val customerId = getTangemPayCustomerIdUseCase(userWallet.walletId).getOrNull() ?: "Unknown"
-                onTangemPaySupportClick(customerId = customerId, txId = txId)
-            },
-            isReverseSwapPossible = isReverseSwapPossible(),
+            onSupportClick = ::onTangemPaySupportClick,
         )
-    }
-
-    private fun onTangemPaySupportClick(customerId: String, txId: String?) {
-        modelScope.launch {
-            val metaInfo = getWalletMetaInfoUseCase(userWallet.walletId).getOrNull() ?: return@launch
-            val email = FeedbackEmailType.Visa.Withdrawal(
-                walletMetaInfo = metaInfo,
-                customerId = customerId,
-                providerName = dataState.selectedProvider?.name.orEmpty(),
-                txId = txId.orEmpty(),
-            )
-            sendFeedbackEmailUseCase(email)
-        }
     }
 
     private fun onFailedTxEmailClick(errorMessage: String) {
@@ -2055,28 +2193,97 @@ internal class SwapModel @Inject constructor(
                 txId = transaction?.txId.orEmpty(),
             )
 
+            analyticsEventHandler.send(Basic.ButtonSupport(source = ScreensSources.Swap))
             sendFeedbackEmailUseCase(email)
+        }
+    }
+
+    private fun createDefaultMarketsFlow(): Flow<SwapMarketState> {
+        val marketsTitle = TextReference.Res(R.string.feed_trending_now)
+        return combine(
+            defaultMarketsListManager.uiItems,
+            defaultMarketsListManager.isInInitialLoadingErrorState,
+            defaultMarketsListManager.totalCount,
+        ) { uiItems, isError, total ->
+            when {
+                isError -> SwapMarketState.LoadingError(
+                    onRetryClicked = { defaultMarketsListManager.reload() },
+                    marketsTitle = marketsTitle,
+                    shouldAssetsCount = false,
+                )
+                uiItems.isEmpty() -> SwapMarketState.Loading(
+                    marketsTitle = marketsTitle,
+                    shouldAssetsCount = false,
+                )
+                else -> SwapMarketState.Content(
+                    items = uiItems,
+                    loadMore = { defaultMarketsListManager.loadMore() },
+                    onItemClick = { item -> addToPortfolioItem(item) },
+                    visibleIdsChanged = { visibleDefaultMarketItemIds.value = it },
+                    total = total ?: uiItems.size,
+                    marketsTitle = marketsTitle,
+                    shouldAssetsCount = false,
+                )
+            }
+        }
+    }
+
+    private fun createSearchMarketsFlow(): Flow<SwapMarketState> {
+        val marketsTitle = TextReference.Res(R.string.markets_common_title)
+        return combine(
+            flow = searchMarketsListManager.uiItems,
+            flow2 = searchMarketsListManager.isInInitialLoadingErrorState,
+            flow3 = searchMarketsListManager.isSearchNotFoundState,
+            flow4 = searchMarketsListManager.totalCount,
+        ) { uiItems, isError, isSearchNotFound, total ->
+            when {
+                isError -> SwapMarketState.LoadingError(
+                    onRetryClicked = { searchMarketsListManager.reload(searchQueryState.value) },
+                    marketsTitle = marketsTitle,
+                    shouldAssetsCount = true,
+                )
+                isSearchNotFound -> SwapMarketState.SearchNothingFound
+                uiItems.isEmpty() -> SwapMarketState.Loading(
+                    marketsTitle = marketsTitle,
+                    shouldAssetsCount = true,
+                )
+                else -> SwapMarketState.Content(
+                    items = uiItems,
+                    loadMore = { searchMarketsListManager.loadMore() },
+                    onItemClick = { item -> addToPortfolioItem(item) },
+                    visibleIdsChanged = { visibleMarketItemIds.value = it },
+                    total = total ?: uiItems.size,
+                    marketsTitle = marketsTitle,
+                    shouldAssetsCount = true,
+                )
+            }
         }
     }
 
     private fun addToPortfolioItem(item: MarketsListItemUM) {
         modelScope.launch {
-            val tokenInfo = getTokenMarketInfoUseCase(
-                selectedAppCurrencyFlow.value,
-                item.id,
-                item.currencySymbol,
-            ).getOrNull() ?: return@launch
+            val tokenMarket = defaultMarketsListManager.getTokenMarketById(item.id)
+                ?: searchMarketsListManager.getTokenMarketById(item.id)
+                ?: return@launch
 
-            val converter = TokenMarketInfoToParamsConverter()
-            val param = converter.convert(tokenInfo)
+            val param = tokenMarket.toSerializableParam()
             val hasOnlyHotWallets = getUserWalletsUseCase.invokeSync().all { it is UserWallet.Hot }
 
-            val networks = tokenInfo.networks?.filter { network ->
+            val networks = tokenMarket.networks?.filter { network ->
                 BlockchainUtils.isSupportedNetworkId(
                     blockchainId = network.networkId,
+                    coinId = tokenMarket.id.value,
+                    contractAddress = network.contractAddress,
                     excludedBlockchains = excludedBlockchains,
                     hotExcludedBlockchains = hotWalletExcludedBlockchains,
                     hasOnlyHotWallets = hasOnlyHotWallets,
+                )
+            }?.map { network ->
+                TokenMarketInfo.Network(
+                    networkId = network.networkId,
+                    isExchangeable = false,
+                    contractAddress = network.contractAddress,
+                    decimalCount = network.decimalCount,
                 )
             }.orEmpty()
 
@@ -2084,7 +2291,7 @@ internal class SwapModel @Inject constructor(
                 .create(
                     scope = modelScope,
                     token = param,
-                    analyticsParams = null,
+                    analyticsParams = AddToPortfolioManager.AnalyticsParams(source = ScreensSources.Swap.value),
                 ).apply {
                     setTokenNetworks(networks)
                 }
@@ -2119,18 +2326,15 @@ internal class SwapModel @Inject constructor(
     }
 
     private fun getSelectedFeeState(): TxFeeSealedState {
-        if (!sendFeatureToggles.isGaslessTransactionsEnabled) {
+        val feeStateUM = feeSelectorRepository.state.value as? FeeSelectorUM.Content
+
+        if (feeStateUM == null) {
+            Timber.e("getSelectedFeeState: FeeSelectorUM is not Content: $feeStateUM, returning Legacy state")
             return TxFeeSealedState.Legacy(
                 txFeeState = TxFeeState.Empty,
                 selectedFee = dataState.selectedFee?.feeType ?: FeeType.NORMAL,
             )
         }
-
-        val feeStateUM = feeSelectorRepository.state.value as? FeeSelectorUM.Content
-            ?: return TxFeeSealedState.Legacy(
-                txFeeState = TxFeeState.Empty,
-                selectedFee = dataState.selectedFee?.feeType ?: FeeType.NORMAL,
-            )
 
         val transactionFeeExtended = feeStateUM.feeExtraInfo.transactionFeeExtended
         return TxFeeSealedState.Component(
@@ -2144,11 +2348,13 @@ internal class SwapModel @Inject constructor(
     }
 
     private fun getSelectedFee(): TxFee? {
-        if (!sendFeatureToggles.isGaslessTransactionsEnabled) {
-            return dataState.selectedFee
+        val feeStateUM = feeSelectorRepository.state.value as? FeeSelectorUM.Content
+
+        if (feeStateUM == null) {
+            Timber.e("getSelectedFee: FeeSelectorUM is not Content: $feeStateUM, returning null")
+            return null
         }
 
-        val feeStateUM = feeSelectorRepository.state.value as? FeeSelectorUM.Content ?: return null
         val transactionFeeExtended = feeStateUM.feeExtraInfo.transactionFeeExtended
 
         return TxFee.FeeComponent(
@@ -2165,6 +2371,8 @@ internal class SwapModel @Inject constructor(
         override val state = MutableStateFlow<FeeSelectorUM>(
             FeeSelectorUM.Error(GetFeeError.UnknownError, isHidden = true),
         )
+
+        override val forceUpdateState = MutableSharedFlow<FeeSelectorUM>()
 
         override suspend fun loadFeeExtended(
             selectedToken: CryptoCurrencyStatus?,
@@ -2198,17 +2406,15 @@ internal class SwapModel @Inject constructor(
         }
 
         override fun onResult(newState: FeeSelectorUM) {
-            if (isPermissionNotificationShown()) {
-                state.value = FeeSelectorUM.Error(GetFeeError.UnknownError, isHidden = true)
-                return
-            }
+            state.value = newState
 
             if (newState is FeeSelectorUM.Error) {
-                state.value = newState.copy(isHidden = true)
+                modelScope.launch {
+                    Timber.e("onResult: FeeSelectorUM is Error, isHidden = true")
+                    forceUpdateState.emit(newState.copy(isHidden = true))
+                }
                 return
             }
-
-            state.value = newState
 
             // If fee currency is same as from currency, we need to reload quotes to update fee info
             val isFeeCurrencySameAsFromCurrency = newState is FeeSelectorUM.Content &&
@@ -2219,6 +2425,8 @@ internal class SwapModel @Inject constructor(
                 newState.feeExtraInfo.feeCryptoCurrencyStatus.currency is CryptoCurrency.Coin
 
             if (isFeeCurrencySameAsFromCurrency || isCoinFeeSelected) {
+                Timber.e("onResult: Fee currency is same as from currency or coin fee selected, reloading quotes")
+
                 // block swap button until fee is loaded
                 uiState = uiState.copy(
                     swapButton = uiState.swapButton.copy(
@@ -2241,15 +2449,19 @@ internal class SwapModel @Inject constructor(
         }
 
         override suspend fun loadFee(): Either<GetFeeError, TransactionFee> {
+            Timber.e("loadFee: Start loading fee")
+
             val fromToken = dataState.fromCryptoCurrency ?: return Either.Left(GetFeeError.UnknownError)
             val toToken = dataState.toCryptoCurrency ?: return Either.Left(GetFeeError.UnknownError)
             val selectedProvider = dataStateStateFlow.first { it.selectedProvider != null }.selectedProvider!!
 
             if (dataState.lastLoadedSwapStates[selectedProvider] !is SwapState.QuotesLoadedState) {
+                Timber.e("loadFee: Quotes not loaded ${dataState.lastLoadedSwapStates[selectedProvider]}")
                 return Either.Left(GetFeeError.UnknownError)
             }
 
             if (isPermissionNotificationShown()) {
+                Timber.e("loadFee: Permission notification is shown, cannot load fee")
                 return Either.Left(GetFeeError.UnknownError)
             }
 
@@ -2262,6 +2474,12 @@ internal class SwapModel @Inject constructor(
                 amount = lastAmount.value,
                 reduceBalanceBy = lastReducedBalanceBy.value,
             )
+                .onLeft {
+                    Timber.e("loadFee: Failed to load fee with error $it")
+                }
+                .onRight {
+                    Timber.e("loadFee: Fee loaded successfully")
+                }
         }
 
         override fun choosingInProgress(updatedState: Boolean) {

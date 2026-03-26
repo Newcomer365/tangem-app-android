@@ -7,18 +7,7 @@
         "name": "VISA_ONBOARDING_ENABLED",
         "version": "undefined"
     },
-    {
-        "name": "STAKING_TON_ENABLED",
-        "version": "5.28.0"
-    },
-    {
-        "name": "NFT_MEDIA_CONTENT_ENABLED",
-        "version": "undefined"
-    },
-    {
-        "name": "STAKING_CARDANO_ENABLED",
-        "version": "5.31.1"
-    },
+
     {
         "name": "STAKING_ETH_ENABLED",
         "version": "undefined"
@@ -32,59 +21,43 @@
         "version": "undefined"
     },
     {
-        "name": "HOT_WALLET_ENABLED",
-        "version": "5.32.0"
-    },
-    {
         "name": "HOT_WALLET_CREATION_RESTRICTION_ENABLED",
         "version": "5.32.0"
-    },
-    {
-        "name": "HOT_WALLET_VISIBLE",
-        "version": "5.32.1"
-    },
-    {
-        "name": "TANGEM_PAY_ENABLED",
-        "version": "5.31.0"
-    },
-    {
-        "name": "YIELD_SUPPLY_FEATURE_ENABLED",
-        "version": "5.30.0"
-    },
-    {
-        "name": "YIELD_SUPPLY_PENDING_TRANSACTIONS_ENABLED",
-        "version": "5.33.0"
-    },
-    {
-        "name": "NEW_ONRAMP_MAIN_ENABLED",
-        "version": "5.31.0"
-    },
-    {
-        "name": "ACCOUNTS_FEATURE_ENABLED",
-        "version": "5.33.0"
-    },
-    {
-        "name": "FEED_ENABLED",
-        "version": "5.33.0"
     },
     {
         "name": "APP_REDESIGN_ENABLED",
         "version": "undefined"
     },
     {
-        "name": "GASLESS_TRANSACTIONS_ENABLED",
-        "version": "5.33.0"
-    },
-    {
         "name": "SWAP_MARKET_LIST_ENABLED",
-        "version": "undefined"
+        "version": "5.34"
     },
     {
         "name": "EARN_BLOCK_ENABLED",
-        "version": "undefined"
+        "version": "5.35"
     },
     {
         "name": "HOLD_TO_CONFIRM_BUTTON_ENABLED",
+        "version": "5.35"
+    },
+    {
+        "name": "WALLET_REORDER_FEATURE_ENABLED",
+        "version": "5.34"
+    },
+    {
+        "name": "GASLESS_APPROVAL_ENABLED",
         "version": "undefined"
+    },
+    {
+        "name": "TANGEM_PAY_ACCOUNTS_REFACTOR_ENABLED",
+        "version": "undefined"
+    },
+    {
+        "name": "MULTI_ADDRESS_UTXO_ENABLED",
+        "version": "undefined"
+    },
+    {
+        "name": "CUSTOMER_IO_ENABLED",
+        "version": "5.35"
     }
 ]

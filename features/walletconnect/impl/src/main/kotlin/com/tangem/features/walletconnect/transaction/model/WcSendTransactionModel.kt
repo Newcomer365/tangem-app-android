@@ -23,7 +23,6 @@ import com.tangem.core.ui.components.bottomsheets.message.MessageBottomSheetUMV2
 import com.tangem.core.ui.extensions.resourceReference
 import com.tangem.core.ui.extensions.wrappedList
 import com.tangem.domain.core.lce.Lce
-import com.tangem.domain.models.account.derivationIndex
 import com.tangem.domain.models.currency.CryptoCurrencyStatus
 import com.tangem.domain.models.network.Network
 import com.tangem.domain.models.wallet.UserWallet
@@ -427,7 +426,7 @@ internal class WcSendTransactionModel @Inject constructor(
                     rawRequest = useCase.rawSdkRequest,
                     network = useCase.network,
                     securityStatus = securityStatusState.value.toCheckDAppResult(),
-                    accountDerivation = useCase.session.account?.derivationIndex?.value,
+                    accountDerivation = useCase.session.account.derivationIndex.value,
                 )
                 analytics.send(event)
                 showSuccessSignMessage()
@@ -467,7 +466,7 @@ internal class WcSendTransactionModel @Inject constructor(
                 network = useCase.network,
                 emulationStatus = emulationStatus,
                 securityStatus = securityCheck.toCheckDAppResult(),
-                accountDerivation = useCase.session.account?.derivationIndex?.value,
+                accountDerivation = useCase.session.account.derivationIndex.value,
             ),
         )
 

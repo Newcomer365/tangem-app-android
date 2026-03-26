@@ -3,6 +3,7 @@ package com.tangem.domain.pay.usecase
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import com.tangem.domain.models.kyc.KycStatus
 import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.pay.TangemPayEligibilityManager
 import com.tangem.domain.pay.model.*
@@ -38,7 +39,7 @@ class TangemPayMainScreenCustomerInfoUseCase(
             return // fast exit
         }
 
-        onboardingRepository.checkCustomerWallet(userWalletId)
+        onboardingRepository.hasTangemPayInWallet(userWalletId)
             .fold(
                 ifLeft = { error ->
                     Timber.tag(TAG).e("Failed checkCustomerWallet for $userWalletId: ${error.javaClass.simpleName}")
@@ -125,11 +126,13 @@ class TangemPayMainScreenCustomerInfoUseCase(
             }
             .map { customerInfo ->
                 Timber.tag(TAG).i("customerInfo")
-                if (customerInfo.cardInfo == null && customerInfo.kycStatus == CustomerInfo.KycStatus.APPROVED) {
-                    // If order id wasn't saved -> start order creation and get customer info
+                if (customerInfo.productInstance == null) {
                     onboardingRepository.createOrder(userWalletId)
+                    Timber.tag("ddk9499").d("TangemPayMainScreenCustomerInfoUseCase.proceedWithoutOrder: ")
+                    MainScreenCustomerInfo(info = customerInfo, orderStatus = OrderStatus.NEW)
+                } else {
+                    MainScreenCustomerInfo(info = customerInfo, orderStatus = OrderStatus.COMPLETED)
                 }
-                MainScreenCustomerInfo(info = customerInfo, orderStatus = OrderStatus.UNKNOWN)
             }
     }
 
@@ -137,38 +140,44 @@ class TangemPayMainScreenCustomerInfoUseCase(
         userWalletId: UserWalletId,
         orderId: String,
     ): Either<TangemPayCustomerInfoError, MainScreenCustomerInfo> {
-        return customerOrderRepository.getOrderStatus(userWalletId, orderId = orderId)
+        return customerOrderRepository.getOrderData(userWalletId, orderId = orderId)
             .fold(
                 ifLeft = { error ->
                     error.mapErrorForCustomer().left()
                 },
-                ifRight = { orderStatus ->
-                    when (orderStatus) {
-                        // Kyc is passed and user waits for order creation -> no need to get customer info
+                ifRight = { orderData ->
+                    when (orderData.status) {
                         OrderStatus.NEW,
                         OrderStatus.PROCESSING,
-                        -> MainScreenCustomerInfo(
-                            info = CustomerInfo(
-                                customerId = null,
-                                productInstance = null,
-                                kycStatus = CustomerInfo.KycStatus.APPROVED,
-                                cardInfo = null,
-                            ),
-                            orderStatus = orderStatus,
-                        ).right()
-
-                        // Order was created/cancelled -> clear order id and get customer info
-                        OrderStatus.COMPLETED,
-                        OrderStatus.CANCELED,
-                        OrderStatus.UNKNOWN,
                         -> {
-                            onboardingRepository.clearOrderId(userWalletId)
-                            // If order was cancelled -> start order creation
-                            if (orderStatus == OrderStatus.CANCELED) onboardingRepository.createOrder(userWalletId)
                             onboardingRepository.getCustomerInfo(userWalletId = userWalletId)
                                 .mapLeft { it.mapErrorForCustomer() }
                                 .map { customerInfo ->
-                                    MainScreenCustomerInfo(info = customerInfo, orderStatus = orderStatus)
+                                    MainScreenCustomerInfo(info = customerInfo, orderStatus = orderData.status)
+                                }
+                        }
+
+                        // Order cancelled. No need to get customer info
+                        OrderStatus.CANCELED -> {
+                            MainScreenCustomerInfo(
+                                info = CustomerInfo(
+                                    customerId = null,
+                                    productInstance = null,
+                                    kycStatus = KycStatus.INIT,
+                                    cardInfo = null,
+                                ),
+                                orderStatus = OrderStatus.CANCELED,
+                            ).right()
+                        }
+
+                        OrderStatus.COMPLETED,
+                        OrderStatus.UNKNOWN,
+                        -> {
+                            onboardingRepository.clearOrderId(userWalletId)
+                            onboardingRepository.getCustomerInfo(userWalletId = userWalletId)
+                                .mapLeft { it.mapErrorForCustomer() }
+                                .map { customerInfo ->
+                                    MainScreenCustomerInfo(info = customerInfo, orderStatus = orderData.status)
                                 }
                         }
                     }

@@ -58,8 +58,15 @@ internal class ChooseManagedTokensModel @Inject constructor(
 ) : Model() {
 
     private val params: ChooseManagedTokensComponent.Params = paramsContainer.require()
+
+    private val manageTokensMode = ManageTokensMode.Account(params.userWalletId)
+
     private val useCasesFacade: ManageTokensUseCasesFacade = manageTokensUseCasesFacadeFactory
-        .create(mode = ManageTokensMode.Wallet(params.userWalletId))
+        .create(mode = manageTokensMode)
+
+    val bottomSheetNavigation: SlotNavigation<ChooseManageTokensBottomSheetConfig> = SlotNavigation()
+    val uiState: StateFlow<ChooseManagedTokenUM>
+        field = MutableStateFlow<ChooseManagedTokenUM>(createReadContentModel())
 
     private val manageTokensListManager = manageTokensListManagerFactory.create(
         scope = modelScope,
@@ -78,10 +85,6 @@ internal class ChooseManagedTokensModel @Inject constructor(
             )
         },
     )
-
-    val bottomSheetNavigation: SlotNavigation<ChooseManageTokensBottomSheetConfig> = SlotNavigation()
-    val uiState: StateFlow<ChooseManagedTokenUM>
-        field = MutableStateFlow<ChooseManagedTokenUM>(createReadContentModel())
 
     init {
         manageTokensListManager.uiItems
@@ -134,11 +137,7 @@ internal class ChooseManagedTokensModel @Inject constructor(
     private fun removeNotification() {
         modelScope.launch {
             setShouldShowNotificationUseCase(NotificationId.SendViaSwapTokenSelectorNotification.key, false)
-            uiState.update {
-                it.copy(
-                    notificationUM = null,
-                )
-            }
+            uiState.update { it.copy(notificationUM = null) }
         }
     }
 
@@ -149,7 +148,7 @@ internal class ChooseManagedTokensModel @Inject constructor(
                 if (!new.readContent.search.isActive && old.readContent.search.isActive) {
                     analyticsEventHandler.send(
                         CommonManageTokensAnalyticEvents.TokenSearched(
-                            params.analyticsCategoryName,
+                            categoryName = params.analyticsCategoryName,
                             token = null,
                             blockchain = null,
                             isTokenChosen = false,
@@ -183,8 +182,9 @@ internal class ChooseManagedTokensModel @Inject constructor(
                         val isToken = currency.id.value == params.initialCurrency.id.rawCurrencyId?.value
 
                         // Ensure that initial token network is filtered out and network list is empty
+                        val paramsRawId = params.initialCurrency.network.id.rawId
                         val isEmptyNetworks = availableNetworks?.networks?.filterNot { network ->
-                            network.id == params.initialCurrency.network.id.rawId.value
+                            network.id == paramsRawId.value
                         }.isNullOrEmpty()
 
                         // Filter out currency from display

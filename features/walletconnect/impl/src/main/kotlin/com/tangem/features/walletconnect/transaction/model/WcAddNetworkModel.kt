@@ -11,7 +11,6 @@ import com.tangem.core.decompose.model.ParamsContainer
 import com.tangem.core.decompose.navigation.Router
 import com.tangem.core.decompose.ui.UiMessageSender
 import com.tangem.core.ui.clipboard.ClipboardManager
-import com.tangem.domain.models.account.derivationIndex
 import com.tangem.domain.walletconnect.WcAnalyticEvents
 import com.tangem.domain.walletconnect.WcRequestUseCaseFactory
 import com.tangem.domain.walletconnect.usecase.method.WcAddNetworkUseCase
@@ -138,7 +137,7 @@ internal class WcAddNetworkModel @Inject constructor(
                 network = useCase.network,
                 emulationStatus = null,
                 securityStatus = CheckDAppResult.FAILED_TO_VERIFY,
-                accountDerivation = useCase.session.account?.derivationIndex?.value,
+                accountDerivation = useCase.session.account.derivationIndex.value,
             ),
         )
 

@@ -5,24 +5,25 @@ import arrow.core.left
 import arrow.core.right
 import com.tangem.data.common.wallet.WalletServerBinder
 import com.tangem.data.wallets.converters.UserWalletRemoteInfoConverter
-import com.tangem.datasource.api.common.AuthProvider
 import com.tangem.datasource.api.common.response.ApiResponse
 import com.tangem.datasource.api.common.response.ApiResponseError.HttpException
 import com.tangem.datasource.api.common.response.fold
 import com.tangem.datasource.api.common.response.getOrThrow
 import com.tangem.datasource.api.common.response.isNetworkError
 import com.tangem.datasource.api.tangemTech.TangemTechApi
-import com.tangem.datasource.api.tangemTech.converters.WalletIdBodyConverter
 import com.tangem.datasource.api.tangemTech.models.*
 import com.tangem.datasource.api.tangemTech.models.SeedPhraseNotificationDTO.Status
-import com.tangem.datasource.local.appsflyer.AppsFlyerStore
 import com.tangem.datasource.local.datastore.RuntimeStateStore
 import com.tangem.datasource.local.preferences.AppPreferencesStore
 import com.tangem.datasource.local.preferences.PreferencesKeys
 import com.tangem.datasource.local.preferences.PreferencesKeys.SEED_FIRST_NOTIFICATION_SHOW_TIME
-import com.tangem.datasource.local.preferences.utils.*
-import com.tangem.datasource.local.userwallet.UserWalletsStore
-import com.tangem.domain.account.featuretoggle.AccountsFeatureToggles
+import com.tangem.datasource.local.preferences.utils.getObjectMap
+import com.tangem.datasource.local.preferences.utils.getSyncOrDefault
+import com.tangem.datasource.local.preferences.utils.getSyncOrNull
+import com.tangem.datasource.local.preferences.utils.store
+import com.tangem.domain.common.wallets.UserWalletsListRepository
+import com.tangem.domain.common.wallets.getSyncOrNull
+import com.tangem.domain.common.wallets.getSyncStrict
 import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.wallets.models.SeedPhraseNotificationsStatus
@@ -44,30 +45,12 @@ typealias SeedPhraseNotificationsStatuses = Map<UserWalletId, SeedPhraseNotifica
 internal class DefaultWalletsRepository(
     private val appPreferencesStore: AppPreferencesStore,
     private val tangemTechApi: TangemTechApi,
-    private val userWalletsStore: UserWalletsStore,
+    private val userWalletsListRepository: UserWalletsListRepository,
     private val seedPhraseNotificationVisibilityStore: RuntimeStateStore<SeedPhraseNotificationsStatuses>,
     private val dispatchers: CoroutineDispatcherProvider,
-    private val authProvider: AuthProvider,
     private val walletServerBinder: WalletServerBinder,
-    private val appsFlyerStore: AppsFlyerStore,
-    private val accountsFeatureToggles: AccountsFeatureToggles,
     private val moshi: com.squareup.moshi.Moshi,
 ) : WalletsRepository {
-
-    @Deprecated("Hot wallet feature makes app always save user wallets. Do not use this method")
-    override suspend fun shouldSaveUserWalletsSync(): Boolean {
-        return appPreferencesStore.getSyncOrDefault(key = PreferencesKeys.SAVE_USER_WALLETS_KEY, default = false)
-    }
-
-    @Deprecated("Hot wallet feature makes app always save user wallets. Do not use this method")
-    override fun shouldSaveUserWallets(): Flow<Boolean> {
-        return appPreferencesStore.get(key = PreferencesKeys.SAVE_USER_WALLETS_KEY, default = false)
-    }
-
-    @Deprecated("Hot wallet feature makes app always save user wallets. Do not use this method")
-    override suspend fun saveShouldSaveUserWallets(item: Boolean) {
-        appPreferencesStore.store(key = PreferencesKeys.SAVE_USER_WALLETS_KEY, value = item)
-    }
 
     override suspend fun useBiometricAuthentication(): Boolean {
         val shouldUseBiometricAuth = appPreferencesStore.getSyncOrNull(
@@ -163,7 +146,7 @@ internal class DefaultWalletsRepository(
     }
 
     private suspend fun fetchSeedPhraseNotificationStatus(userWalletId: UserWalletId) {
-        val userWallet = userWalletsStore.getSyncOrNull(key = userWalletId)
+        val userWallet = userWalletsListRepository.getSyncOrNull(id = userWalletId)
 
         if (userWallet != null && userWallet !is UserWallet.Cold) {
             updateNotificationVisibility(id = userWalletId, value = SeedPhraseNotificationsStatus.NOT_NEEDED)
@@ -335,7 +318,7 @@ internal class DefaultWalletsRepository(
     }
 
     override suspend fun setWalletName(walletId: UserWalletId, walletName: String) = withContext(dispatchers.io) {
-        val userWallet = userWalletsStore.getSyncOrNull(key = walletId)
+        val userWallet = userWalletsListRepository.getSyncOrNull(id = walletId)
 
         tangemTechApi.updateWallet(
             walletId = walletId.stringValue,
@@ -344,7 +327,7 @@ internal class DefaultWalletsRepository(
     }
 
     override suspend fun upgradeWallet(walletId: UserWalletId) = withContext(dispatchers.io) {
-        val userWallet = userWalletsStore.getSyncStrict(key = walletId)
+        val userWallet = userWalletsListRepository.getSyncStrict(id = walletId)
 
         tangemTechApi.updateWallet(
             walletId = walletId.stringValue,
@@ -378,59 +361,36 @@ internal class DefaultWalletsRepository(
 
     override suspend fun associateWallets(applicationId: String, wallets: List<UserWallet>) =
         withContext(dispatchers.io) {
-            if (accountsFeatureToggles.isFeatureEnabled) {
-                val associateApplicationIdWithWallets: suspend () -> ApiResponse<Unit> = {
-                    tangemTechApi.associateApplicationIdWithWalletsV2(
-                        applicationId = applicationId,
-                        body = AssociateApplicationIdWithWalletsBody(
-                            walletIds = wallets.map { it.walletId.stringValue }.distinct(),
-                        ),
-                    )
-                }
-
-                val apiResponse = associateApplicationIdWithWallets()
-
-                if (apiResponse is ApiResponse.Success) return@withContext
-
-                if (apiResponse is ApiResponse.Error &&
-                    apiResponse.cause.isNetworkError(HttpException.Code.BAD_REQUEST)
-                ) {
-                    val errorBody = (apiResponse.cause as? HttpException)?.errorBody
-                        ?: error("Bad Request must have error body")
-
-                    val adapter = moshi.adapter(AssociateAppWithWalletsErrorResponse::class.java)
-                    val errorResponse = adapter.fromJson(errorBody)
-                        ?: error("Cannot parse error body: $errorBody")
-
-                    errorResponse.missingWalletIds
-                        .map {
-                            async { createWallet(userWalletId = UserWalletId(it)) }
-                        }
-                        .awaitAll()
-
-                    associateApplicationIdWithWallets().getOrThrow()
-                }
-            } else {
-                val conversionData = appsFlyerStore.get()
-                val publicKeys = authProvider.getCardsPublicKeys()
-                val walletsBody = wallets.map { userWallet ->
-                    WalletIdBodyConverter.convert(
-                        userWallet = userWallet,
-                        conversionData = conversionData,
-                        publicKeys = if (userWallet is UserWallet.Cold) {
-                            publicKeys.filterKeys {
-                                userWallet.cardsInWallet.contains(it)
-                            }
-                        } else {
-                            emptyMap()
-                        },
-                    )
-                }
-
-                tangemTechApi.associateApplicationIdWithWallets(
+            val associateApplicationIdWithWallets: suspend () -> ApiResponse<Unit> = {
+                tangemTechApi.associateApplicationIdWithWalletsV2(
                     applicationId = applicationId,
-                    body = walletsBody,
-                ).getOrThrow()
+                    body = AssociateApplicationIdWithWalletsBody(
+                        walletIds = wallets.map { it.walletId.stringValue }.distinct(),
+                    ),
+                )
+            }
+
+            val apiResponse = associateApplicationIdWithWallets()
+
+            if (apiResponse is ApiResponse.Success) return@withContext
+
+            if (apiResponse is ApiResponse.Error &&
+                apiResponse.cause.isNetworkError(HttpException.Code.BAD_REQUEST)
+            ) {
+                val errorBody = (apiResponse.cause as? HttpException)?.errorBody
+                    ?: error("Bad Request must have error body")
+
+                val adapter = moshi.adapter(AssociateAppWithWalletsErrorResponse::class.java)
+                val errorResponse = adapter.fromJson(errorBody)
+                    ?: error("Cannot parse error body: $errorBody")
+
+                errorResponse.missingWalletIds
+                    .map {
+                        async { createWallet(userWalletId = UserWalletId(it)) }
+                    }
+                    .awaitAll()
+
+                associateApplicationIdWithWallets().getOrThrow()
             }
         }
 

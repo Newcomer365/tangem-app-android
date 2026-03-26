@@ -1,7 +1,6 @@
 package com.tangem.feature.swap.di
 
 import com.squareup.moshi.Moshi
-import com.tangem.blockchainsdk.utils.ExcludedBlockchains
 import com.tangem.data.common.currency.ResponseCryptoCurrenciesFactory
 import com.tangem.data.common.network.NetworkFactory
 import com.tangem.datasource.api.express.TangemExpressApi
@@ -9,8 +8,6 @@ import com.tangem.datasource.api.express.models.response.ExpressErrorResponse
 import com.tangem.datasource.crypto.DataSignatureVerifier
 import com.tangem.datasource.di.NetworkMoshi
 import com.tangem.datasource.local.preferences.AppPreferencesStore
-import com.tangem.datasource.local.userwallet.UserWalletsStore
-import com.tangem.domain.account.featuretoggle.AccountsFeatureToggles
 import com.tangem.domain.account.supplier.SingleAccountListSupplier
 import com.tangem.domain.exchange.RampStateManager
 import com.tangem.domain.walletmanager.WalletManagersFacade
@@ -37,10 +34,8 @@ internal class SwapDataModule {
         coroutineDispatcher: CoroutineDispatcherProvider,
         dataSignature: DataSignatureVerifier,
         walletManagerFacade: WalletManagersFacade,
-        userWalletsStore: UserWalletsStore,
         errorsDataConverter: ErrorsDataConverter,
         @NetworkMoshi moshi: Moshi,
-        excludedBlockchains: ExcludedBlockchains,
         appPreferencesStore: AppPreferencesStore,
         rampStateManager: RampStateManager,
     ): SwapRepository {
@@ -48,11 +43,9 @@ internal class SwapDataModule {
             tangemExpressApi = tangemExpressApi,
             coroutineDispatcher = coroutineDispatcher,
             walletManagersFacade = walletManagerFacade,
-            userWalletsStore = userWalletsStore,
             errorsDataConverter = errorsDataConverter,
             dataSignatureVerifier = dataSignature,
             moshi = moshi,
-            excludedBlockchains = excludedBlockchains,
             appPreferencesStore = appPreferencesStore,
             rampStateManager = rampStateManager,
         )
@@ -65,7 +58,6 @@ internal class SwapDataModule {
         responseCryptoCurrenciesFactory: ResponseCryptoCurrenciesFactory,
         networkFactory: NetworkFactory,
         singleAccountListSupplier: SingleAccountListSupplier,
-        accountsFeatureToggles: AccountsFeatureToggles,
         dispatcherProvider: CoroutineDispatcherProvider,
     ): SwapTransactionRepository {
         return DefaultSwapTransactionRepository(
@@ -73,7 +65,6 @@ internal class SwapDataModule {
             responseCryptoCurrenciesFactory = responseCryptoCurrenciesFactory,
             networkFactory = networkFactory,
             singleAccountListSupplier = singleAccountListSupplier,
-            accountsFeatureToggles = accountsFeatureToggles,
             dispatchers = dispatcherProvider,
         )
     }

@@ -3,15 +3,17 @@ package com.tangem.features.managetokens.utils.list
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
-import com.tangem.domain.account.featuretoggle.AccountsFeatureToggles
 import com.tangem.domain.account.producer.SingleAccountProducer
 import com.tangem.domain.account.status.usecase.ManageCryptoCurrenciesUseCase
 import com.tangem.domain.account.supplier.SingleAccountSupplier
-import com.tangem.domain.managetokens.*
+import com.tangem.domain.managetokens.CheckCurrencyUnsupportedUseCase
+import com.tangem.domain.managetokens.GetDistinctManagedCurrenciesUseCase
+import com.tangem.domain.managetokens.GetManagedTokensUseCase
 import com.tangem.domain.managetokens.model.CurrencyUnsupportedState
 import com.tangem.domain.managetokens.model.ManageTokensListConfig
 import com.tangem.domain.managetokens.model.ManagedCryptoCurrency
 import com.tangem.domain.managetokens.repository.CustomTokensRepository
+import com.tangem.domain.models.account.Account
 import com.tangem.domain.models.currency.CryptoCurrency
 import com.tangem.domain.models.network.Network
 import com.tangem.domain.models.wallet.UserWalletId
@@ -25,14 +27,10 @@ import dagger.assisted.AssistedInject
 internal class ManageTokensUseCasesFacade @AssistedInject constructor(
     val getManagedTokensUseCase: GetManagedTokensUseCase,
     val getDistinctManagedTokensUseCase: GetDistinctManagedCurrenciesUseCase,
-    private val checkHasLinkedTokensUseCase: CheckHasLinkedTokensUseCase,
-    private val removeCustomCurrencyUseCase: RemoveCustomManagedCryptoCurrencyUseCase,
     private val checkCurrencyUnsupportedUseCase: CheckCurrencyUnsupportedUseCase,
     private val coldWalletAndHasMissedDerivationsUseCase: ColdWalletAndHasMissedDerivationsUseCase,
-    private val saveManagedTokensUseCase: SaveManagedTokensUseCase,
     private val manageCryptoCurrenciesUseCase: ManageCryptoCurrenciesUseCase,
     private val customTokensRepository: CustomTokensRepository,
-    private val accountsFeatureToggles: AccountsFeatureToggles,
     private val singleAccountSupplier: SingleAccountSupplier,
     @Assisted private val mode: ManageTokensMode,
 ) {
@@ -43,17 +41,10 @@ internal class ManageTokensUseCasesFacade @AssistedInject constructor(
     fun manageTokensListConfig(searchText: String?): ManageTokensListConfig {
         return when (mode) {
             is ManageTokensMode.Account -> {
-                ManageTokensListConfig.Account(accountId = mode.accountId, searchText = searchText)
-            }
-            is ManageTokensMode.Wallet -> {
-                ManageTokensListConfig.Wallet(userWalletId = mode.userWalletId, searchText = searchText)
+                ManageTokensListConfig(accountId = mode.accountId, searchText = searchText)
             }
             ManageTokensMode.None -> {
-                if (accountsFeatureToggles.isFeatureEnabled) {
-                    ManageTokensListConfig.Account(accountId = null, searchText = searchText)
-                } else {
-                    ManageTokensListConfig.Wallet(userWalletId = null, searchText = searchText)
-                }
+                ManageTokensListConfig(accountId = null, searchText = searchText)
             }
         }
     }
@@ -68,10 +59,6 @@ internal class ManageTokensUseCasesFacade @AssistedInject constructor(
 
                 manageCryptoCurrenciesUseCase(accountId = mode.accountId, remove = currency)
             }
-            is ManageTokensMode.Wallet -> removeCustomCurrencyUseCase.invoke(
-                userWalletId = mode.userWalletId,
-                customCurrency = customCurrency,
-            )
             ManageTokensMode.None -> nonePortfolioError.left()
         }
     }
@@ -88,21 +75,15 @@ internal class ManageTokensUseCasesFacade @AssistedInject constructor(
 
                 val account = singleAccountSupplier.getSyncOrNull(
                     params = SingleAccountProducer.Params(accountId = mode.accountId),
-                )
+                ) as? Account.CryptoPortfolio
                     ?: return IllegalStateException("Account not found").left()
 
-                (account.cryptoCurrencies + added - removed).any {
-                    it is CryptoCurrency.Token && it.network.backendId == network.backendId &&
-                        it.network.derivationPath == network.derivationPath
+                (account.cryptoCurrencies + added - removed).any { currency ->
+                    currency is CryptoCurrency.Token && currency.network.backendId == network.backendId &&
+                        currency.network.derivationPath == network.derivationPath
                 }
                     .right()
             }
-            is ManageTokensMode.Wallet -> checkHasLinkedTokensUseCase.invoke(
-                userWalletId = mode.userWalletId,
-                network = network,
-                tempAddedTokens = tempAddedTokens,
-                tempRemovedTokens = tempRemovedTokens,
-            )
             ManageTokensMode.None -> nonePortfolioError.left()
         }
     }
@@ -115,21 +96,13 @@ internal class ManageTokensUseCasesFacade @AssistedInject constructor(
                 userWalletId = mode.accountId.userWalletId,
                 sourceNetwork = sourceNetwork,
             )
-            is ManageTokensMode.Wallet -> checkCurrencyUnsupportedUseCase.invoke(
-                userWalletId = mode.userWalletId,
-                sourceNetwork = sourceNetwork,
-            )
             ManageTokensMode.None -> nonePortfolioError.left()
         }
     }
 
-    suspend fun needColdWalletInteraction(network: Map<String, Nothing?>): Boolean = when (mode) {
+    suspend fun needColdWalletInteraction(network: Map<String, String?>): Boolean = when (mode) {
         is ManageTokensMode.Account -> coldWalletAndHasMissedDerivationsUseCase.invoke(
             userWalletId = mode.accountId.userWalletId,
-            networksWithDerivationPath = network,
-        )
-        is ManageTokensMode.Wallet -> coldWalletAndHasMissedDerivationsUseCase.invoke(
-            userWalletId = mode.userWalletId,
             networksWithDerivationPath = network,
         )
         ManageTokensMode.None -> false
@@ -144,13 +117,6 @@ internal class ManageTokensUseCasesFacade @AssistedInject constructor(
                 accountId = mode.accountId,
                 add = currenciesToAdd.mapToCryptoCurrencies(userWalletId = mode.accountId.userWalletId),
                 remove = currenciesToRemove.mapToCryptoCurrencies(userWalletId = mode.accountId.userWalletId),
-            )
-        }
-        is ManageTokensMode.Wallet -> {
-            saveManagedTokensUseCase.invoke(
-                userWalletId = mode.userWalletId,
-                currenciesToAdd = currenciesToAdd,
-                currenciesToRemove = currenciesToRemove,
             )
         }
         ManageTokensMode.None -> nonePortfolioError.left()

@@ -9,9 +9,14 @@ import io.github.kakaocup.compose.node.element.ComposeScreen.Companion.onCompose
 import io.github.kakaocup.compose.node.element.KNode
 import io.github.kakaocup.kakao.common.utilities.getResourceString
 import androidx.compose.ui.test.hasTestTag as withTestTag
+import androidx.compose.ui.test.hasText as withText
 
 class SwapTokenPageObject(semanticsProvider: SemanticsNodeInteractionsProvider) :
     ComposeScreen<SwapTokenPageObject>(semanticsProvider = semanticsProvider) {
+
+    val container: KNode = child {
+        hasTestTag(SwapTokenScreenTestTags.CONTAINER)
+    }
 
     val title: KNode = child {
         hasTestTag(TopAppBarTestTags.TITLE)
@@ -35,6 +40,11 @@ class SwapTokenPageObject(semanticsProvider: SemanticsNodeInteractionsProvider) 
 
     val selectFeeIcon: KNode = child {
         hasTestTag(FeeSelectorBlockTestTags.SELECT_FEE_ICON)
+        useUnmergedTree = true
+    }
+
+    val feeAmount: KNode = child {
+        hasParent(withTestTag(FeeSelectorBlockTestTags.FEE_AMOUNT))
         useUnmergedTree = true
     }
 
@@ -66,6 +76,61 @@ class SwapTokenPageObject(semanticsProvider: SemanticsNodeInteractionsProvider) 
         useUnmergedTree = true
     }
 
+    fun unableToCoverFeeNotificationTitle(networkName: String): KNode = child {
+        hasTestTag(NotificationTestTags.TITLE)
+        hasText(
+            getResourceString(
+                R.string.warning_express_not_enough_fee_for_token_tx_title,
+                networkName
+            )
+        )
+        useUnmergedTree = true
+    }
+
+    fun unableToCoverFeeNotificationText(currencyName: String, currencySymbol: String): KNode = child {
+        hasTestTag(NotificationTestTags.MESSAGE)
+        hasText(
+            getResourceString(
+                R.string.warning_express_not_enough_fee_for_token_tx_description,
+                currencyName,
+                currencySymbol
+            )
+        )
+        useUnmergedTree = true
+    }
+
+    fun unableToCoverFeeNotificationIcon(networkName: String): KNode = child {
+        hasTestTag(NotificationTestTags.ICON)
+        hasAnySibling(withTestTag(NotificationTestTags.TITLE))
+        hasAnySibling(
+            withText(
+                getResourceString(
+                    R.string.warning_express_not_enough_fee_for_token_tx_title,
+                    networkName,
+                )
+            )
+        )
+        useUnmergedTree = true
+    }
+
+    fun warningTitle(title: String): KNode = child {
+        hasTestTag(NotificationTestTags.TITLE)
+        hasText(title)
+        useUnmergedTree = true
+    }
+
+    fun warningMessage(message: String): KNode = child {
+        hasTestTag(NotificationTestTags.MESSAGE)
+        hasText(message)
+        useUnmergedTree = true
+    }
+
+    fun warningIcon(message: String): KNode = child {
+        hasTestTag(NotificationTestTags.ICON)
+        hasAnySibling(withText(message))
+        useUnmergedTree = true
+    }
+
     val refreshButton: KNode = child {
         hasTestTag(BaseButtonTestTags.BUTTON)
         hasText(getResourceString(R.string.warning_button_refresh))
@@ -76,10 +141,60 @@ class SwapTokenPageObject(semanticsProvider: SemanticsNodeInteractionsProvider) 
         hasText(getResourceString(R.string.common_swap))
     }
 
-    fun tokenSymbol(symbol: String): KNode = child {
-        hasTestTag(SwapTokenScreenTestTags.TOKEN_SYMBOL)
+    val youSwapBlock: KNode = child {
+        hasTestTag(SwapTokenScreenTestTags.SWAP_BLOCK_HEADER)
+        hasAnyDescendant(withText(getResourceString(R.string.swapping_from_title)))
+        hasAnyDescendant(withTestTag(SwapTokenScreenTestTags.BALANCE))
+        useUnmergedTree = true
     }
 
+    val youReceiveBlock: KNode = child {
+        hasTestTag(SwapTokenScreenTestTags.SWAP_BLOCK_HEADER)
+        hasAnyDescendant(withText(getResourceString(R.string.swapping_to_title)))
+        hasAnyDescendant(withTestTag(SwapTokenScreenTestTags.BALANCE))
+        useUnmergedTree = true
+    }
+
+    val insufficientFundsErrorTitle: KNode = child {
+        hasTestTag(SendScreenTestTags.AMOUNT_CONTAINER_TITLE)
+        hasText(getResourceString(R.string.swapping_insufficient_funds))
+        useUnmergedTree = true
+    }
+
+    val receiveFiatAmount: KNode = child {
+        hasTestTag(SwapTokenScreenTestTags.RECEIVE_FIAT_AMOUNT)
+    }
+
+    val receiveFiatAmountWithPriceImpactWarning: KNode = child {
+        hasTestTag(SwapTokenScreenTestTags.RECEIVE_FIAT_AMOUNT_WITH_PRICE_IMPACT_WARNING)
+    }
+
+    val receiveFiatAmountInformationIcon: KNode = child {
+        hasTestTag(SwapTokenScreenTestTags.RECEIVE_FIAT_AMOUNT_INFORMATION_ICON)
+        useUnmergedTree = true
+    }
+
+    val swapFiatAmount: KNode = child {
+        hasTestTag(SwapTokenScreenTestTags.SWAP_FIAT_AMOUNT)
+    }
+
+    val selectTokenIcon: KNode = child {
+        hasTestTag(SwapTokenScreenTestTags.SELECT_TOKEN_ICON)
+    }
+
+    fun swapTokenSymbol(symbol: String): KNode = child {
+        hasAnyAncestor(withTestTag(SwapTokenScreenTestTags.SWAP_CARD))
+        hasTestTag(SwapTokenScreenTestTags.TOKEN_SYMBOL)
+        hasText(symbol)
+        useUnmergedTree = true
+    }
+
+    fun receiveTokenSymbol(symbol: String): KNode = child {
+        hasAnyAncestor(withTestTag(SwapTokenScreenTestTags.RECEIVE_CARD))
+        hasTestTag(SwapTokenScreenTestTags.TOKEN_SYMBOL)
+        hasText(symbol)
+        useUnmergedTree = true
+    }
 }
 
 internal fun BaseTestCase.onSwapTokenScreen(function: SwapTokenPageObject.() -> Unit) =

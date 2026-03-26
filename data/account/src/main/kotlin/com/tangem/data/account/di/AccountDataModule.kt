@@ -4,9 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStoreFactory
 import androidx.datastore.dataStoreFile
 import com.squareup.moshi.Moshi
-import com.tangem.core.configtoggle.feature.FeatureTogglesManager
 import com.tangem.data.account.converter.AccountConverterFactoryContainer
-import com.tangem.data.account.featuretoggle.DefaultAccountsFeatureToggles
 import com.tangem.data.account.fetcher.DefaultWalletAccountsFetcher
 import com.tangem.data.account.repository.AccountsExpandedDTO
 import com.tangem.data.account.repository.DefaultAccountsCRUDRepository
@@ -22,11 +20,9 @@ import com.tangem.datasource.api.tangemTech.TangemTechApi
 import com.tangem.datasource.di.NetworkMoshi
 import com.tangem.datasource.local.accounts.AccountTokenMigrationStore
 import com.tangem.datasource.local.datastore.RuntimeStateStore
-import com.tangem.datasource.local.userwallet.UserWalletsStore
 import com.tangem.datasource.utils.MoshiDataStoreSerializer
 import com.tangem.datasource.utils.mapWithStringKeyTypes
 import com.tangem.datasource.utils.setTypes
-import com.tangem.domain.account.featuretoggle.AccountsFeatureToggles
 import com.tangem.domain.account.repository.AccountsCRUDRepository
 import com.tangem.domain.account.repository.AccountsExpandedRepository
 import com.tangem.domain.account.tokens.MainAccountTokensMigration
@@ -46,17 +42,10 @@ internal object AccountDataModule {
 
     @Provides
     @Singleton
-    fun provideAccountFeatureToggle(featureTogglesManager: FeatureTogglesManager): AccountsFeatureToggles {
-        return DefaultAccountsFeatureToggles(featureTogglesManager = featureTogglesManager)
-    }
-
-    @Provides
-    @Singleton
     fun provideAccountsCRUDRepository(
         tangemTechApi: TangemTechApi,
         walletAccountsSaver: WalletAccountsSaver,
         accountsResponseStoreFactory: AccountsResponseStoreFactory,
-        userWalletsStore: UserWalletsStore,
         userTokensSaver: UserTokensSaver,
         accountConverterFactoryContainer: AccountConverterFactoryContainer,
         @ApplicationContext context: Context,
@@ -67,7 +56,6 @@ internal object AccountDataModule {
             walletAccountsSaver = walletAccountsSaver,
             accountsResponseStoreFactory = accountsResponseStoreFactory,
             archivedAccountsStoreFactory = ArchivedAccountsStoreFactory,
-            userWalletsStore = userWalletsStore,
             userTokensSaver = userTokensSaver,
             archivedAccountsETagStore = RuntimeStateStore(emptyMap()),
             convertersContainer = accountConverterFactoryContainer,

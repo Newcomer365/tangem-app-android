@@ -5,10 +5,11 @@ data class TokenMarketListConfig(
     val searchText: String?,
     val priceChangeInterval: Interval,
     val order: Order,
+    val shouldNetworks: Boolean? = null,
 ) {
 
     enum class Order {
-        ByRating, Trending, Buyers, TopGainers, TopLosers, Staking, YieldSupply,
+        ByRating, Trending, Buyers, TopGainers, TopLosers
     }
 
     enum class Interval {

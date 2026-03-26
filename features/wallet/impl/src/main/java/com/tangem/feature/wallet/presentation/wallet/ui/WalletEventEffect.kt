@@ -1,6 +1,7 @@
 package com.tangem.feature.wallet.presentation.wallet.ui
 
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.*
@@ -11,23 +12,19 @@ import com.tangem.core.ui.event.StateEvent
 import com.tangem.core.ui.extensions.resolveReference
 import com.tangem.core.ui.utils.requestPermission
 import com.tangem.feature.wallet.impl.R
-import com.tangem.feature.wallet.presentation.wallet.state.model.WalletAlertState
 import com.tangem.feature.wallet.presentation.wallet.state.model.WalletEvent
-import com.tangem.feature.wallet.presentation.wallet.ui.utils.ReviewManagerRequester
 import com.tangem.feature.wallet.presentation.wallet.ui.utils.animateScrollByIndex
 import com.tangem.feature.wallet.presentation.wallet.ui.utils.demonstrateScrolling
 import com.tangem.features.pushnotifications.api.utils.PUSH_PERMISSION
 
 @Composable
-internal fun WalletEventEffect(
+internal fun WalletEventEffectLegacy(
     walletsListState: LazyListState,
     snackbarHostState: SnackbarHostState,
     event: StateEvent<WalletEvent>,
     onAutoScrollSet: () -> Unit,
-    onAlertConfigSet: (WalletAlertState) -> Unit,
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
     val resources = LocalContext.current.resources
 
     var showPermissionRequest by remember { mutableStateOf<Pair<() -> Unit, () -> Unit>?>(null) }
@@ -57,16 +54,59 @@ internal fun WalletEventEffect(
                         duration = SnackbarDuration.Short,
                     )
                 }
-                is WalletEvent.ShowAlert -> onAlertConfigSet(value.state)
-                is WalletEvent.RateApp -> {
-                    ReviewManagerRequester.request(context = context, onDismissClick = value.onDismissClick)
-                }
                 is WalletEvent.DemonstrateWalletsScrollPreview -> {
                     walletsListState.demonstrateScrolling(coroutineScope = coroutineScope, direction = value.direction)
                 }
                 is WalletEvent.RequestPushPermissions -> {
                     showPermissionRequest = value.onAllow to value.onDeny
                 }
+                is WalletEvent.CollapseBalance -> { /* no-op */ }
+            }
+        },
+    )
+}
+
+@Composable
+internal fun WalletEventEffect(
+    walletsPagerState: PagerState,
+    snackbarHostState: SnackbarHostState,
+    event: StateEvent<WalletEvent>,
+    onCollapseBalance: () -> Unit,
+) {
+    val resources = LocalContext.current.resources
+
+    var showPermissionRequest by remember { mutableStateOf<Pair<() -> Unit, () -> Unit>?>(null) }
+    HandlePermissionRequest(
+        permissionRequestParams = showPermissionRequest,
+        onPermissionRequestResult = { showPermissionRequest = null },
+    )
+
+    EventEffect(
+        event = event,
+        onTrigger = { value ->
+            when (value) {
+                is WalletEvent.ChangeWallet -> {
+                    walletsPagerState.animateScrollToPage(page = value.newIndex)
+                }
+                is WalletEvent.ChangeWalletWithoutScroll -> {
+                    walletsPagerState.scrollToPage(page = value.newIndex)
+                }
+                is WalletEvent.ShowError -> {
+                    snackbarHostState.showSnackbar(message = value.text.resolveReference(resources))
+                }
+                is WalletEvent.CopyAddress -> {
+                    snackbarHostState.showSnackbar(
+                        message = resources.getStringSafe(R.string.wallet_notification_address_copied),
+                        duration = SnackbarDuration.Short,
+                    )
+                }
+                is WalletEvent.DemonstrateWalletsScrollPreview -> {
+                    /* no-op */
+                }
+                is WalletEvent.RequestPushPermissions -> {
+                    showPermissionRequest = value.onAllow to value.onDeny
+                }
+                is WalletEvent.CollapseBalance -> onCollapseBalance()
             }
         },
     )

@@ -21,6 +21,7 @@ dependencies {
     implementation(projects.domain.walletManager)
     implementation(projects.domain.card)
     implementation(projects.domain.staking)
+    implementation(projects.domain.visa)
     implementation(projects.libs.blockchainSdk)
     implementation(projects.domain.tokens.models)
     implementation(projects.domain.txhistory.models)
@@ -46,6 +47,7 @@ dependencies {
     implementation(projects.core.configToggles)
     implementation(projects.core.utils)
     implementation(projects.libs.crypto)
+    implementation(projects.common)
 
     /** Android - Other */
     implementation(deps.androidx.paging.runtime)

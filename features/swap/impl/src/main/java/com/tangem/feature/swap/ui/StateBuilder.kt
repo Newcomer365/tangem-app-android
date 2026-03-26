@@ -5,33 +5,27 @@ import androidx.compose.ui.text.input.TextFieldValue
 import com.tangem.common.ui.account.AccountTitleUM
 import com.tangem.common.ui.account.CryptoPortfolioIconConverter
 import com.tangem.common.ui.account.toUM
-import com.tangem.common.ui.alerts.models.AlertDemoModeUM
 import com.tangem.common.ui.bottomsheet.permission.state.*
 import com.tangem.common.ui.notifications.NotificationUM
 import com.tangem.common.ui.swapStoriesScreen.SwapStoriesFactory
 import com.tangem.common.ui.userwallet.ext.walletInterationIcon
+import com.tangem.core.ui.HoldToConfirmButtonFeatureToggles
 import com.tangem.core.ui.components.bottomsheets.TangemBottomSheetConfig
 import com.tangem.core.ui.components.currency.icon.converter.CryptoCurrencyToIconStateConverter
-import com.tangem.core.ui.event.consumedEvent
-import com.tangem.core.ui.event.triggeredEvent
 import com.tangem.core.ui.extensions.*
 import com.tangem.core.ui.format.bigdecimal.anyDecimals
 import com.tangem.core.ui.format.bigdecimal.crypto
 import com.tangem.core.ui.format.bigdecimal.fiat
 import com.tangem.core.ui.format.bigdecimal.format
-import com.tangem.core.ui.utils.parseBigDecimal
 import com.tangem.domain.appcurrency.model.AppCurrency
 import com.tangem.domain.models.account.Account
 import com.tangem.domain.models.currency.CryptoCurrency
 import com.tangem.domain.models.currency.CryptoCurrencyStatus
-import com.tangem.core.ui.HoldToConfirmButtonFeatureToggles
 import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.domain.models.wallet.isHotWallet
 import com.tangem.domain.promo.models.StoryContent
 import com.tangem.domain.transaction.usecase.gasless.IsGaslessFeeSupportedForNetwork
-import com.tangem.feature.swap.converters.SwapTransactionErrorStateConverter
 import com.tangem.feature.swap.converters.TokensDataConverter
-import com.tangem.feature.swap.converters.TokensDataConverterV2
 import com.tangem.feature.swap.domain.models.ExpressDataError
 import com.tangem.feature.swap.domain.models.SwapAmount
 import com.tangem.feature.swap.domain.models.domain.ExchangeProviderType
@@ -43,12 +37,10 @@ import com.tangem.feature.swap.model.SwapNotificationsFactory
 import com.tangem.feature.swap.model.SwapProcessDataState
 import com.tangem.feature.swap.models.*
 import com.tangem.feature.swap.models.states.*
-import com.tangem.feature.swap.models.states.events.SwapEvent
 import com.tangem.feature.swap.presentation.R
 import com.tangem.feature.swap.utils.formatToUIRepresentation
 import com.tangem.utils.Provider
 import com.tangem.utils.StringsSigns.DASH_SIGN
-import com.tangem.utils.StringsSigns.PERCENT
 import com.tangem.utils.StringsSigns.TILDE_SIGN
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
@@ -69,20 +61,13 @@ internal class StateBuilder(
     private val appCurrencyProvider: Provider<AppCurrency>,
     private val isAccountsModeProvider: Provider<Boolean>,
     private val iGaslessFeeSupportedForNetwork: IsGaslessFeeSupportedForNetwork,
-    private val holdToConfirmButtonFeatureToggles: HoldToConfirmButtonFeatureToggles,
+    holdToConfirmButtonFeatureToggles: HoldToConfirmButtonFeatureToggles,
 ) {
 
     private val isHoldToConfirmEnabled: Boolean =
         holdToConfirmButtonFeatureToggles.isHoldToConfirmEnabled && userWalletProvider().isHotWallet
 
     private val iconStateConverter by lazy(::CryptoCurrencyToIconStateConverter)
-
-    private val tokensDataConverter = TokensDataConverter(
-        onSearchEntered = actions.onSearchEntered,
-        onTokenSelected = actions.onTokenSelected,
-        isBalanceHiddenProvider = isBalanceHiddenProvider,
-        appCurrencyProvider = appCurrencyProvider,
-    )
 
     private val notificationsFactory by lazy(LazyThreadSafetyMode.NONE) {
         SwapNotificationsFactory(actions, iGaslessFeeSupportedForNetwork)
@@ -170,10 +155,10 @@ internal class StateBuilder(
                 amountTextFieldValue = null,
                 amountEquivalent = "0 ${appCurrencyProvider.invoke().symbol}",
                 token = fromToken,
-                tokenIconUrl = uiStateHolder.sendCardData.tokenIconUrl,
-                coinId = uiStateHolder.sendCardData.coinId,
-                isNotNativeToken = uiStateHolder.sendCardData.isNotNativeToken,
-                tokenCurrency = uiStateHolder.sendCardData.tokenCurrency,
+                tokenIconUrl = fromToken.currency.iconUrl,
+                coinId = fromToken.currency.network.backendId,
+                isNotNativeToken = fromToken.currency is CryptoCurrency.Token,
+                tokenCurrency = fromToken.currency.symbol,
                 canSelectAnotherToken = uiStateHolder.sendCardData.canSelectAnotherToken,
                 balance = fromToken.getFormattedAmount(isNeedSymbol = false),
                 networkIconRes = getActiveIconRes(fromToken.currency.network.rawId),
@@ -196,6 +181,63 @@ internal class StateBuilder(
                 onClick = { },
             ),
             changeCardsButtonState = ChangeCardsButtonState.DISABLED,
+            priceImpact = PriceImpact.Empty(),
+        )
+    }
+
+    fun createSwapNotSupportedState(
+        uiStateHolder: SwapStateHolder,
+        fromToken: CryptoCurrencyStatus,
+        toToken: CryptoCurrencyStatus,
+        fromAccount: Account.CryptoPortfolio?,
+        toAccount: Account.CryptoPortfolio?,
+    ): SwapStateHolder {
+        if (uiStateHolder.sendCardData !is SwapCardState.SwapCardData) return uiStateHolder
+        return uiStateHolder.copy(
+            sendCardData = SwapCardState.SwapCardData(
+                type = requireNotNull(uiStateHolder.sendCardData.type as? TransactionCardType.Inputtable).copy(
+                    accountTitleUM = getFromCardAccountTitle(fromAccount),
+                ),
+                amountTextFieldValue = null,
+                amountEquivalent = "0 ${appCurrencyProvider.invoke().symbol}",
+                token = fromToken,
+                tokenIconUrl = fromToken.currency.iconUrl,
+                coinId = fromToken.currency.network.backendId,
+                isNotNativeToken = fromToken.currency is CryptoCurrency.Token,
+                tokenCurrency = fromToken.currency.symbol,
+                canSelectAnotherToken = uiStateHolder.sendCardData.canSelectAnotherToken,
+                balance = fromToken.getFormattedAmount(isNeedSymbol = false),
+                networkIconRes = getActiveIconRes(fromToken.currency.network.rawId),
+                isBalanceHidden = isBalanceHiddenProvider(),
+            ),
+            receiveCardData = SwapCardState.SwapCardData(
+                type = TransactionCardType.ReadOnly(
+                    accountTitleUM = getToCardAccountTitle(toAccount),
+                ),
+                amountTextFieldValue = TextFieldValue(
+                    text = "0",
+                ),
+                amountEquivalent = "0 ${appCurrencyProvider.invoke().symbol}",
+                token = toToken,
+                tokenIconUrl = toToken.currency.iconUrl,
+                coinId = toToken.currency.network.backendId,
+                isNotNativeToken = toToken.currency is CryptoCurrency.Token,
+                tokenCurrency = toToken.currency.symbol,
+                canSelectAnotherToken = true,
+                balance = toToken.getFormattedAmount(isNeedSymbol = false),
+                networkIconRes = getActiveIconRes(toToken.currency.network.rawId),
+                isBalanceHidden = isBalanceHiddenProvider(),
+            ),
+            notifications = notificationsFactory.getSwapNotSupportedNotifications(),
+            fee = FeeItemState.Empty,
+            swapButton = SwapButton(
+                walletInteractionIcon = walletInterationIcon(userWalletProvider()),
+                isEnabled = false,
+                isHoldToConfirm = isHoldToConfirmEnabled,
+                onClick = { },
+            ),
+            changeCardsButtonState = ChangeCardsButtonState.DISABLED,
+            providerState = ProviderState.Empty(),
             priceImpact = PriceImpact.Empty(),
         )
     }
@@ -438,6 +480,7 @@ internal class StateBuilder(
                 notification is SwapNotificationUM.Warning.ExpressError ||
                 notification is SwapNotificationUM.Warning.ExpressGeneralError ||
                 notification is SwapNotificationUM.Warning.NoAvailableTokensToSwap ||
+                notification is SwapNotificationUM.Warning.SwapNotSupported ||
                 notification is SwapNotificationUM.Warning.NeedReserveToCreateAccount ||
                 notification is SwapNotificationUM.Info.PermissionNeeded
         }
@@ -626,28 +669,12 @@ internal class StateBuilder(
         )
     }
 
-    fun addTokensToState(
-        uiState: SwapStateHolder,
-        fromToken: CryptoCurrency,
-        tokensDataState: CurrenciesGroup,
-    ): SwapStateHolder {
-        val currentMarketsState = uiState.selectTokenState?.marketsState
-        return uiState.copy(
-            selectTokenState = tokensDataConverter.convert(
-                value = CurrenciesGroupWithFromCurrency(
-                    fromCurrency = fromToken,
-                    group = tokensDataState,
-                ),
-            ).copy(marketsState = currentMarketsState),
-        )
-    }
-
     fun addTokensToStateV2(
         uiState: SwapStateHolder,
         tokensDataState: CurrenciesGroup,
         isAccountsMode: Boolean,
     ): SwapStateHolder {
-        return TokensDataConverterV2(
+        return TokensDataConverter(
             onSearchEntered = actions.onSearchEntered,
             onTokenSelected = actions.onTokenSelected,
             appCurrencyProvider = appCurrencyProvider,
@@ -660,6 +687,9 @@ internal class StateBuilder(
     fun createSilentLoadState(uiState: SwapStateHolder): SwapStateHolder {
         return uiState.copy(
             changeCardsButtonState = ChangeCardsButtonState.UPDATE_IN_PROGRESS,
+            notifications = uiState.notifications
+                .filterNot { it is SwapNotificationUM.Info.PermissionNeeded }
+                .toImmutableList(),
         )
     }
 
@@ -916,117 +946,6 @@ internal class StateBuilder(
             ),
         )
     }
-
-    fun createErrorTransactionAlert(
-        uiState: SwapStateHolder,
-        error: SwapTransactionState.Error,
-        onDismiss: () -> Unit,
-        onSupportClick: (String) -> Unit,
-        isReverseSwapPossible: Boolean,
-    ): SwapStateHolder {
-        val errorAlert = SwapTransactionErrorStateConverter(
-            onSupportClick = onSupportClick,
-            onDismiss = onDismiss,
-        ).convert(error)
-        return uiState.copy(
-            event = errorAlert?.let {
-                triggeredEvent(
-                    data = SwapEvent.ShowAlert(errorAlert),
-                    onConsume = onDismiss,
-                )
-            } ?: consumedEvent(),
-            changeCardsButtonState = getChangeCardsButtonState(isReverseSwapPossible),
-        )
-    }
-
-    fun createDemoModeAlert(
-        uiState: SwapStateHolder,
-        onDismiss: () -> Unit,
-        isReverseSwapPossible: Boolean,
-    ): SwapStateHolder {
-        return uiState.copy(
-            event = triggeredEvent(
-                data = SwapEvent.ShowAlert(AlertDemoModeUM(onDismiss)),
-                onConsume = onDismiss,
-            ),
-            changeCardsButtonState = getChangeCardsButtonState(isReverseSwapPossible),
-        )
-    }
-
-    @Suppress("LongParameterList")
-    fun createAlert(
-        uiState: SwapStateHolder,
-        isPriceImpact: Boolean,
-        token: String,
-        provider: SwapProvider,
-        onDismiss: () -> Unit,
-        isReverseSwapPossible: Boolean,
-    ): SwapStateHolder {
-        val slippage = provider.slippage?.let { "${it.parseBigDecimal(1)}$PERCENT" }
-        val combinedMessage = buildList {
-            when (provider.type) {
-                ExchangeProviderType.CEX -> {
-                    if (slippage != null) {
-                        add(
-                            resourceReference(
-                                id = R.string.swapping_alert_cex_description_with_slippage,
-                                formatArgs = wrappedList(token, slippage),
-                            ),
-                        )
-                    } else {
-                        add(resourceReference(R.string.swapping_alert_cex_description, wrappedList(token)))
-                    }
-                }
-                ExchangeProviderType.DEX,
-                ExchangeProviderType.DEX_BRIDGE,
-                -> {
-                    if (isPriceImpact) {
-                        add(resourceReference(R.string.swapping_high_price_impact_description))
-                        add(stringReference("\n\n"))
-                    }
-                    if (slippage != null) {
-                        add(
-                            resourceReference(
-                                id = R.string.swapping_alert_dex_description_with_slippage,
-                                formatArgs = wrappedList(slippage),
-                            ),
-                        )
-                    } else {
-                        add(resourceReference(R.string.swapping_alert_dex_description, wrappedList(token)))
-                    }
-                }
-            }
-        }
-        return uiState.copy(
-            event = triggeredEvent(
-                SwapEvent.ShowAlert(
-                    SwapAlertUM.InformationAlert(
-                        message = combinedReference(combinedMessage.toWrappedList()),
-                        onConfirmClick = onDismiss,
-                    ),
-                ),
-                onConsume = onDismiss,
-            ),
-            changeCardsButtonState = getChangeCardsButtonState(isReverseSwapPossible),
-        )
-    }
-
-    fun addAlert(
-        uiState: SwapStateHolder,
-        message: TextReference = resourceReference(R.string.common_unknown_error),
-        onDismiss: () -> Unit = { clearAlert(uiState) },
-    ): SwapStateHolder {
-        return uiState.copy(
-            event = triggeredEvent(
-                SwapEvent.ShowAlert(
-                    SwapAlertUM.GenericError(onDismiss, message),
-                ),
-                onConsume = onDismiss,
-            ),
-        )
-    }
-
-    fun clearAlert(uiState: SwapStateHolder): SwapStateHolder = uiState.copy(event = consumedEvent())
 
     fun addNotification(uiState: SwapStateHolder, message: TextReference?, onClick: () -> Unit): SwapStateHolder {
         return uiState.copy(

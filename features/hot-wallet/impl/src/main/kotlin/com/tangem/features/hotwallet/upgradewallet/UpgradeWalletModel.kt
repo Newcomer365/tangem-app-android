@@ -115,7 +115,7 @@ internal class UpgradeWalletModel @Inject constructor(
             )
 
             tangemSdkManager
-                .scanProduct()
+                .scanProduct(shouldCheckIsAlreadyActivated = true)
                 .doOnSuccess { scanResponse ->
                     checkIsWalletSuitableToBeUsedAsUpgrade(scanResponse = scanResponse) {
                         delay(DELAY_SDK_DIALOG_CLOSE)
@@ -179,6 +179,9 @@ internal class UpgradeWalletModel @Inject constructor(
                         title = resourceReference(id = R.string.alert_button_request_support),
                         onClick = {
                             modelScope.launch {
+                                analyticsEventHandler.send(
+                                    Basic.ButtonSupport(source = AnalyticsParam.ScreensSources.Upgrade),
+                                )
                                 sendFeedbackEmailUseCase(type = FeedbackEmailType.CardAttestationFailed)
                             }
                         },

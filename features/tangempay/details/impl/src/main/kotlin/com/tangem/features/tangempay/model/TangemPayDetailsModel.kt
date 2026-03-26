@@ -7,6 +7,7 @@ import com.arkivanov.decompose.router.slot.dismiss
 import com.tangem.common.routing.AppRoute
 import com.tangem.core.analytics.api.AnalyticsEventHandler
 import com.tangem.core.analytics.models.AnalyticsParam
+import com.tangem.core.analytics.models.Basic
 import com.tangem.core.decompose.di.ModelScoped
 import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
@@ -26,8 +27,8 @@ import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.domain.pay.TangemPayCryptoCurrencyFactory
 import com.tangem.domain.pay.model.TangemPayCardBalance
 import com.tangem.domain.pay.model.TangemPayTopUpData
-import com.tangem.domain.pay.repository.CustomerOrderRepository
 import com.tangem.domain.pay.repository.TangemPayCardDetailsRepository
+import com.tangem.domain.pay.repository.TangemPayWithdrawRepository
 import com.tangem.domain.tangempay.TangemPayAnalyticsEvents
 import com.tangem.domain.visa.model.TangemPayCardFrozenState
 import com.tangem.domain.visa.model.TangemPayTxHistoryItem
@@ -79,7 +80,7 @@ internal class TangemPayDetailsModel @Inject constructor(
     private val cardDetailsEventListener: CardDetailsEventListener,
     private val txHistoryUpdateListener: TangemPayTxHistoryUpdateListener,
     private val tangemPayCryptoCurrencyFactory: TangemPayCryptoCurrencyFactory,
-    private val orderRepository: CustomerOrderRepository,
+    private val tangemPayWithdrawRepository: TangemPayWithdrawRepository,
     private val getUserWalletUseCase: GetUserWalletUseCase,
     private val sendFeedbackEmailUseCase: SendFeedbackEmailUseCase,
     private val expressTransactionsEventListener: ExpressTransactionsEventListener,
@@ -278,24 +279,28 @@ internal class TangemPayDetailsModel @Inject constructor(
         if (currentBalance == null || depositAddress == null) {
             showBottomSheetError(TangemPayDetailsErrorType.Withdraw)
         } else {
-            modelScope.launch {
-                val hasActiveWithdrawal = orderRepository.hasWithdrawOrder(userWalletId = params.userWalletId)
-                if (hasActiveWithdrawal) {
-                    showBottomSheetError(TangemPayDetailsErrorType.WithdrawInProgress)
-                } else {
-                    val userWallet = userWallet ?: getUserWalletUseCase(params.userWalletId).getOrNull()
-                    val currency = cryptoCurrency ?: userWallet?.let {
-                        tangemPayCryptoCurrencyFactory.create(userWallet = userWallet, chainId = params.config.chainId)
-                            .getOrNull()
-                    }
-                    if (currency != null) {
-                        uiMessageSender.send(
-                            message = TangemPayMessagesFactory.createWithdrawWarning(
-                                onGotItClick = { onConfirmWithdrawal(currency, currentBalance, depositAddress) },
-                            ),
-                        )
+            val userWallet = userWallet ?: getUserWalletUseCase(params.userWalletId).getOrNull()
+            if (userWallet == null) {
+                showBottomSheetError(TangemPayDetailsErrorType.Withdraw)
+            } else {
+                modelScope.launch {
+                    val hasActiveWithdrawal = tangemPayWithdrawRepository.hasWithdrawOrder(userWallet = userWallet)
+                    if (hasActiveWithdrawal) {
+                        showBottomSheetError(TangemPayDetailsErrorType.WithdrawInProgress)
                     } else {
-                        showBottomSheetError(TangemPayDetailsErrorType.Withdraw)
+                        val currency = cryptoCurrency ?: tangemPayCryptoCurrencyFactory.create(
+                            userWallet = userWallet,
+                            chainId = params.config.chainId,
+                        ).getOrNull()
+                        if (currency != null) {
+                            uiMessageSender.send(
+                                message = TangemPayMessagesFactory.createWithdrawWarning(
+                                    onGotItClick = { onConfirmWithdrawal(currency, currentBalance, depositAddress) },
+                                ),
+                            )
+                        } else {
+                            showBottomSheetError(TangemPayDetailsErrorType.Withdraw)
+                        }
                     }
                 }
             }
@@ -367,6 +372,7 @@ internal class TangemPayDetailsModel @Inject constructor(
 
     override fun onContactSupportClicked() {
         analytics.send(TangemPayAnalyticsEvents.GoToSupportOnBetaBannerClicked())
+        analytics.send(Basic.ButtonSupport(source = AnalyticsParam.ScreensSources.TangemPay))
         modelScope.launch {
             sendFeedbackEmailUseCase.invoke(
                 type = FeedbackEmailType.Visa.FeatureIsBeta(
@@ -437,7 +443,7 @@ internal class TangemPayDetailsModel @Inject constructor(
         analytics.send(TangemPayAnalyticsEvents.ReceiveFundsClicked())
         bottomSheetNavigation.dismiss()
         val config = TokenReceiveConfig(
-            shouldShowWarning = false,
+            shouldShowWarning = true,
             cryptoCurrency = data.currency,
             userWalletId = data.walletId,
             showMemoDisclaimer = false,

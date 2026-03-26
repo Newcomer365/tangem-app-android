@@ -2,7 +2,7 @@ package com.tangem.features.feed.ui.market.detailed.state
 
 import androidx.compose.runtime.Immutable
 import com.tangem.common.ui.charts.state.MarketChartDataProducer
-import com.tangem.common.ui.news.ArticleConfigUM
+import com.tangem.features.feed.ui.feed.components.articles.ArticleConfigUM
 import com.tangem.core.ui.components.bottomsheets.TangemBottomSheetConfig
 import com.tangem.core.ui.components.marketprice.PriceChangeType
 import com.tangem.core.ui.event.StateEvent
@@ -28,6 +28,7 @@ internal data class MarketsTokenDetailsUM(
     val shouldShowPriceSubtitle: Boolean,
     val onShouldShowPriceSubtitleChange: (Boolean) -> Unit,
     val relatedNews: RelatedNews,
+    val onShareClick: () -> Unit,
 ) {
 
     data class ChartState(

@@ -67,13 +67,21 @@ fun TransactionCard(
     @DrawableRes networkIconRes: Int? = null,
     onChangeTokenClick: (() -> Unit)? = null,
 ) {
+    val cardTag = when (type) {
+        is TransactionCardType.Inputtable ->
+            SwapTokenScreenTestTags.SWAP_CARD
+        is TransactionCardType.ReadOnly ->
+            SwapTokenScreenTestTags.RECEIVE_CARD
+    }
+
     Box(
         modifier = modifier
             .background(
                 shape = RoundedCornerShape(TangemTheme.dimens.radius16),
                 color = TangemTheme.colors.background.primary,
             )
-            .fillMaxSize(),
+            .fillMaxSize()
+            .testTag(cardTag),
     ) {
         Column(
             modifier = Modifier
@@ -320,6 +328,9 @@ private fun Content(
                                 ),
                                 color = TangemTheme.colors.text.tertiary,
                                 style = TangemTheme.typography.body2,
+                                modifier = Modifier.testTag(
+                                    SwapTokenScreenTestTags.RECEIVE_FIAT_AMOUNT_WITH_PRICE_IMPACT_WARNING,
+                                ),
                             )
                         } else {
                             AnimatedContent(targetState = amountEquivalent, label = "") { amount ->
@@ -327,6 +338,7 @@ private fun Content(
                                     text = amount,
                                     color = TangemTheme.colors.text.tertiary,
                                     style = TangemTheme.typography.body2,
+                                    modifier = Modifier.testTag(SwapTokenScreenTestTags.RECEIVE_FIAT_AMOUNT),
                                 )
                             }
                         }
@@ -346,7 +358,9 @@ private fun Content(
                                     } else {
                                         TangemTheme.colors.text.tertiary
                                     },
-                                    modifier = Modifier.align(Alignment.CenterVertically),
+                                    modifier = Modifier
+                                        .align(Alignment.CenterVertically)
+                                        .testTag(SwapTokenScreenTestTags.RECEIVE_FIAT_AMOUNT_INFORMATION_ICON),
                                 )
                             }
                         }
@@ -357,7 +371,9 @@ private fun Content(
                             text = amount,
                             color = TangemTheme.colors.text.tertiary,
                             style = TangemTheme.typography.body2,
-                            modifier = Modifier.defaultMinSize(minHeight = TangemTheme.dimens.size20),
+                            modifier = Modifier
+                                .defaultMinSize(minHeight = TangemTheme.dimens.size20)
+                                .testTag(SwapTokenScreenTestTags.SWAP_FIAT_AMOUNT),
                         )
                     }
                 }
@@ -504,7 +520,9 @@ fun ChangeTokenSelector() {
         contentAlignment = Alignment.CenterEnd,
     ) {
         Icon(
-            modifier = Modifier.size(TangemTheme.dimens.size20),
+            modifier = Modifier
+                .size(TangemTheme.dimens.size20)
+                .testTag(SwapTokenScreenTestTags.SELECT_TOKEN_ICON),
             painter = painterResource(id = R.drawable.ic_chevron_24),
             tint = TangemTheme.colors.icon.secondary,
             contentDescription = null,

@@ -9,14 +9,12 @@ import com.tangem.data.wallets.cold.DefaultColdMapDerivationsRepository
 import com.tangem.data.wallets.derivations.DefaultDerivationsRepository
 import com.tangem.data.wallets.hot.DefaultHotMapDerivationsRepository
 import com.tangem.data.wallets.hot.DefaultHotWalletAccessCodeAttemptsRepository
-import com.tangem.datasource.api.common.AuthProvider
 import com.tangem.datasource.api.tangemTech.TangemTechApi
 import com.tangem.datasource.di.NetworkMoshi
 import com.tangem.datasource.local.appsflyer.AppsFlyerStore
 import com.tangem.datasource.local.datastore.RuntimeStateStore
 import com.tangem.datasource.local.preferences.AppPreferencesStore
-import com.tangem.datasource.local.userwallet.UserWalletsStore
-import com.tangem.domain.account.featuretoggle.AccountsFeatureToggles
+import com.tangem.domain.common.wallets.UserWalletsListRepository
 import com.tangem.domain.wallets.derivations.ColdMapDerivationsRepository
 import com.tangem.domain.wallets.derivations.DerivationsRepository
 import com.tangem.domain.wallets.derivations.HotMapDerivationsRepository
@@ -41,24 +39,18 @@ internal object WalletsDataModule {
     fun providesWalletsRepository(
         appPreferencesStore: AppPreferencesStore,
         tangemTechApi: TangemTechApi,
-        userWalletsStore: UserWalletsStore,
+        userWalletsListRepository: UserWalletsListRepository,
         dispatchers: CoroutineDispatcherProvider,
-        authProvider: AuthProvider,
         walletServerBinder: WalletServerBinder,
-        appsFlyerStore: AppsFlyerStore,
-        accountsFeatureToggles: AccountsFeatureToggles,
         @NetworkMoshi moshi: Moshi,
     ): WalletsRepository {
         return DefaultWalletsRepository(
             appPreferencesStore = appPreferencesStore,
             tangemTechApi = tangemTechApi,
-            userWalletsStore = userWalletsStore,
+            userWalletsListRepository = userWalletsListRepository,
             seedPhraseNotificationVisibilityStore = RuntimeStateStore(defaultValue = emptyMap()),
             dispatchers = dispatchers,
-            authProvider = authProvider,
             walletServerBinder = walletServerBinder,
-            appsFlyerStore = appsFlyerStore,
-            accountsFeatureToggles = accountsFeatureToggles,
             moshi = moshi,
         )
     }
@@ -74,14 +66,14 @@ internal object WalletsDataModule {
     fun provideWalletsPromoRepository(
         appPreferencesStore: AppPreferencesStore,
         tangemTechApi: TangemTechApi,
-        userWalletsStore: UserWalletsStore,
+        userWalletsListRepository: UserWalletsListRepository,
         dispatchers: CoroutineDispatcherProvider,
         appsFlyerStore: AppsFlyerStore,
     ): WalletsPromoRepository {
         return DefaultWalletsPromoRepository(
             appPreferencesStore = appPreferencesStore,
             tangemTechApi = tangemTechApi,
-            userWalletsStore = userWalletsStore,
+            userWalletsListRepository = userWalletsListRepository,
             dispatchers = dispatchers,
             appsFlyerStore = appsFlyerStore,
         )

@@ -25,6 +25,7 @@ import com.tangem.domain.demo.models.DemoConfig
 import com.tangem.domain.models.network.Network
 import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.domain.networks.single.SingleNetworkStatusFetcher
+import com.tangem.domain.notifications.repository.PushNotificationsRepository
 import com.tangem.domain.transaction.TransactionRepository
 import com.tangem.domain.transaction.error.SendTransactionError
 import com.tangem.domain.transaction.error.parseWrappedError
@@ -34,6 +35,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.cancellation.CancellationException
 
 @Suppress("LongParameterList")
 class SendTransactionUseCase(
@@ -44,6 +46,7 @@ class SendTransactionUseCase(
     private val singleNetworkStatusFetcher: SingleNetworkStatusFetcher,
     private val parallelUpdatingScope: CoroutineScope,
     private val getHotWalletSigner: (UserWallet.Hot) -> TransactionSigner,
+    private val pushNotificationsRepository: PushNotificationsRepository,
 ) {
     suspend operator fun invoke(
         txsData: List<TransactionData>,
@@ -94,6 +97,8 @@ class SendTransactionUseCase(
                     is Result.Success -> sendResult.data.right()
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (ex: Exception) {
             cardSdkConfigRepository.setLinkedTerminal(linkedTerminal)
             SendTransactionError.DataError(ex.message).left()
@@ -112,7 +117,11 @@ class SendTransactionUseCase(
             }
             .fold(
                 ifRight = { result ->
-                    processSentTransactionsHashes(txsData, result.hashes)
+                    processSentTransactionsHashes(
+                        userWallet = userWallet,
+                        transactions = txsData,
+                        hashes = result.hashes,
+                    )
                     result.hashes.right()
                 },
                 ifLeft = { it.left() },
@@ -128,11 +137,19 @@ class SendTransactionUseCase(
             .map { it.first() }
     }
 
-    private fun processSentTransactionsHashes(transactions: List<TransactionData>, hashes: List<String>) {
+    private fun processSentTransactionsHashes(
+        userWallet: UserWallet,
+        transactions: List<TransactionData>,
+        hashes: List<String>,
+    ) {
         parallelUpdatingScope.launch {
             withContext(NonCancellable) {
                 transactions.forEachIndexed { ind, tx ->
-                    sendHashToBackendIfNeeded(tx, hashes[ind])
+                    sendHashToBackendIfNeeded(
+                        userWallet = userWallet,
+                        transaction = tx,
+                        txHash = hashes[ind],
+                    )
                 }
             }
         }
@@ -141,7 +158,11 @@ class SendTransactionUseCase(
     /**
      * Sends tx hash to backend for specific transaction types
      */
-    private suspend fun sendHashToBackendIfNeeded(transaction: TransactionData, txHash: String) {
+    private suspend fun sendHashToBackendIfNeeded(
+        userWallet: UserWallet,
+        transaction: TransactionData,
+        txHash: String,
+    ) {
         (transaction as? TransactionData.Uncompiled)?.let { tx ->
             val extras = tx.extras
             when (extras) {
@@ -152,7 +173,19 @@ class SendTransactionUseCase(
                         is EthereumYieldSupplyExitCallData -> EventTransactionTypeDto.WITHDRAW
                         else -> return
                     }
-                    transactionRepository.sendTransactionHash(txHash, txType)
+                    val isPushNotificationEnabled = pushNotificationsRepository.isNotificationsEnabled(
+                        userWallet.walletId,
+                    )
+                    val userAddress = if (isPushNotificationEnabled) {
+                        transaction.sourceAddress
+                    } else {
+                        null
+                    }
+                    transactionRepository.sendTransactionHash(
+                        hash = txHash,
+                        transactionType = txType,
+                        userAddress = userAddress,
+                    )
                 }
             }
         }

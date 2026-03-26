@@ -1,6 +1,5 @@
 package com.tangem.tap.di.domain
 
-import com.tangem.domain.account.featuretoggle.AccountsFeatureToggles
 import com.tangem.domain.account.fetcher.SingleAccountListFetcher
 import com.tangem.domain.account.repository.AccountsCRUDRepository
 import com.tangem.domain.account.status.supplier.SingleAccountStatusListSupplier
@@ -9,6 +8,7 @@ import com.tangem.domain.account.status.usecase.RecoverCryptoPortfolioUseCase
 import com.tangem.domain.account.status.utils.CryptoCurrencyBalanceFetcher
 import com.tangem.domain.account.tokens.MainAccountTokensMigration
 import com.tangem.domain.account.usecase.*
+import com.tangem.domain.common.wallets.UserWalletsListRepository
 import com.tangem.feature.referral.data.ExternalReferralRepository
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import dagger.Module
@@ -94,12 +94,12 @@ internal object AccountDomainModule {
     @Provides
     @Singleton
     fun provideIsAccountsModeEnabledUseCase(
+        userWalletsListRepository: UserWalletsListRepository,
         accountsCRUDRepository: AccountsCRUDRepository,
-        accountsFeatureToggles: AccountsFeatureToggles,
     ): IsAccountsModeEnabledUseCase {
         return IsAccountsModeEnabledUseCase(
+            userWalletsListRepository = userWalletsListRepository,
             crudRepository = accountsCRUDRepository,
-            accountsFeatureToggles = accountsFeatureToggles,
         )
     }
 

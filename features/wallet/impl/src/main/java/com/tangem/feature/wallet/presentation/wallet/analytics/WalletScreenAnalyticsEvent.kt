@@ -33,7 +33,7 @@ sealed class WalletScreenAnalyticsEvent {
                 put(AnalyticsParam.BALANCE, balance.value)
                 tokensCount?.let { put(AnalyticsParam.TOKENS_COUNT, it.toString()) }
             },
-        )
+        ), AppsFlyerIncludedEvent
 
         class TokenBalance(balance: AnalyticsParam.EmptyFull, token: String) : Basic(
             event = "Token Balance",
@@ -57,6 +57,7 @@ sealed class WalletScreenAnalyticsEvent {
             val theme: String,
             val isImported: Boolean,
             val referralId: String?,
+            val appCurrency: String,
         ) : MainScreen(
             event = "Screen opened",
             params = buildMap {
@@ -69,6 +70,7 @@ sealed class WalletScreenAnalyticsEvent {
                     "Seedless"
                 }
                 put("Wallet Type", seedPhrase)
+                put("App Currency", appCurrency)
                 putAll(getReferralParams(referralId))
             },
         ), AppsFlyerIncludedEvent

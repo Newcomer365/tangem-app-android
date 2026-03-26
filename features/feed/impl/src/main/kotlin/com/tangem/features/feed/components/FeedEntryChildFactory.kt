@@ -6,10 +6,10 @@ import com.tangem.core.analytics.models.AnalyticsParam
 import com.tangem.core.decompose.context.AppComponentContext
 import com.tangem.core.decompose.navigation.Route
 import com.tangem.core.ui.decompose.ComposableModularBottomSheetContentComponent
-import com.tangem.domain.account.featuretoggle.AccountsFeatureToggles
 import com.tangem.features.feed.components.earn.DefaultEarnComponent
 import com.tangem.features.feed.components.feed.DefaultFeedComponent
 import com.tangem.features.feed.components.market.details.DefaultMarketsTokenDetailsComponent
+import com.tangem.features.feed.components.market.details.portfolio.add.AddToPortfolioPreselectedDataComponent
 import com.tangem.features.feed.components.market.details.portfolio.api.MarketsPortfolioComponent
 import com.tangem.features.feed.components.market.list.DefaultMarketsTokenListComponent
 import com.tangem.features.feed.components.news.details.DefaultNewsDetailsComponent
@@ -19,8 +19,8 @@ import javax.inject.Inject
 
 internal class FeedEntryChildFactory @Inject constructor(
     private val analyticsEventHandler: AnalyticsEventHandler,
-    private val accountsFeatureToggles: AccountsFeatureToggles,
     private val portfolioComponentFactory: MarketsPortfolioComponent.Factory,
+    private val addToPortfolioPreselectedDataComponent: AddToPortfolioPreselectedDataComponent.Factory,
 ) {
 
     @Serializable
@@ -64,7 +64,6 @@ internal class FeedEntryChildFactory @Inject constructor(
                     appComponentContext = appComponentContext,
                     params = child.params,
                     analyticsEventHandler = analyticsEventHandler,
-                    accountsFeatureToggles = accountsFeatureToggles,
                     portfolioComponentFactory = portfolioComponentFactory,
                 )
             }
@@ -100,12 +99,14 @@ internal class FeedEntryChildFactory @Inject constructor(
                 DefaultFeedComponent(
                     appComponentContext = appComponentContext,
                     params = DefaultFeedComponent.FeedParams(feedClickIntents = feedEntryClickIntents),
+                    addToPortfolioComponentFactory = addToPortfolioPreselectedDataComponent,
                 )
             }
             is Child.Earn -> {
                 DefaultEarnComponent(
                     appComponentContext = appComponentContext,
                     params = child.params,
+                    addToPortfolioComponentFactory = addToPortfolioPreselectedDataComponent,
                 )
             }
         }

@@ -12,7 +12,6 @@ import com.tangem.core.ui.extensions.resourceReference
 import com.tangem.core.ui.extensions.wrappedList
 import com.tangem.core.ui.message.DialogMessage
 import com.tangem.core.ui.message.EventMessageAction
-import com.tangem.domain.account.featuretoggle.AccountsFeatureToggles
 import com.tangem.domain.account.models.AccountList
 import com.tangem.domain.account.models.AccountStatusList
 import com.tangem.domain.account.status.supplier.SingleAccountStatusListSupplier
@@ -22,6 +21,7 @@ import com.tangem.domain.balancehiding.GetBalanceHidingSettingsUseCase
 import com.tangem.domain.models.account.Account
 import com.tangem.domain.models.account.AccountId
 import com.tangem.domain.models.account.AccountStatus
+import com.tangem.domain.models.account.filterCryptoPortfolio
 import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.wallets.analytics.WalletSettingsAnalyticEvents
@@ -45,13 +45,12 @@ internal class AccountItemsDelegate @Inject constructor(
     private val getBalanceHidingSettingsUseCase: GetBalanceHidingSettingsUseCase,
     private val getSelectedAppCurrencyUseCase: GetSelectedAppCurrencyUseCase,
     private val accountListSortingSaver: AccountListSortingSaver,
-    private val accountsFeatureToggles: AccountsFeatureToggles,
     private val analyticsEventHandler: AnalyticsEventHandler,
 ) {
 
     private val userWalletId = paramsContainer.require<WalletSettingsComponent.Params>().userWalletId
 
-    fun isAccountsSupported(wallet: UserWallet) = accountsFeatureToggles.isFeatureEnabled && wallet.isAccountsSupported
+    fun isAccountsSupported(wallet: UserWallet) = wallet.isAccountsSupported
 
     fun loadAccount(wallet: UserWallet): Flow<List<WalletSettingsAccountsUM>> {
         if (!isAccountsSupported(wallet)) return flowOf(emptyList())
@@ -84,11 +83,11 @@ internal class AccountItemsDelegate @Inject constructor(
             return WalletSettingsAccountsUM.Account(state = accountItemUM)
         }
 
-        fun mapAccount(account: AccountStatus): WalletSettingsAccountsUM = when (account) {
+        fun mapAccount(account: AccountStatus.CryptoPortfolio): WalletSettingsAccountsUM = when (account) {
             is AccountStatus.CryptoPortfolio -> account.mapCryptoPortfolio()
         }
 
-        val accounts = accountStatusList.accountStatuses
+        val accounts = accountStatusList.accountStatuses.filterCryptoPortfolio()
 
         val header = WalletSettingsAccountsUM.Header(
             id = "accounts_header",
@@ -144,7 +143,7 @@ internal class AccountItemsDelegate @Inject constructor(
         return this.sortedBy { positionByAccountId[it.id] ?: Int.MAX_VALUE }
     }
 
-    private fun openAccountDetails(account: Account) {
+    private fun openAccountDetails(account: Account.CryptoPortfolio) {
         router.push(AppRoute.AccountDetails(account))
     }
 

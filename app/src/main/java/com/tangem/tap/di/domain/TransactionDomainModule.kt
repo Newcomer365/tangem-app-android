@@ -5,6 +5,7 @@ import com.tangem.domain.card.repository.CardSdkConfigRepository
 import com.tangem.domain.demo.models.DemoConfig
 import com.tangem.domain.networks.single.SingleNetworkStatusFetcher
 import com.tangem.domain.networks.single.SingleNetworkStatusSupplier
+import com.tangem.domain.notifications.repository.PushNotificationsRepository
 import com.tangem.domain.tokens.GetMultiCryptoCurrencyStatusUseCase
 import com.tangem.domain.tokens.GetSingleCryptoCurrencyStatusUseCase
 import com.tangem.domain.tokens.GetViewedTokenReceiveWarningUseCase
@@ -56,6 +57,7 @@ internal object TransactionDomainModule {
         singleNetworkStatusFetcher: SingleNetworkStatusFetcher,
         tangemHotWalletSignerFactory: TangemHotWalletSigner.Factory,
         dispatchers: CoroutineDispatcherProvider,
+        pushNotificationsRepository: PushNotificationsRepository,
     ): SendTransactionUseCase {
         return SendTransactionUseCase(
             demoConfig = DemoConfig,
@@ -65,6 +67,7 @@ internal object TransactionDomainModule {
             singleNetworkStatusFetcher = singleNetworkStatusFetcher,
             parallelUpdatingScope = CoroutineScope(SupervisorJob() + dispatchers.io),
             getHotWalletSigner = tangemHotWalletSignerFactory::create,
+            pushNotificationsRepository = pushNotificationsRepository,
         )
     }
 
@@ -75,12 +78,14 @@ internal object TransactionDomainModule {
         walletManagersFacade: WalletManagersFacade,
         singleNetworkStatusSupplier: SingleNetworkStatusSupplier,
         multiWalletCryptoCurrenciesSupplier: MultiWalletCryptoCurrenciesSupplier,
+        tangemHotWalletSignerFactory: TangemHotWalletSigner.Factory,
     ): AssociateAssetUseCase {
         return AssociateAssetUseCase(
             cardSdkConfigRepository = cardSdkConfigRepository,
             walletManagersFacade = walletManagersFacade,
             singleNetworkStatusSupplier = singleNetworkStatusSupplier,
             multiWalletCryptoCurrenciesSupplier = multiWalletCryptoCurrenciesSupplier,
+            getHotTransactionSigner = tangemHotWalletSignerFactory::create,
         )
     }
 
@@ -89,10 +94,12 @@ internal object TransactionDomainModule {
     fun provideRetryTransactionUseCase(
         cardSdkConfigRepository: CardSdkConfigRepository,
         walletManagersFacade: WalletManagersFacade,
+        tangemHotWalletSignerFactory: TangemHotWalletSigner.Factory,
     ): RetryIncompleteTransactionUseCase {
         return RetryIncompleteTransactionUseCase(
             cardSdkConfigRepository = cardSdkConfigRepository,
             walletManagersFacade = walletManagersFacade,
+            getHotTransactionSigner = tangemHotWalletSignerFactory::create,
         )
     }
 
@@ -101,10 +108,12 @@ internal object TransactionDomainModule {
     fun provideOpenTrustlineUseCase(
         cardSdkConfigRepository: CardSdkConfigRepository,
         walletManagersFacade: WalletManagersFacade,
+        tangemHotWalletSignerFactory: TangemHotWalletSigner.Factory,
     ): OpenTrustlineUseCase {
         return OpenTrustlineUseCase(
             cardSdkConfigRepository = cardSdkConfigRepository,
             walletManagersFacade = walletManagersFacade,
+            getHotTransactionSigner = tangemHotWalletSignerFactory::create,
         )
     }
 

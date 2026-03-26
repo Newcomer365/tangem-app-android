@@ -6,6 +6,7 @@ import com.tangem.domain.express.models.ExpressOperationType
 import com.tangem.domain.models.account.Account
 import com.tangem.domain.models.currency.CryptoCurrency
 import com.tangem.domain.models.currency.CryptoCurrencyStatus
+import com.tangem.domain.models.network.Network
 import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.transaction.error.GetFeeError
 import com.tangem.domain.transaction.models.TransactionFeeExtended
@@ -60,12 +61,16 @@ interface SwapInteractor {
     /**
      * Starts swap transaction, perform sign transaction
      *
-     * @param networkId network for tokens
-     * @param swapStateData tx data to swap, contains data to sign
-     * @param currencyToSend [Currency]
-     * @param currencyToGet [Currency]
+     * @param swapProvider swap provider to use
+     * @param swapData tx data to swap, contains data to sign
+     * @param currencyToSend crypto currency to send
+     * @param currencyToGet  crypto currency to get
+     * @param fromAccount account from which swap will be made
+     * @param toAccount account to which receive token
      * @param amountToSwap amount to swap
+     * @param includeFeeInAmount flag to include fee in amount
      * @param fee for tx (can be null only for tangem pay withdrawal)
+     * @param expressOperationType type of express operation
 
      * @return [SwapTransactionState]
      */
@@ -76,8 +81,8 @@ interface SwapInteractor {
         swapData: SwapDataModel?,
         currencyToSend: CryptoCurrencyStatus,
         currencyToGet: CryptoCurrencyStatus,
-        fromAccount: Account.CryptoPortfolio?,
-        toAccount: Account.CryptoPortfolio?,
+        fromAccount: Account?,
+        toAccount: Account?,
         amountToSwap: String,
         includeFeeInAmount: IncludeFeeInAmount,
         fee: TxFee?,
@@ -100,12 +105,6 @@ interface SwapInteractor {
      */
     fun getTokenBalance(token: CryptoCurrencyStatus): SwapAmount
 
-    suspend fun getInitialCurrencyToSwap(
-        initialCryptoCurrency: CryptoCurrency,
-        state: TokensDataStateExpress,
-        isReverseFromTo: Boolean,
-    ): CryptoCurrencyStatus?
-
     /**
      * Returns initial currency to swap as AccountSwapCurrency
      *
@@ -113,20 +112,20 @@ interface SwapInteractor {
      * @param state current tokens data state
      * @param isReverseFromTo flag indicating the direction of the swap
      */
-    suspend fun getInitialCurrencyToSwapV2(
+    suspend fun getInitialCurrencyToSwap(
         initialCryptoCurrency: CryptoCurrency,
         state: TokensDataStateExpress,
         isReverseFromTo: Boolean,
     ): AccountSwapCurrency?
 
-    fun getNativeToken(networkId: String): CryptoCurrency
+    suspend fun getNativeToken(network: Network): CryptoCurrency
 
     @Suppress("LongParameterList")
     suspend fun storeSwapTransaction(
         currencyToSend: CryptoCurrencyStatus,
         currencyToGet: CryptoCurrencyStatus,
-        fromAccount: Account.CryptoPortfolio?,
-        toAccount: Account.CryptoPortfolio?,
+        fromAccount: Account?,
+        toAccount: Account?,
         amount: SwapAmount,
         swapProvider: SwapProvider,
         swapDataModel: SwapDataModel,
@@ -150,9 +149,9 @@ interface SwapInteractor {
     @Suppress("LongParameterList")
     suspend fun loadFeeForSwapTransaction(
         fromToken: CryptoCurrencyStatus,
-        fromAccount: Account.CryptoPortfolio?,
+        fromAccount: Account?,
         toToken: CryptoCurrencyStatus,
-        toAccount: Account.CryptoPortfolio?,
+        toAccount: Account?,
         amount: String,
         reduceBalanceBy: BigDecimal,
         provider: SwapProvider,
@@ -172,9 +171,9 @@ interface SwapInteractor {
     @Suppress("LongParameterList")
     suspend fun loadFeeForSwapTransaction(
         fromToken: CryptoCurrencyStatus,
-        fromAccount: Account.CryptoPortfolio?,
+        fromAccount: Account?,
         toToken: CryptoCurrencyStatus,
-        toAccount: Account.CryptoPortfolio?,
+        toAccount: Account?,
         amount: String,
         reduceBalanceBy: BigDecimal,
         provider: SwapProvider,

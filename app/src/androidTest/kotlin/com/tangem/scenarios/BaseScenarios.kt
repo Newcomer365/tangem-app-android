@@ -5,7 +5,6 @@ import com.tangem.common.BaseTestCase
 import com.tangem.common.extensions.clickWithAssertion
 import com.tangem.domain.models.scan.ProductType
 import com.tangem.screens.*
-import com.tangem.screens.AlreadyUsedWalletDialogPageObject.thisIsMyWalletButton
 import com.tangem.tap.domain.sdk.mocks.MockContent
 import com.tangem.tap.domain.sdk.mocks.MockProvider
 import com.tangem.utils.StringsSigns.DASH_SIGN
@@ -14,7 +13,6 @@ import io.qameta.allure.kotlin.Allure.step
 fun BaseTestCase.scanCard(
     productType: ProductType? = null,
     mockContent: MockContent? = null,
-    alreadyActivatedDialogIsShown: Boolean = false,
     isTwinsCard: Boolean = false,
 ) {
     if (productType != null) {
@@ -32,12 +30,6 @@ fun BaseTestCase.scanCard(
     step("Click on 'Scan card or ring' button") {
         onCreateWalletStartScreen { scanCardOrRingButton.clickWithAssertion() }
     }
-    if (alreadyActivatedDialogIsShown) {
-        step("Click on 'This is my wallet' button") {
-            waitForIdle()
-            AlreadyUsedWalletDialogPageObject { thisIsMyWalletButton.click() }
-        }
-    }
     if (isTwinsCard) {
         step("Click on 'Continue' button") {
             onOnboardingScreen { continueButton.clickWithAssertion() }
@@ -51,22 +43,20 @@ fun BaseTestCase.scanCard(
 fun BaseTestCase.openMainScreen(
     productType: ProductType? = null,
     mockContent: MockContent? = null,
-    alreadyActivatedDialogIsShown: Boolean = false,
     isTwinsCard: Boolean = false,
 ) {
     step("Scan card") {
         scanCard(
             productType = productType,
             mockContent = mockContent,
-            alreadyActivatedDialogIsShown = alreadyActivatedDialogIsShown,
             isTwinsCard = isTwinsCard,
         )
     }
     step("Assert 'Main' screen is displayed") {
         onMainScreen { screenContainer.assertIsDisplayed() }
     }
-    step("Click on 'Market Tooltip' screen") {
-        onMarketsTooltipScreen { contentContainer.clickWithAssertion() }
+    step("Dismiss Market Tooltip by clicking close button") {
+        onMarketsTooltipScreen { closeButton.clickWithAssertion() }
     }
 }
 

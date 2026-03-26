@@ -84,6 +84,7 @@ abstract class BaseTestCase : TestCase(
      * – and only after that the activity should be launched.
      */
     protected fun setupHooks(
+        additionalBeforeAppLaunchSection: () -> Unit = {},
         additionalBeforeSection: () -> Unit = {},
         additionalAfterSection: () -> Unit = {},
     ) = before {
@@ -91,6 +92,7 @@ abstract class BaseTestCase : TestCase(
         // Setup WireMock redirect for CI with local WireMock instances
         val wiremockUrl = InstrumentationRegistry.getArguments().getString(WIREMOCK_BASE_URL_ARG)
         WireMockRedirectInterceptor.overriddenBaseUrl = wiremockUrl
+        additionalBeforeAppLaunchSection()
         hiltRule.inject()
         runBlocking {
             appPreferencesStore.editData { mutablePreferences ->
@@ -144,10 +146,8 @@ abstract class BaseTestCase : TestCase(
         return ApplicationInjectionExecutionRule(
             toggleStates = mapOf(
                 "SWAP_REDESIGN_ENABLED" to false,
-                "NEW_ONRAMP_MAIN_ENABLED" to true,
-                "HOT_WALLET_ENABLED" to true,
-                "YIELD_SUPPLY_FEATURE_ENABLED" to true,
-                "ACCOUNTS_FEATURE_ENABLED" to true
+                "ACCOUNTS_FEATURE_ENABLED" to true,
+                "GASLESS_APPROVAL_ENABLED" to true,
             )
         )
     }

@@ -5,10 +5,9 @@ import com.tangem.blockchainsdk.utils.toBlockchain
 import com.tangem.blockchainsdk.utils.toNetworkId
 import com.tangem.data.common.account.WalletAccountsFetcher
 import com.tangem.data.common.tokens.getDefaultWalletBlockchains
-import com.tangem.datasource.local.token.UserTokensResponseStore
-import com.tangem.datasource.local.userwallet.UserWalletsStore
-import com.tangem.domain.account.featuretoggle.AccountsFeatureToggles
 import com.tangem.domain.card.common.util.cardTypesResolver
+import com.tangem.domain.common.wallets.UserWalletsListRepository
+import com.tangem.domain.common.wallets.getSyncStrict
 import com.tangem.domain.demo.models.DemoConfig
 import com.tangem.domain.models.account.DerivationIndex
 import com.tangem.domain.models.currency.CryptoCurrency
@@ -22,17 +21,13 @@ import com.tangem.domain.models.wallet.isMultiCurrency
  *
  * @property demoConfig              demo config
  * @property excludedBlockchains     excluded blockchains
- * @property userWalletsStore        user wallets store
- * @property userTokensResponseStore user tokens response store
  */
 @Suppress("LongParameterList")
 internal class DefaultCardCryptoCurrencyFactory(
     private val demoConfig: DemoConfig,
     private val excludedBlockchains: ExcludedBlockchains,
-    private val userWalletsStore: UserWalletsStore,
-    private val accountsFeatureToggles: AccountsFeatureToggles,
+    private val userWalletsListRepository: UserWalletsListRepository,
     private val walletAccountsFetcher: WalletAccountsFetcher,
-    private val userTokensResponseStore: UserTokensResponseStore,
     private val responseCryptoCurrenciesFactory: ResponseCryptoCurrenciesFactory,
 ) : CardCryptoCurrencyFactory {
 
@@ -42,7 +37,7 @@ internal class DefaultCardCryptoCurrencyFactory(
         userWalletId: UserWalletId,
         networks: Set<Network>,
     ): Map<Network, List<CryptoCurrency>> {
-        val userWallet = userWalletsStore.getSyncStrict(key = userWalletId)
+        val userWallet = userWalletsListRepository.getSyncStrict(id = userWalletId)
 
         // multi-currency wallet
         if (userWallet !is UserWallet.Cold || userWallet.isMultiCurrency) {
@@ -67,7 +62,7 @@ internal class DefaultCardCryptoCurrencyFactory(
     }
 
     override suspend fun createByRawId(userWalletId: UserWalletId, network: Network.RawID): List<CryptoCurrency> {
-        val userWallet = userWalletsStore.getSyncStrict(key = userWalletId)
+        val userWallet = userWalletsListRepository.getSyncStrict(id = userWalletId)
 
         val blockchain = network.toBlockchain()
 
@@ -139,34 +134,21 @@ internal class DefaultCardCryptoCurrencyFactory(
         userWallet: UserWallet,
         networks: Set<Network>,
     ): Map<Network, List<CryptoCurrency>> {
-        val existingNetworkWithCurrencies = if (accountsFeatureToggles.isFeatureEnabled) {
-            val response = walletAccountsFetcher.getSaved(userWallet.walletId)
-                ?: return emptyMap()
+        val response = walletAccountsFetcher.getSaved(userWallet.walletId)
+            ?: return emptyMap()
 
-            response.accounts.flatMapTo(hashSetOf()) { accountDTO ->
-                val accountIndex = DerivationIndex(accountDTO.derivationIndex).getOrNull()
-                    ?: return@flatMapTo emptySet()
-
-                responseCryptoCurrenciesFactory.createCurrencies(
-                    tokens = accountDTO.tokens.orEmpty().filter { token ->
-                        networks.any {
-                            it.backendId == token.networkId && it.derivationPath.value == token.derivationPath
-                        }
-                    },
-                    userWallet = userWallet,
-                    accountIndex = accountIndex,
-                )
-            }
-        } else {
-            val response = userTokensResponseStore.getSyncOrNull(userWalletId = userWallet.walletId)
-                ?: return emptyMap()
+        val existingNetworkWithCurrencies = response.accounts.flatMapTo(hashSetOf()) { accountDTO ->
+            val accountIndex = DerivationIndex(accountDTO.derivationIndex).getOrNull()
+                ?: return@flatMapTo emptySet()
 
             responseCryptoCurrenciesFactory.createCurrencies(
-                tokens = response.tokens.filter { token ->
-                    networks.any { it.backendId == token.networkId && it.derivationPath.value == token.derivationPath }
+                tokens = accountDTO.tokens.orEmpty().filter { token ->
+                    networks.any {
+                        it.backendId == token.networkId && it.derivationPath.value == token.derivationPath
+                    }
                 },
                 userWallet = userWallet,
-                accountIndex = DerivationIndex.Main,
+                accountIndex = accountIndex,
             )
         }
             .groupBy(CryptoCurrency::network)
@@ -180,28 +162,17 @@ internal class DefaultCardCryptoCurrencyFactory(
     ): Map<Network.RawID, List<CryptoCurrency>> {
         val networkIds = rawIds.map { it.toBlockchain().toNetworkId() }
 
-        return if (accountsFeatureToggles.isFeatureEnabled) {
-            val response = walletAccountsFetcher.getSaved(userWallet.walletId)
-                ?: return emptyMap()
+        val response = walletAccountsFetcher.getSaved(userWallet.walletId)
+            ?: return emptyMap()
 
-            response.accounts.flatMapTo(hashSetOf()) { accountDTO ->
-                val accountIndex = DerivationIndex(accountDTO.derivationIndex).getOrNull()
-                    ?: return@flatMapTo emptySet()
-
-                responseCryptoCurrenciesFactory.createCurrencies(
-                    tokens = accountDTO.tokens.orEmpty().filter { token -> token.networkId in networkIds },
-                    userWallet = userWallet,
-                    accountIndex = accountIndex,
-                )
-            }
-        } else {
-            val response = userTokensResponseStore.getSyncOrNull(userWalletId = userWallet.walletId)
-                ?: return emptyMap()
+        return response.accounts.flatMapTo(hashSetOf()) { accountDTO ->
+            val accountIndex = DerivationIndex(accountDTO.derivationIndex).getOrNull()
+                ?: return@flatMapTo emptySet()
 
             responseCryptoCurrenciesFactory.createCurrencies(
-                tokens = response.tokens.filter { token -> token.networkId in networkIds },
+                tokens = accountDTO.tokens.orEmpty().filter { token -> token.networkId in networkIds },
                 userWallet = userWallet,
-                accountIndex = DerivationIndex.Main,
+                accountIndex = accountIndex,
             )
         }
             .groupBy { it.network.id.rawId }

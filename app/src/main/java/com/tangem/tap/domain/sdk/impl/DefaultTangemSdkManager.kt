@@ -18,7 +18,10 @@ import com.tangem.common.extensions.hexToBytes
 import com.tangem.common.services.secure.SecureStorage
 import com.tangem.common.usersCode.UserCodeRepository
 import com.tangem.core.analytics.Analytics
+import com.tangem.core.analytics.api.AnalyticsEventHandler
 import com.tangem.core.analytics.api.AnalyticsExceptionHandler
+import com.tangem.core.analytics.models.AnalyticsParam
+import com.tangem.core.analytics.models.Basic
 import com.tangem.core.analytics.models.ExceptionAnalyticsEvent
 import com.tangem.core.decompose.ui.UiMessageSender
 import com.tangem.core.navigation.finisher.AppFinisher
@@ -53,11 +56,7 @@ import com.tangem.sdk.api.TangemSdkManager
 import com.tangem.sdk.api.visa.VisaCardActivationResponse
 import com.tangem.sdk.api.visa.VisaCardActivationTaskMode
 import com.tangem.tap.common.analytics.events.TangemSdkErrorEvent
-import com.tangem.tap.derivationsFinder
-import com.tangem.tap.domain.tasks.product.CreateProductWalletTask
-import com.tangem.tap.domain.tasks.product.ResetBackupCardTask
-import com.tangem.tap.domain.tasks.product.ResetToFactorySettingsTask
-import com.tangem.tap.domain.tasks.product.ScanProductTask
+import com.tangem.tap.domain.tasks.product.*
 import com.tangem.tap.domain.tasks.visa.TangemPayGenerateAddressAndSignChallengeTask
 import com.tangem.tap.domain.tasks.visa.TangemPaySignWithdrawalHashTask
 import com.tangem.tap.domain.tasks.visa.VisaCardActivationTask
@@ -85,6 +84,8 @@ internal class DefaultTangemSdkManager(
     private val appFinisher: AppFinisher,
     private val sendFeedbackEmailUseCase: SendFeedbackEmailUseCase,
     private val analyticsExceptionHandler: AnalyticsExceptionHandler,
+    private val blockchainToDeriveFinder: BlockchainToDeriveFinder,
+    private val analyticsEventHandler: AnalyticsEventHandler,
     dispatchers: CoroutineDispatcherProvider,
 ) : TangemSdkManager {
 
@@ -126,7 +127,13 @@ internal class DefaultTangemSdkManager(
             }
 
             if (awaitInitialization) {
-                awaitAuthenticationManagerInitialization().needEnrollBiometrics
+                val manager = awaitAuthenticationManagerInitialization()
+
+                if (manager.isInitialized) {
+                    manager.needEnrollBiometrics
+                } else {
+                    false
+                }
             } else {
                 throw e
             }
@@ -145,7 +152,11 @@ internal class DefaultTangemSdkManager(
             if (awaitInitialization) {
                 val manager = awaitAuthenticationManagerInitialization()
 
-                manager.canAuthenticate || manager.needEnrollBiometrics
+                if (manager.isInitialized) {
+                    manager.canAuthenticate || manager.needEnrollBiometrics
+                } else {
+                    false
+                }
             } else {
                 throw e
             }
@@ -156,16 +167,18 @@ internal class DefaultTangemSdkManager(
         cardId: String?,
         messageRes: Int?,
         allowsRequestAccessCodeFromRepository: Boolean,
+        shouldCheckIsAlreadyActivated: Boolean,
     ): CompletionResult<ScanResponse> {
         val message = Message(resources.getStringSafe(messageRes ?: R.string.initial_message_scan_header))
         return coroutineScope {
             runTaskAsyncReturnOnMain(
                 runnable = ScanProductTask(
                     card = null,
-                    derivationsFinder = derivationsFinder,
+                    blockchainToDeriveFinder = blockchainToDeriveFinder,
                     allowsRequestAccessCodeFromRepository = allowsRequestAccessCodeFromRepository,
                     visaCardScanHandler = visaCardScanHandler,
                     visaCoroutineScope = this,
+                    shouldCheckIsAlreadyActivated = shouldCheckIsAlreadyActivated,
                     onboardingV2FeatureToggles = onboardingV2FeatureToggles,
                 ),
                 cardId = cardId,
@@ -461,6 +474,9 @@ internal class DefaultTangemSdkManager(
                         title = resourceReference(R.string.alert_button_request_support),
                         onClick = {
                             coroutineScope.launch {
+                                analyticsEventHandler.send(
+                                    Basic.ButtonSupport(source = AnalyticsParam.ScreensSources.SignIn),
+                                )
                                 sendFeedbackEmailUseCase(FeedbackEmailType.BiometricsAuthenticationFailed)
                             }
                         },

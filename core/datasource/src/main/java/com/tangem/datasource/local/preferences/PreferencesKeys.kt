@@ -79,10 +79,6 @@ object PreferencesKeys {
 
     val SHOULD_SHOW_MARKETS_TOOLTIP_KEY by lazy { booleanPreferencesKey(name = "shouldShowMarketsTooltip") }
 
-    val MARKETS_YIELD_SUPPLY_NOTIFICATION_HIDE_CLICKED_KEY by lazy {
-        booleanPreferencesKey(name = "marketsYieldSupplyNotificationHideClicked")
-    }
-
     val WALLET_FIRST_USAGE_DATE_KEY by lazy { longPreferencesKey(name = "walletFirstUsageDate") }
 
     val IS_WALLET_NAMES_MIGRATION_DONE_KEY by lazy { booleanPreferencesKey(name = "isWalletNamesMigrationDone") }
@@ -132,6 +128,14 @@ object PreferencesKeys {
 
     val ACCESS_CODE_SKIPPED_STATES_KEY by lazy { stringPreferencesKey(name = "accessCodeSkippedStates") }
 
+    val SHOULD_SHOW_UPGRADE_BANNER_KEY by lazy { stringPreferencesKey(name = "shouldShowUpgradeBanner") }
+
+    val UPGRADE_BANNER_CLOSURE_TIMESTAMP_KEY by lazy { stringPreferencesKey(name = "upgradeBannerClosureTimestamp") }
+
+    val WALLET_CREATION_TIMESTAMP_KEY by lazy { stringPreferencesKey(name = "walletCreationTimestamp") }
+
+    val HAS_HAD_FIRST_TOP_UP_KEY by lazy { stringPreferencesKey(name = "hasHadFirstTopUp") }
+
     // region Notifications
     val NOTIFICATIONS_APPLICATION_ID_KEY by lazy { stringPreferencesKey(name = "notificationsApplicationId") }
 
@@ -153,7 +157,10 @@ object PreferencesKeys {
         intPreferencesKey(name = "tronNetworkFeeNotificationShowCount")
     }
 
-    val TANGEM_PAY_WITHDRAW_ORDERS_KEY by lazy { stringPreferencesKey(name = "tangemPayWithdrawOrders") }
+    val TANGEM_PAY_WITHDRAW_ORDERS_KEY by lazy { stringPreferencesKey(name = "tangemPayWithdrawOrdersKey") }
+    val TANGEM_PAY_ACTIVE_WITHDRAW_ORDERS_KEY by lazy {
+        stringPreferencesKey(name = "tangemPayActiveWithdrawOrdersKey")
+    }
     val TANGEM_PAY_ELIGIBILITY_KEY by lazy { booleanPreferencesKey(name = "tangemPayEligibility") }
 
     fun getShouldShowNotificationKey(key: String) = booleanPreferencesKey("showShowNotificationUM_$key")

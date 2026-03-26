@@ -11,11 +11,11 @@ import com.tangem.common.test.domain.wallet.MockUserWalletFactory
 import com.tangem.data.common.account.WalletAccountsFetcher
 import com.tangem.data.common.network.NetworkFactory
 import com.tangem.datasource.api.tangemTech.models.UserTokensResponse
-import com.tangem.datasource.local.token.UserTokensResponseStore
-import com.tangem.datasource.local.userwallet.UserWalletsStore
-import com.tangem.domain.account.featuretoggle.AccountsFeatureToggles
+import com.tangem.datasource.api.tangemTech.models.account.GetWalletAccountsResponse
+import com.tangem.datasource.api.tangemTech.models.account.WalletAccountDTO
 import com.tangem.domain.card.common.util.cardTypesResolver
 import com.tangem.domain.card.configs.GenericCardConfig
+import com.tangem.domain.common.wallets.UserWalletsListRepository
 import com.tangem.domain.demo.models.DemoConfig
 import com.tangem.domain.models.currency.CryptoCurrency
 import com.tangem.domain.models.network.Network
@@ -24,6 +24,7 @@ import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.test.core.ProvideTestModels
 import io.mockk.*
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
@@ -36,21 +37,17 @@ import org.junit.jupiter.params.ParameterizedTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 internal class DefaultCardCryptoCurrencyFactoryTest {
 
-    private val userWalletsStore: UserWalletsStore = mockk()
-    private val userTokensResponseStore: UserTokensResponseStore = mockk()
+    private val userWalletsListRepository: UserWalletsListRepository = mockk()
     private val excludedBlockchains = ExcludedBlockchains()
-    private val accountsFeatureToggles = mockk<AccountsFeatureToggles>()
     private val walletAccountsFetcher = mockk<WalletAccountsFetcher>()
 
     private val factory = DefaultCardCryptoCurrencyFactory(
         demoConfig = DemoConfig,
         excludedBlockchains = excludedBlockchains,
-        userWalletsStore = userWalletsStore,
-        userTokensResponseStore = userTokensResponseStore,
+        userWalletsListRepository = userWalletsListRepository,
         responseCryptoCurrenciesFactory = ResponseCryptoCurrenciesFactory(
             networkFactory = NetworkFactory(excludedBlockchains = excludedBlockchains),
         ),
-        accountsFeatureToggles = accountsFeatureToggles,
         walletAccountsFetcher = walletAccountsFetcher,
     )
 
@@ -63,7 +60,7 @@ internal class DefaultCardCryptoCurrencyFactoryTest {
 
     @BeforeEach
     fun init() {
-        clearMocks(userWalletsStore, userTokensResponseStore, accountsFeatureToggles, walletAccountsFetcher, iconUri)
+        clearMocks(userWalletsListRepository, walletAccountsFetcher, iconUri)
 
         mockkStatic(Uri::class)
         every { Uri.parse(any()) } returns iconUri
@@ -78,12 +75,12 @@ internal class DefaultCardCryptoCurrencyFactoryTest {
         fun `create currencies in ETH for multi-currency wallet`(model: CreateTestModel.MultiWallet) = runTest {
             // Arrange
             val userWallet = createMultiWallet()
-            val userTokensResponse = model.userTokensResponse
+            val userWalletsFlow = MutableStateFlow(listOf(userWallet))
+            val accountsResponse = model.accountsResponse
             val network = ethereum.network
 
-            every { accountsFeatureToggles.isFeatureEnabled } returns false
-            coEvery { userWalletsStore.getSyncStrict(key = userWallet.walletId) } returns userWallet
-            coEvery { userTokensResponseStore.getSyncOrNull(userWallet.walletId) } returns userTokensResponse
+            every { userWalletsListRepository.userWallets } returns userWalletsFlow
+            coEvery { walletAccountsFetcher.getSaved(userWallet.walletId) } returns accountsResponse
 
             // Act
             val actual = factory.create(userWalletId = userWallet.walletId, network = network)
@@ -94,26 +91,26 @@ internal class DefaultCardCryptoCurrencyFactoryTest {
             Truth.assertThat(actual).isEqualTo(expected)
 
             coVerifyOrder {
-                userWalletsStore.getSyncStrict(key = userWallet.walletId)
-                userTokensResponseStore.getSyncOrNull(userWalletId = userWallet.walletId)
+                userWalletsListRepository.userWallets
+                walletAccountsFetcher.getSaved(userWalletId = userWallet.walletId)
             }
         }
 
         private fun provideTestModels() = listOf(
-            CreateTestModel.MultiWallet(userTokensResponse = null, expected = emptyList()),
-            CreateTestModel.MultiWallet(userTokensResponse = createUserTokensResponse(), expected = emptyList()),
+            CreateTestModel.MultiWallet(accountsResponse = null, expected = emptyList()),
+            CreateTestModel.MultiWallet(accountsResponse = createAccountsResponse(), expected = emptyList()),
             CreateTestModel.MultiWallet(
-                userTokensResponse = createUserTokensResponse(currencies = listOf(ethereum)),
+                accountsResponse = createAccountsResponse(currencies = listOf(ethereum)),
                 expected = listOf(ethereum),
             ),
             CreateTestModel.MultiWallet(
-                userTokensResponse = createUserTokensResponse(listOf(element = bitcoin)),
+                accountsResponse = createAccountsResponse(listOf(element = bitcoin)),
                 expected = emptyList(),
             ),
         )
 
-        private fun createUserTokensResponse(currencies: List<CryptoCurrency> = emptyList()): UserTokensResponse {
-            return userTokensResponseFactory.createUserTokensResponse(
+        private fun createAccountsResponse(currencies: List<CryptoCurrency> = emptyList()): GetWalletAccountsResponse {
+            return createWalletAccountsResponse(
                 currencies = currencies,
                 isGroupedByNetwork = false,
                 isSortedByBalance = false,
@@ -130,8 +127,9 @@ internal class DefaultCardCryptoCurrencyFactoryTest {
         fun `create currencies for single-currency wallet (ETH)`(model: CreateTestModel.SingleWallet) = runTest {
             // Arrange
             val userWallet = createSingleWallet()
+            val userWalletsFlow = MutableStateFlow(listOf(userWallet))
 
-            coEvery { userWalletsStore.getSyncStrict(key = userWallet.walletId) } returns userWallet
+            every { userWalletsListRepository.userWallets } returns userWalletsFlow
 
             // Act
             val actual = factory.create(userWalletId = userWallet.walletId, network = model.network)
@@ -142,12 +140,12 @@ internal class DefaultCardCryptoCurrencyFactoryTest {
             Truth.assertThat(actual).isEqualTo(expected)
 
             coVerifyOrder {
-                userWalletsStore.getSyncStrict(key = userWallet.walletId)
+                userWalletsListRepository.userWallets
                 userWallet.scanResponse.cardTypesResolver.getBlockchain()
             }
 
             coVerify(inverse = true) {
-                userTokensResponseStore.getSyncOrNull(userWalletId = any())
+                walletAccountsFetcher.getSaved(userWalletId = any())
             }
         }
 
@@ -168,8 +166,9 @@ internal class DefaultCardCryptoCurrencyFactoryTest {
         ) = runTest {
             // Arrange
             val userWallet = MockUserWalletFactory.createSingleWalletWithToken()
+            val userWalletsFlow = MutableStateFlow(listOf(userWallet))
 
-            coEvery { userWalletsStore.getSyncStrict(key = userWallet.walletId) } returns userWallet
+            every { userWalletsListRepository.userWallets } returns userWalletsFlow
 
             // Act
             val actual = factory.create(userWalletId = userWallet.walletId, network = model.network)
@@ -186,12 +185,12 @@ internal class DefaultCardCryptoCurrencyFactoryTest {
             Truth.assertThat(actual).isEqualTo(expected)
 
             coVerifyOrder {
-                userWalletsStore.getSyncStrict(key = userWallet.walletId)
+                userWalletsListRepository.userWallets
                 userWallet.scanResponse.cardTypesResolver.getBlockchain()
             }
 
             coVerify(inverse = true) {
-                userTokensResponseStore.getSyncOrNull(userWalletId = any())
+                walletAccountsFetcher.getSaved(userWalletId = any())
             }
         }
 
@@ -214,7 +213,7 @@ internal class DefaultCardCryptoCurrencyFactoryTest {
         val expected: List<CryptoCurrency>
 
         data class MultiWallet(
-            val userTokensResponse: UserTokensResponse?,
+            val accountsResponse: GetWalletAccountsResponse?,
             override val expected: List<CryptoCurrency>,
         ) : CreateTestModel
 
@@ -241,10 +240,9 @@ internal class DefaultCardCryptoCurrencyFactoryTest {
                 // Arrange
                 val userWallet = model.multiWallet
                 val networks = setOf(ethereum.network, bitcoin.network)
-                val userTokensResponse = model.userTokensResponse
+                val accountsResponse = model.accountsResponse
 
-                every { accountsFeatureToggles.isFeatureEnabled } returns false
-                coEvery { userTokensResponseStore.getSyncOrNull(userWallet.walletId) } returns userTokensResponse
+                coEvery { walletAccountsFetcher.getSaved(userWallet.walletId) } returns accountsResponse
 
                 // Act
                 val actual = runCatching {
@@ -269,19 +267,19 @@ internal class DefaultCardCryptoCurrencyFactoryTest {
         private fun provideTestModels() = listOf(
             CreateCurrenciesForMultiWalletModel(
                 multiWallet = createMultiWallet(),
-                userTokensResponse = null,
+                accountsResponse = null,
                 expected = Result.success(emptyMap()),
             ),
             CreateCurrenciesForMultiWalletModel(
                 multiWallet = createMultiWallet(),
-                userTokensResponse = createUserTokensResponse(),
+                accountsResponse = createWalletAccountsResponse(emptyList(), false, false),
                 expected = Result.success(
                     setOf(ethereum.network, bitcoin.network).associateWith { emptyList() },
                 ),
             ),
             CreateCurrenciesForMultiWalletModel(
                 multiWallet = createMultiWallet(),
-                userTokensResponse = createUserTokensResponse(currencies = listOf(bitcoin, ethereum)),
+                accountsResponse = createWalletAccountsResponse(currencies = listOf(bitcoin, ethereum), false, false),
                 expected = mapOf(
                     bitcoin.network to listOf(bitcoin),
                     ethereum.network to listOf(ethereum),
@@ -289,12 +287,12 @@ internal class DefaultCardCryptoCurrencyFactoryTest {
             ),
             CreateCurrenciesForMultiWalletModel(
                 multiWallet = createSingleWallet(),
-                userTokensResponse = null,
+                accountsResponse = null,
                 expected = Result.failure(IllegalArgumentException("It isn't multi-currency wallet")),
             ),
             CreateCurrenciesForMultiWalletModel(
                 multiWallet = MockUserWalletFactory.createSingleWalletWithToken(),
-                userTokensResponse = null,
+                accountsResponse = null,
                 expected = Result.failure(IllegalArgumentException("It isn't multi-currency wallet")),
             ),
         )
@@ -302,7 +300,7 @@ internal class DefaultCardCryptoCurrencyFactoryTest {
 
     data class CreateCurrenciesForMultiWalletModel(
         val multiWallet: UserWallet,
-        val userTokensResponse: UserTokensResponse?,
+        val accountsResponse: GetWalletAccountsResponse?,
         val expected: Result<Map<Network, List<CryptoCurrency>>>,
     )
 
@@ -542,11 +540,44 @@ internal class DefaultCardCryptoCurrencyFactoryTest {
         )!!
     }
 
-    private fun createUserTokensResponse(currencies: List<CryptoCurrency> = emptyList()): UserTokensResponse {
-        return userTokensResponseFactory.createUserTokensResponse(
-            currencies = currencies,
-            isGroupedByNetwork = false,
-            isSortedByBalance = false,
+    private fun createWalletAccountsResponse(
+        currencies: List<CryptoCurrency>,
+        isGroupedByNetwork: Boolean,
+        isSortedByBalance: Boolean,
+    ): GetWalletAccountsResponse {
+        val tokens = currencies.map { currency ->
+            userTokensResponseFactory.createResponseToken(currency = currency, accountId = null)
+        }
+
+        return GetWalletAccountsResponse(
+            wallet = GetWalletAccountsResponse.Wallet(
+                version = 0,
+                group = if (isGroupedByNetwork) {
+                    UserTokensResponse.GroupType.NETWORK
+                } else {
+                    UserTokensResponse.GroupType.NONE
+                },
+                sort = if (isSortedByBalance) {
+                    UserTokensResponse.SortType.BALANCE
+                } else {
+                    UserTokensResponse.SortType.MANUAL
+                },
+                totalAccounts = 1,
+                totalArchivedAccounts = 0,
+            ),
+            accounts = listOf(
+                WalletAccountDTO(
+                    id = "account_0",
+                    name = "Main",
+                    derivationIndex = 0,
+                    icon = "🏠",
+                    iconColor = "#000000",
+                    tokens = tokens,
+                    totalTokens = tokens.size,
+                    totalNetworks = currencies.map { it.network }.distinct().size,
+                ),
+            ),
+            unassignedTokens = emptyList(),
         )
     }
 

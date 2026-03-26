@@ -19,8 +19,8 @@ import com.tangem.datasource.api.common.response.getOrThrow
 import com.tangem.datasource.api.markets.TangemTechMarketsApi
 import com.tangem.datasource.api.markets.models.response.TokenMarketExchangesResponse
 import com.tangem.datasource.local.datastore.RuntimeStateStore
-import com.tangem.datasource.local.userwallet.UserWalletsStore
-import com.tangem.domain.appcurrency.model.AppCurrency
+import com.tangem.domain.common.wallets.UserWalletsListRepository
+import com.tangem.domain.common.wallets.getSyncStrict
 import com.tangem.domain.markets.*
 import com.tangem.domain.markets.repositories.MarketsTokenRepository
 import com.tangem.domain.models.account.DerivationIndex
@@ -30,7 +30,6 @@ import com.tangem.pagination.*
 import com.tangem.pagination.fetcher.LimitOffsetBatchFetcher
 import com.tangem.utils.coroutines.CoroutineDispatcherProvider
 import kotlinx.coroutines.withContext
-import timber.log.Timber
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
@@ -38,7 +37,7 @@ import java.util.concurrent.atomic.AtomicLong
 internal class DefaultMarketsTokenRepository(
     private val marketsApi: TangemTechMarketsApi,
     private val quotesFetcher: QuotesFetcher,
-    private val userWalletsStore: UserWalletsStore,
+    private val userWalletsListRepository: UserWalletsListRepository,
     private val dispatcherProvider: CoroutineDispatcherProvider,
     private val analyticsEventHandler: AnalyticsEventHandler,
     private val cacheRegistry: CacheRegistry,
@@ -74,6 +73,7 @@ internal class DefaultMarketsTokenRepository(
                         offset = request.offset,
                         limit = request.limit,
                         timestamp = if (isFirstBatchFetching) null else requestTimeStamp.get(),
+                        showNetworks = request.params.shouldNetworks,
                     ).getOrThrow()
                 }
 
@@ -251,7 +251,7 @@ internal class DefaultMarketsTokenRepository(
         network: TokenMarketInfo.Network,
         accountIndex: DerivationIndex?,
     ): CryptoCurrency? {
-        val userWallet = userWalletsStore.getSyncOrNull(userWalletId) ?: error("UserWalletId [$userWalletId] not found")
+        val userWallet = userWalletsListRepository.getSyncStrict(userWalletId)
         val blockchain = Blockchain.fromNetworkId(network.networkId) ?: error("Unknown network [${network.networkId}]")
 
         return if (network.contractAddress == null) {
@@ -290,26 +290,6 @@ internal class DefaultMarketsTokenRepository(
 
             TokenMarketExchangeConverter.convertList(input = tokenExchangesStore.get().value)
         }
-    }
-
-    override suspend fun showYieldModePromo(
-        appCurrency: AppCurrency,
-        interval: TokenMarketListConfig.Interval,
-    ): Boolean = try {
-        val hasYieldSupplyTokens = marketsApi.getCoinsList(
-            currency = appCurrency.code,
-            interval = interval.toRequestParam(),
-            order = TokenMarketListConfig.Order.YieldSupply.toRequestParam(),
-            offset = 0,
-            limit = 40,
-            timestamp = null,
-            search = null,
-        ).getOrThrow().tokens.isNotEmpty()
-
-        hasYieldSupplyTokens
-    } catch (error: Exception) {
-        Timber.e(error)
-        false
     }
 
     inline fun <T> catchListErrorAndSendEvent(block: () -> T): T {

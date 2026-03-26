@@ -1,6 +1,7 @@
 package com.tangem.feature.tokendetails.presentation.tokendetails.state.factory
 
 import arrow.core.Either
+import com.tangem.common.getTotalWithRewardsStakingBalance
 import com.tangem.core.ui.components.marketprice.MarketPriceBlockState
 import com.tangem.core.ui.components.marketprice.PriceChangeState
 import com.tangem.core.ui.components.marketprice.PriceChangeType
@@ -10,7 +11,6 @@ import com.tangem.domain.appcurrency.model.AppCurrency
 import com.tangem.domain.models.StatusSource
 import com.tangem.domain.models.currency.CryptoCurrencyStatus
 import com.tangem.domain.models.staking.StakingBalance
-import com.tangem.domain.staking.utils.getTotalWithRewardsStakingBalance
 import com.tangem.domain.tokens.error.CurrencyStatusError
 import com.tangem.feature.tokendetails.presentation.tokendetails.model.TokenDetailsClickIntents
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.BalanceType
@@ -19,7 +19,6 @@ import com.tangem.feature.tokendetails.presentation.tokendetails.state.TokenDeta
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.TokenDetailsYieldSupplyState
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.components.TokenDetailsNotification
 import com.tangem.feature.tokendetails.presentation.tokendetails.state.utils.getBalance
-import com.tangem.features.yield.supply.api.YieldSupplyFeatureToggles
 import com.tangem.utils.Provider
 import com.tangem.utils.StringsSigns.DASH_SIGN
 import com.tangem.utils.converter.Converter
@@ -31,7 +30,6 @@ internal class TokenDetailsLoadedBalanceConverter(
     private val currentStateProvider: Provider<TokenDetailsState>,
     private val appCurrencyProvider: Provider<AppCurrency>,
     private val clickIntents: TokenDetailsClickIntents,
-    private val yieldSupplyFeatureToggles: YieldSupplyFeatureToggles,
 ) : Converter<Either<CurrencyStatusError, CryptoCurrencyStatus>, TokenDetailsState> {
 
     override fun convert(value: Either<CurrencyStatusError, CryptoCurrencyStatus>): TokenDetailsState {
@@ -113,10 +111,7 @@ internal class TokenDetailsLoadedBalanceConverter(
                 selectedBalanceType = currentState.selectedBalanceType,
                 isBalanceSelectorEnabled = isBalanceSelectorEnabled,
                 isBalanceFlickering = status.value.isFlickering(),
-                yieldSupplyState =
-                if (yieldSupplyFeatureToggles.isYieldSupplyFeatureEnabled &&
-                    status.value.yieldSupplyStatus?.isActive == true
-                ) {
+                yieldSupplyState = if (status.value.yieldSupplyStatus?.isActive == true) {
                     TokenDetailsYieldSupplyState.Active(clickIntents::onYieldInfoClick)
                 } else {
                     TokenDetailsYieldSupplyState.Empty

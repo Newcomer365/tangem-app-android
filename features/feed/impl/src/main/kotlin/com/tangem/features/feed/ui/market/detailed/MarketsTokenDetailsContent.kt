@@ -49,13 +49,13 @@ import com.tangem.features.feed.ui.market.detailed.state.MarketsTokenDetailsUM
 import com.tangem.features.feed.ui.market.detailed.state.SecurityScoreBottomSheetContent
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.distinctUntilChanged
+import com.tangem.core.ui.R as CoreR
 
 @Suppress("LongParameterList")
 @Composable
 internal fun MarketsTokenDetailsContent(
     state: MarketsTokenDetailsUM,
     backgroundColor: Color,
-    isAccountEnabled: Boolean,
     modifier: Modifier = Modifier,
     portfolioBlock: @Composable ((Modifier) -> Unit)?,
 ) {
@@ -64,7 +64,6 @@ internal fun MarketsTokenDetailsContent(
         backgroundColor = backgroundColor,
         state = state,
         portfolioBlock = portfolioBlock,
-        isAccountEnabled = isAccountEnabled,
     )
 
     when (state.bottomSheetConfig.content) {
@@ -79,7 +78,6 @@ internal fun MarketsTokenDetailsContent(
 private fun Content(
     state: MarketsTokenDetailsUM,
     backgroundColor: Color,
-    isAccountEnabled: Boolean,
     modifier: Modifier = Modifier,
     portfolioBlock: @Composable ((Modifier) -> Unit)?,
 ) {
@@ -133,7 +131,6 @@ private fun Content(
 
             tokenMarketDetailsBody(
                 state = state.body,
-                isAccountEnabled = isAccountEnabled,
                 portfolioBlock = portfolioBlock,
                 relatedNews = state.relatedNews,
             )
@@ -150,6 +147,7 @@ internal fun MarketsTokenDetailsTopBar(
     tokenPrice: String,
     isBackButtonEnabled: Boolean,
     onBackClick: () -> Unit,
+    onShareClick: () -> Unit,
 ) {
     TangemTopAppBar(
         modifier = Modifier.drawBehind { drawRect(backgroundColor) },
@@ -158,6 +156,10 @@ internal fun MarketsTokenDetailsTopBar(
         startButton = TopAppBarButtonUM.Back(
             onBackClicked = onBackClick,
             enabled = isBackButtonEnabled,
+        ),
+        endButton = TopAppBarButtonUM.Icon(
+            iconRes = CoreR.drawable.ic_share_24,
+            onClicked = onShareClick,
         ),
     )
 }
@@ -316,7 +318,6 @@ private fun MarketsTokenDetailsContent_Preview(
             state = params,
             backgroundColor = TangemTheme.colors.background.tertiary,
             portfolioBlock = {},
-            isAccountEnabled = true,
         )
     }
 }
