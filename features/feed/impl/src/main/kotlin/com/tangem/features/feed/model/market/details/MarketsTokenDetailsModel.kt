@@ -21,7 +21,6 @@ import com.tangem.core.decompose.model.Model
 import com.tangem.core.decompose.model.ParamsContainer
 import com.tangem.core.navigation.share.ShareManager
 import com.tangem.core.navigation.url.UrlOpener
-import com.tangem.core.ui.DesignFeatureToggles
 import com.tangem.core.ui.components.bottomsheets.TangemBottomSheetConfig
 import com.tangem.core.ui.components.bottomsheets.TangemBottomSheetConfigContent
 import com.tangem.core.ui.components.marketprice.PriceChangeType
@@ -40,6 +39,7 @@ import com.tangem.domain.card.common.extensions.hotWalletExcludedBlockchains
 import com.tangem.domain.feedback.SendFeedbackEmailUseCase
 import com.tangem.domain.feedback.models.FeedbackEmailType
 import com.tangem.domain.markets.*
+import com.tangem.domain.marketing.models.MarketingScreen
 import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.domain.news.model.NewsListConfig
 import com.tangem.domain.news.usecase.GetNewsUseCase
@@ -49,6 +49,7 @@ import com.tangem.domain.settings.usercountry.models.needApplyFCARestrictions
 import com.tangem.domain.wallets.usecase.GetWalletsUseCase
 import com.tangem.features.commonfeatures.api.addtoportfolio.AddToPortfolioManager
 import com.tangem.features.commonfeatures.api.tokenactions.BottomAction
+import com.tangem.features.marketing.api.MarketingBannerRequest
 import com.tangem.features.feed.components.market.details.AddFundsSlotRoute
 import com.tangem.features.feed.components.market.details.AddToPortfolioSlotRoute
 import com.tangem.features.feed.components.market.details.DefaultMarketsTokenDetailsComponent
@@ -57,7 +58,6 @@ import com.tangem.features.feed.impl.R
 import com.tangem.features.feed.model.converter.ShortArticleToArticleConfigUMConverter
 import com.tangem.features.feed.model.market.details.analytics.MarketDetailsAnalyticsEvent
 import com.tangem.features.feed.model.market.details.converter.DescriptionConverter
-import com.tangem.features.feed.model.market.details.converter.ExchangeItemStateConverter
 import com.tangem.features.feed.model.market.details.converter.ExchangeItemStateConverterV2
 import com.tangem.features.feed.model.market.details.converter.TokenMarketInfoConverter
 import com.tangem.features.feed.model.market.details.formatter.*
@@ -90,7 +90,6 @@ internal class MarketsTokenDetailsModel @Inject constructor(
     getUserCountryUseCase: GetUserCountryUseCase,
     paramsContainer: ParamsContainer,
     addToPortfolioManagerFactory: AddToPortfolioManager.Factory,
-    private val designFeatureToggles: DesignFeatureToggles,
     private val getTokenPriceChartUseCase: GetTokenPriceChartUseCase,
     private val getTokenMarketInfoUseCase: GetTokenMarketInfoUseCase,
     private val getTokenFullQuotesUseCase: GetTokenFullQuotesUseCase,
@@ -163,7 +162,6 @@ internal class MarketsTokenDetailsModel @Inject constructor(
         needApplyFCARestrictions = Provider {
             userCountry.needApplyFCARestrictions()
         },
-        isRedesignEnabled = designFeatureToggles.isRedesignEnabled,
         // ==================
     )
 
@@ -201,7 +199,7 @@ internal class MarketsTokenDetailsModel @Inject constructor(
 
             marketChartLook.copy(
                 type = percentChangeType.toChartType(),
-                isMinMaxLook = designFeatureToggles.isRedesignEnabled,
+                isMinMaxLook = true,
                 xAxisFormatter = MarketsDateTimeFormatters.getChartXFormatterByInterval(PriceChangeInterval.H24),
                 yAxisFormatter = { value ->
                     value.format {
@@ -234,11 +232,15 @@ internal class MarketsTokenDetailsModel @Inject constructor(
     val isVisibleOnScreen = MutableStateFlow(false)
     val networksState = MutableStateFlow<TokenNetworksState>(TokenNetworksState.Loading)
 
+    val marketingRequest: Flow<MarketingBannerRequest?> = flowOf(
+        MarketingBannerRequest(screen = MarketingScreen.TokenMarkets(coingeckoId = params.token.id.value)),
+    )
+
     val addToPortfolioSheetNavigation = SlotNavigation<AddToPortfolioSlotRoute>()
     val addFundsSheetNavigation = SlotNavigation<AddFundsSlotRoute>()
 
     private val isAddToPortfolioAvailable: Boolean =
-        params.shouldShowPortfolio && designFeatureToggles.isRedesignEnabled
+        params.shouldShowPortfolio
     val addToPortfolioManager: AddToPortfolioManager = addToPortfolioManagerFactory.create(
         scope = modelScope,
         settings = AddToPortfolioManager.Settings(
@@ -840,15 +842,9 @@ internal class MarketsTokenDetailsModel @Inject constructor(
                     ExchangesBottomSheetContent.Error(onRetryClick = { onListedOnClick(exchangesCount) })
                 },
                 ifRight = { list ->
-                    if (designFeatureToggles.isRedesignEnabled) {
-                        ExchangesBottomSheetContent.ContentV2(
-                            exchangeItemsV2 = ExchangeItemStateConverterV2.convertList(list).toImmutableList(),
-                        )
-                    } else {
-                        ExchangesBottomSheetContent.ContentV1(
-                            exchangeItems = ExchangeItemStateConverter.convertList(list).toImmutableList(),
-                        )
-                    }
+                    ExchangesBottomSheetContent.ContentV2(
+                        exchangeItemsV2 = ExchangeItemStateConverterV2.convertList(list).toImmutableList(),
+                    )
                 },
             )
 

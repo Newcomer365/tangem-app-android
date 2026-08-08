@@ -11,7 +11,6 @@ import com.tangem.crypto.hdWallet.DerivationPath
 import com.tangem.data.common.network.NetworkFactory
 import com.tangem.data.wallets.derivations.Derivations
 import com.tangem.data.wallets.derivations.MissedDerivationsFinder
-import com.tangem.domain.dynamicaddresses.DynamicAddressesFeatureToggles
 import com.tangem.domain.models.currency.CryptoCurrency
 import com.tangem.domain.models.network.Network
 import com.tangem.domain.models.scan.ScanResponse
@@ -31,7 +30,6 @@ internal class DefaultColdMapDerivationsRepository @Inject constructor(
     private val tangemSdkManager: TangemSdkManager,
     private val networkFactory: NetworkFactory,
     private val dispatchers: CoroutineDispatcherProvider,
-    private val dynamicAddressesFeatureToggles: DynamicAddressesFeatureToggles,
 ) : ColdMapDerivationsRepository {
 
     override suspend fun derivePublicKeys(
@@ -66,7 +64,7 @@ internal class DefaultColdMapDerivationsRepository @Inject constructor(
             return@withContext userWallet
         }
 
-        val derivations = MissedDerivationsFinder(userWallet, dynamicAddressesFeatureToggles.isDynamicAddressesEnabled)
+        val derivations = MissedDerivationsFinder(userWallet, isDynamicAddressesEnabled = true)
             .findByNetworks(networks)
             .ifEmpty {
                 TangemLogger.d("Nothing to derive")
@@ -100,12 +98,17 @@ internal class DefaultColdMapDerivationsRepository @Inject constructor(
         }
     }
 
+    override fun mergeDerivedKeys(
+        userWallet: UserWallet.Cold,
+        keys: Map<ByteArrayKey, ExtendedPublicKeysMap>,
+    ): UserWallet.Cold = userWallet.updateDerivedKeys(keys)
+
     override suspend fun hasMissedDerivations(
         userWallet: UserWallet.Cold,
         networksWithDerivationPath: Map<BackendId, String?>,
     ): Boolean = withContext(dispatchers.io) {
         val derivations =
-            MissedDerivationsFinder(userWallet, dynamicAddressesFeatureToggles.isDynamicAddressesEnabled)
+            MissedDerivationsFinder(userWallet, isDynamicAddressesEnabled = true)
                 .findByNetworks(
                     networksWithDerivationPath.mapNotNull { (backendId, extraDerivationPath) ->
                         networkFactory.create(

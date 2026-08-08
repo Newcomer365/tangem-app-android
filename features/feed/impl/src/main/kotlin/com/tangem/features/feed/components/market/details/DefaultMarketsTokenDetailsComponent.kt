@@ -18,7 +18,6 @@ import com.tangem.core.decompose.context.AppComponentContext
 import com.tangem.core.decompose.context.child
 import com.tangem.core.decompose.context.childByContext
 import com.tangem.core.decompose.model.getOrCreateModel
-import com.tangem.core.ui.DesignFeatureToggles
 import com.tangem.core.ui.components.bottomsheets.state.BottomSheetState
 import com.tangem.core.ui.decompose.ComposableBottomSheetComponent
 import com.tangem.core.ui.decompose.ComposableModularBottomSheetContentComponent
@@ -29,7 +28,6 @@ import com.tangem.domain.markets.TokenMarketParams
 import com.tangem.domain.models.currency.CryptoCurrency
 import com.tangem.features.commonfeatures.api.addtoportfolio.AddToPortfolioComponent
 import com.tangem.features.commonfeatures.api.managefunds.ManageFundsComponent
-import com.tangem.features.feed.components.market.details.portfolio.api.MarketsPortfolioComponent
 import com.tangem.features.feed.components.market.details.portfolioblock.PortfolioBlockComponent
 import com.tangem.features.feed.components.market.details.portfolioblock.PortfolioBlockParentClickIntents
 import com.tangem.features.feed.model.market.details.MarketsTokenDetailsModel
@@ -37,6 +35,7 @@ import com.tangem.features.feed.model.market.details.analytics.MarketDetailsAnal
 import com.tangem.features.feed.model.market.details.state.TokenNetworksState
 import com.tangem.features.feed.ui.market.detailed.MarketsTokenDetailsContent
 import com.tangem.features.feed.ui.market.detailed.MarketsTokenDetailsTitle
+import com.tangem.features.marketing.api.MarketingBannerComponent
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -45,12 +44,11 @@ import kotlinx.serialization.Serializable
 internal class DefaultMarketsTokenDetailsComponent(
     appComponentContext: AppComponentContext,
     analyticsEventHandler: AnalyticsEventHandler,
-    designFeatureToggles: DesignFeatureToggles,
-    portfolioComponentFactory: MarketsPortfolioComponent.Factory,
     portfolioBlockComponentFactory: PortfolioBlockComponent.Factory,
     val params: Params,
     private val addToPortfolioComponentFactory: AddToPortfolioComponent.Factory,
     private val manageFundsComponentFactory: ManageFundsComponent.Factory,
+    private val marketingBannerComponentFactory: MarketingBannerComponent.Factory,
 ) : ComposableModularBottomSheetContentComponent, AppComponentContext by appComponentContext {
 
     // applying l2 compatibility
@@ -62,21 +60,13 @@ internal class DefaultMarketsTokenDetailsComponent(
     private val analyticsParams = params.analyticsParams
     private val model: MarketsTokenDetailsModel = getOrCreateModel(updatedParams)
 
-    private val portfolioComponent: MarketsPortfolioComponent? =
-        if (updatedParams.shouldShowPortfolio && !designFeatureToggles.isRedesignEnabled) {
-            portfolioComponentFactory.create(
-                context = child("my_portfolio"),
-                params = MarketsPortfolioComponent.Params(
-                    updatedParams.token,
-                    analyticsParams = analyticsParams?.source?.let { MarketsPortfolioComponent.AnalyticsParams(it) },
-                ),
-            )
-        } else {
-            null
-        }
+    private val marketingBannerComponent = marketingBannerComponentFactory.create(
+        context = child("marketsTokenDetailsMarketingBanner"),
+        params = MarketingBannerComponent.Params.Standalone(requestFlow = model.marketingRequest),
+    )
 
     private val portfolioBlockComponent: PortfolioBlockComponent? =
-        if (updatedParams.shouldShowPortfolio && designFeatureToggles.isRedesignEnabled) {
+        if (updatedParams.shouldShowPortfolio) {
             portfolioBlockComponentFactory.create(
                 context = child("portfolio_block"),
                 params = PortfolioBlockComponent.Params(token = updatedParams.token),
@@ -119,11 +109,9 @@ internal class DefaultMarketsTokenDetailsComponent(
                 when (state) {
                     is TokenNetworksState.NetworksAvailable -> {
                         portfolioBlockComponent?.setTokenNetworks(state.networks)
-                        portfolioComponent?.setTokenNetworks(state.networks)
                     }
                     TokenNetworksState.NoNetworksAvailable -> {
                         portfolioBlockComponent?.setNoNetworksAvailable()
-                        portfolioComponent?.setNoNetworksAvailable()
                     }
                     else -> {}
                 }
@@ -173,7 +161,6 @@ internal class DefaultMarketsTokenDetailsComponent(
         val state by model.state.collectAsStateWithLifecycle()
         MarketsTokenDetailsTitle(
             state = state,
-            backgroundColor = LocalMainBottomSheetColor.current.value,
             isBackButtonEnabled = bottomSheetState.value == BottomSheetState.EXPANDED,
             onBackClick = { params.onBackClicked() },
         )
@@ -204,15 +191,13 @@ internal class DefaultMarketsTokenDetailsComponent(
             modifier = modifier,
             backgroundColor = LocalMainBottomSheetColor.current.value,
             state = state,
-            portfolioBlock = portfolioComponent?.let { component ->
-                { blockModifier ->
-                    component.Content(blockModifier)
-                }
-            },
             portfolioFloatingBlock = portfolioBlockComponent?.let { component ->
                 { blockModifier ->
                     component.Content(blockModifier)
                 }
+            },
+            marketingBanner = { blockModifier ->
+                marketingBannerComponent.Content(blockModifier)
             },
         )
         bottomSheet.child?.instance?.BottomSheet()

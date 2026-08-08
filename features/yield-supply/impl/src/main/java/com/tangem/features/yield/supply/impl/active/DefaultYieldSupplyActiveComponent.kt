@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
@@ -20,7 +21,9 @@ import com.tangem.core.ui.components.SecondaryButton
 import com.tangem.core.ui.decompose.ComposableBottomSheetComponent
 import com.tangem.core.ui.extensions.stringResourceSafe
 import com.tangem.core.ui.res.TangemTheme
+import com.tangem.core.ui.test.YieldSupplyTestTags
 import com.tangem.domain.models.currency.CryptoCurrency
+import com.tangem.features.marketing.api.MarketingBannerComponent
 import com.tangem.features.yield.supply.api.YieldSupplyActiveComponent
 import com.tangem.features.yield.supply.impl.R
 import com.tangem.features.yield.supply.impl.active.model.YieldSupplyActiveModel
@@ -38,6 +41,7 @@ internal class DefaultYieldSupplyActiveComponent @AssistedInject constructor(
     @Assisted private val appComponentContext: AppComponentContext,
     @Assisted private val params: YieldSupplyActiveComponent.Params,
     private val appRouter: AppRouter,
+    private val marketingBannerComponentFactory: MarketingBannerComponent.Factory,
 ) : YieldSupplyActiveComponent, AppComponentContext by appComponentContext {
 
     private val model: YieldSupplyActiveModel = getOrCreateModel(params = params)
@@ -46,6 +50,14 @@ internal class DefaultYieldSupplyActiveComponent @AssistedInject constructor(
         appComponentContext = child("chartComponent"),
         params = DefaultYieldSupplyChartComponent.Params(
             cryptoCurrency = model.cryptoCurrencyStatusFlow.value.currency as CryptoCurrency.Token,
+        ),
+    )
+
+    private val marketingBannerComponent = marketingBannerComponentFactory.create(
+        context = child("marketingBanner"),
+        params = MarketingBannerComponent.Params.Standalone(
+            requestFlow = model.marketingRequest,
+            onDeeplinkClick = model::onMarketingBannerDeeplink,
         ),
     )
 
@@ -83,6 +95,7 @@ internal class DefaultYieldSupplyActiveComponent @AssistedInject constructor(
                     state = state,
                     isBalanceHidden = isBalanceHidden,
                     chartComponent = chartComponent,
+                    marketingBannerComponent = marketingBannerComponent,
                     onReadMoreClick = model::onReadMoreClick,
                 )
 
@@ -101,7 +114,8 @@ internal class DefaultYieldSupplyActiveComponent @AssistedInject constructor(
                         start = 16.dp,
                         end = 16.dp,
                         bottom = 16.dp,
-                    ),
+                    )
+                    .testTag(YieldSupplyTestTags.STOP_EARNING_BUTTON),
             )
         }
 

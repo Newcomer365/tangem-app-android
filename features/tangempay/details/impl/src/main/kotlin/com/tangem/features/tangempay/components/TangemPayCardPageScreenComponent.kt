@@ -1,7 +1,6 @@
 package com.tangem.features.tangempay.components
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -15,18 +14,22 @@ import com.tangem.core.decompose.model.getOrCreateModel
 import com.tangem.core.ui.components.NavigationBar3ButtonsScrim
 import com.tangem.core.ui.decompose.ComposableBottomSheetComponent
 import com.tangem.core.ui.decompose.ComposableContentComponent
-import com.tangem.core.ui.res.LocalVisaRedesignEnabled
 import com.tangem.features.tangempay.closure.TangemPayCloseCardComponent
 import com.tangem.features.tangempay.entity.TangemPayCardNavigation
 import com.tangem.features.tangempay.model.TangemPayCardPageModel
 import com.tangem.features.tangempay.ui.TangemPayCardPageScreen
+import com.tangem.features.tangempay.utils.VA_DAILY_DEPOSIT_LIMIT_PLACEHOLDER
+import com.tangem.features.tangempay.utils.toRequisitesRows
 import com.tangem.features.tangempay.utils.userWalletId
 import com.tangem.features.tokenreceive.TokenReceiveComponent
+import com.tangem.features.virtualaccount.details.component.VirtualAccountAddFundsBottomSheetComponent
+import com.tangem.features.virtualaccount.details.component.VirtualAccountAddFundsListener
 
 internal class TangemPayCardPageScreenComponent(
     private val appComponentContext: AppComponentContext,
     private val params: TangemPayCardPageComponent.Params,
     private val tokenReceiveComponentFactory: TokenReceiveComponent.Factory,
+    private val virtualAccountAddFundsComponentFactory: VirtualAccountAddFundsBottomSheetComponent.Factory,
 ) : AppComponentContext by appComponentContext, ComposableContentComponent {
 
     private val model: TangemPayCardPageModel = getOrCreateModel(params = params)
@@ -45,19 +48,18 @@ internal class TangemPayCardPageScreenComponent(
         val selectedCardId by model.selectedCardIdState.collectAsStateWithLifecycle()
         val bottomSheet by bottomSheetSlot.subscribeAsState()
 
-        CompositionLocalProvider(LocalVisaRedesignEnabled provides model.isRedesignEnabled()) {
-            NavigationBar3ButtonsScrim()
-            TangemPayCardPageScreen(
-                state = state,
-                cardControllers = cardControllers,
-                selectedCardId = selectedCardId,
-                onCardSelect = model::onCardPageSelected,
-                modifier = modifier,
-            )
-            bottomSheet.child?.instance?.BottomSheet()
-        }
+        NavigationBar3ButtonsScrim()
+        TangemPayCardPageScreen(
+            state = state,
+            cardControllers = cardControllers,
+            selectedCardId = selectedCardId,
+            onCardSelect = model::onCardPageSelected,
+            modifier = modifier,
+        )
+        bottomSheet.child?.instance?.BottomSheet()
     }
 
+    @Suppress("LongMethod")
     private fun bottomSheetChild(
         navigation: TangemPayCardNavigation,
         componentContext: ComponentContext,
@@ -97,6 +99,41 @@ internal class TangemPayCardPageScreenComponent(
                     fiatBalance = navigation.fiatBalance,
                     depositAddress = navigation.depositAddress,
                     cryptoCurrency = navigation.cryptoCurrency,
+                    virtualAccountOnramp = navigation.virtualAccountOnramp,
+                ),
+            )
+            is TangemPayCardNavigation.VirtualAccountDeposit -> TangemPayVirtualAccountDepositComponent(
+                appComponentContext = context,
+                params = TangemPayVirtualAccountDepositComponent.Params(
+                    virtualAccountOnramp = navigation.virtualAccountOnramp,
+                    userWalletId = navigation.userWalletId,
+                    paymentAccountAddress = navigation.paymentAccountAddress,
+                    onDismiss = model.bottomSheetNavigation::dismiss,
+                    onShowDetails = model::onShowVirtualAccountRequisites,
+                    onShowBankingDetailsError = model::showVaBankingDetailsError,
+                    onOrderCreated = model::onVirtualAccountOrderCreated,
+                ),
+            )
+            is TangemPayCardNavigation.VirtualAccountRequisites -> virtualAccountAddFundsComponentFactory.create(
+                context = context,
+                params = VirtualAccountAddFundsBottomSheetComponent.Params(
+                    userWalletId = navigation.userWalletId,
+                    requisites = navigation.bankCredentials.toRequisitesRows(),
+                    dailyDepositLimit = VA_DAILY_DEPOSIT_LIMIT_PLACEHOLDER,
+                    shouldSkipIntro = true,
+                    listener = VirtualAccountAddFundsListener { model.bottomSheetNavigation.dismiss() },
+                    onDetailsShown = model::onVaBankingDetailsShown,
+                    onShareClicked = model::onVaShareDetailsClicked,
+                    onFieldCopied = model::onVaFieldCopied,
+                ),
+            )
+            is TangemPayCardNavigation.VaBankingDetailsError -> TangemPayVaBankingDetailsErrorComponent(
+                appComponentContext = context,
+                params = TangemPayVaBankingDetailsErrorComponent.Params(
+                    userWalletId = navigation.userWalletId,
+                    onDismiss = model.bottomSheetNavigation::dismiss,
+                    onContactSupport = model::onContactSupportClicked,
+                    onResolved = model::onVaBankingDetailsResolved,
                 ),
             )
             is TangemPayCardNavigation.Receive -> tokenReceiveComponentFactory.create(

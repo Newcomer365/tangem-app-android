@@ -36,12 +36,10 @@ import com.tangem.core.ui.components.bottomsheets.sheet.TangemBottomSheetDraggab
 import com.tangem.core.ui.components.sheetscaffold.TangemSheetState
 import com.tangem.core.ui.components.sheetscaffold.TangemSheetValue
 import com.tangem.core.ui.components.sheetscaffold.rememberSheetState
-import com.tangem.core.ui.res.LocalBottomSheetAlwaysVisible
-import com.tangem.core.ui.res.LocalWindowSize
-import com.tangem.core.ui.res.TangemTheme
-import com.tangem.core.ui.res.TangemThemePreviewRedesign
+import com.tangem.core.ui.res.*
 import com.tangem.core.ui.test.BaseBottomSheetTestTags
 import com.tangem.core.ui.utils.WindowInsetsZero
+import dev.chrisbanes.haze.rememberHazeState
 
 /**
  * Extra bottom inset that scrollable content under a [BasicBottomSheet] should reserve so it
@@ -235,46 +233,48 @@ inline fun <reified T : TangemBottomSheetConfigContent> BasicBottomSheet(
     }
 
     val bsContent: @Composable ColumnScope.() -> Unit = {
-        val contentModifier = when (type) {
-            Default -> Modifier
-                .clip(
-                    RoundedCornerShape(
-                        topStart = TangemTheme.dimens2.x8,
-                        topEnd = TangemTheme.dimens2.x8,
-                    ),
-                )
-            Modal -> Modifier
-                .padding(
-                    start = TangemTheme.dimens2.x2,
-                    end = TangemTheme.dimens2.x2,
-                    bottom = bottomBarHeight,
-                )
-                .clip(RoundedCornerShape(TangemTheme.dimens2.x8))
-        }
-
-        Column(
-            modifier = contentModifier
-                .background(containerColor)
-                .heightIn(max = maxHeight)
-                .testTag(BaseBottomSheetTestTags.CONTAINER),
-        ) {
-            Box(modifier = Modifier.fillMaxWidth()) {
-                title(model)
-            }
-            Box(modifier = Modifier.fillMaxWidth()) {
-                if (footer != null) {
-                    FooterOverlay(
-                        measuredFooterHeight = footerHeightDp,
-                        onMeasureFooter = { newHeight ->
-                            if (newHeight != footerHeightDp) {
-                                footerHeightDp = newHeight
-                            }
-                        },
-                        footer = { footer(model) },
-                        content = { content(model) },
+        CompositionLocalProvider(LocalHazeState provides rememberHazeState()) {
+            val contentModifier = when (type) {
+                Default -> Modifier
+                    .clip(
+                        RoundedCornerShape(
+                            topStart = TangemTheme.dimens2.x8,
+                            topEnd = TangemTheme.dimens2.x8,
+                        ),
                     )
-                } else {
-                    content(model)
+                Modal -> Modifier
+                    .padding(
+                        start = TangemTheme.dimens2.x2,
+                        end = TangemTheme.dimens2.x2,
+                        bottom = bottomBarHeight,
+                    )
+                    .clip(RoundedCornerShape(TangemTheme.dimens2.x8))
+            }
+
+            Column(
+                modifier = contentModifier
+                    .background(containerColor)
+                    .heightIn(max = maxHeight)
+                    .testTag(BaseBottomSheetTestTags.CONTAINER),
+            ) {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    title(model)
+                }
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    if (footer != null) {
+                        FooterOverlay(
+                            measuredFooterHeight = footerHeightDp,
+                            onMeasureFooter = { newHeight ->
+                                if (newHeight != footerHeightDp) {
+                                    footerHeightDp = newHeight
+                                }
+                            },
+                            footer = { footer(model) },
+                            content = { content(model) },
+                        )
+                    } else {
+                        content(model)
+                    }
                 }
             }
         }
@@ -323,7 +323,9 @@ fun BoxScope.FooterOverlay(
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter),
         ) {
-            if (gradientHeight > 0.dp) {
+            val isGradientDisplayed = gradientHeight > 0.dp
+
+            if (isGradientDisplayed) {
                 Fade(
                     backgroundColor = fadeMax,
                     height = gradientHeight,
@@ -333,7 +335,7 @@ fun BoxScope.FooterOverlay(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(measuredFooterHeight ?: 0.dp)
-                    .background(fadeMax),
+                    .background(if (isGradientDisplayed) fadeMax else Color.Transparent),
             )
         }
     }

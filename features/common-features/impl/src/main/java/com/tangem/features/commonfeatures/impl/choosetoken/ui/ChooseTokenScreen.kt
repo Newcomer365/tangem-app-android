@@ -38,6 +38,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
+import com.tangem.blockchain.common.Blockchain
+import com.tangem.blockchainsdk.utils.fromNetworkId
+import com.tangem.common.ui.extensions.getActiveIconRes
 import com.tangem.common.ui.tokens.NonContentItemContent
 import com.tangem.common.ui.tokens.SlideInItemVisibility
 import com.tangem.core.ui.components.SpacerH
@@ -59,6 +62,9 @@ import com.tangem.core.ui.components.tokenlist.state.PortfolioItemContentUM
 import com.tangem.core.ui.components.tokenlist.state.PortfolioTokensListItemUM
 import com.tangem.core.ui.components.tokenlist.state.TokensListItemUM
 import com.tangem.core.ui.decorations.roundedShapeItemDecoration
+import com.tangem.core.ui.ds.button.SecondaryTangemButton
+import com.tangem.core.ui.ds.button.TangemButtonShape
+import com.tangem.core.ui.ds.button.TangemButtonSize
 import com.tangem.core.ui.ds.image.DeviceIconUM
 import com.tangem.core.ui.ds.image.TangemDeviceIcon
 import com.tangem.core.ui.ds.image.TangemIcon
@@ -69,9 +75,9 @@ import com.tangem.core.ui.ds.row.token.TangemTokenRow
 import com.tangem.core.ui.ds.row.token.TangemTokenRowUM
 import com.tangem.core.ui.ds.row.token.internal.TokenRowTitle
 import com.tangem.core.ui.extensions.*
-import com.tangem.core.ui.res.LocalRedesignEnabled
+import com.tangem.core.ui.res.TangemColorPalette
 import com.tangem.core.ui.res.TangemTheme
-import com.tangem.core.ui.res.TangemThemePreview
+import com.tangem.core.ui.res.TangemThemePreviewRedesign
 import com.tangem.core.ui.test.BuyTokenScreenTestTags
 import com.tangem.core.ui.utils.ProvideSharedTransitionScope
 import com.tangem.core.ui.utils.TangemSharedTransitionLayout
@@ -84,6 +90,9 @@ import com.tangem.features.commonfeatures.api.choosetoken.model.WalletListUM
 import com.tangem.features.commonfeatures.api.choosetoken.model.WalletTabUM
 import com.tangem.features.commonfeatures.impl.R
 import com.tangem.features.commonfeatures.impl.choosetoken.market.state.SwapMarketState
+import com.tangem.features.commonfeatures.impl.choosetoken.predefined.state.PredefinedTokenItemUM
+import com.tangem.features.commonfeatures.impl.choosetoken.predefined.state.PredefinedTokensUM
+import com.tangem.features.commonfeatures.impl.choosetoken.ui.state.ChooserBlockUM
 import com.tangem.utils.StringsSigns.DOT
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
@@ -99,10 +108,13 @@ private const val ACCOUNT_CONTENT_ANIM_MS = 350
 private const val ACCOUNT_CONTENT_ANIM_DELAY_MS = 90
 private const val ACCOUNT_BOUNDS_ANIM_MS = 250
 
+private val ChooseTokenFullUM.marketState: SwapMarketState?
+    get() = (chooserBlock as? ChooserBlockUM.Market)?.state
+
 private val ChooseTokenFullUM.isNotFoundState: Boolean
     get() {
         if (portfolioBlock == null) return false
-        if (marketsBlock == null) return false
+        val marketsBlock = marketState ?: return false
         return portfolioBlock.tokensListData.tokensList.isEmpty() &&
             portfolioBlock.isSearching &&
             marketsBlock !is SwapMarketState.Content &&
@@ -112,7 +124,7 @@ private val ChooseTokenFullUM.isNotFoundState: Boolean
 private val ChooseTokenFullUM.isEmptyState: Boolean
     get() {
         if (portfolioBlock == null) return false
-        if (marketsBlock == null) return false
+        val marketsBlock = marketState ?: return false
         return portfolioBlock.tokensListData.tokensList.isEmpty() &&
             !portfolioBlock.isSearching &&
             marketsBlock !is SwapMarketState.Content &&
@@ -123,13 +135,7 @@ private val ChooseTokenFullUM.isEmptyState: Boolean
 internal fun ChooseTokenScreen(state: ChooseTokenFullUM, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
-            .background(
-                color = if (LocalRedesignEnabled.current) {
-                    TangemTheme.colors2.surface.level2
-                } else {
-                    TangemTheme.colors.background.secondary
-                },
-            )
+            .background(color = TangemTheme.colors2.surface.level2)
             .fillMaxSize()
             .imePadding(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -192,17 +198,25 @@ private fun Content(state: ChooseTokenFullUM, modifier: Modifier = Modifier) {
                             isBalanceHidden = state.portfolioBlock.isBalanceHidden,
                         )
 
-                        if (state.marketsBlock != null) {
-                            item("markets_title_spacer") { SpacerH(height = 40.dp) }
-                            swapMarketsListItems(state.marketsBlock)
+                        when (val block = state.chooserBlock) {
+                            is ChooserBlockUM.Market -> {
+                                item("markets_title_spacer") { SpacerH(height = 40.dp) }
+                                swapMarketsListItems(block.state)
+                            }
+                            is ChooserBlockUM.Predefined -> {
+                                item("predefined_title_spacer") { SpacerH(height = 40.dp) }
+                                predefinedTokensListItems(block.state)
+                            }
+                            null -> Unit
                         }
                     }
                 }
             }
         }
     }
-    if (state.marketsBlock != null && !state.isNotFoundState && !state.isEmptyState) {
-        SetupMarketScrollTracker(state.marketsBlock, lazyListState)
+    val marketsBlock = state.marketState
+    if (marketsBlock != null && !state.isNotFoundState && !state.isEmptyState) {
+        SetupMarketScrollTracker(marketsBlock, lazyListState)
     }
 }
 
@@ -521,9 +535,9 @@ private fun AccountRow(
                     AccountRowComposables(
                         icon = { iconModifier ->
                             val iconSize = if (isExpandedState) {
-                                AccountIconSize.RedesignExtraSmall
+                                AccountIconSize.ExtraSmall
                             } else {
-                                AccountIconSize.RedesignedDefault
+                                AccountIconSize.Default
                             }
                             val sizedIcon = when (val icon = tokenRowUM.headIconUM) {
                                 is TangemIconUM.Currency -> icon.copy(
@@ -700,17 +714,93 @@ private fun buildAccountSubtitle(tokensCount: TextReference?, balance: String?):
     }
 }
 
+private fun LazyListScope.predefinedTokensListItems(state: PredefinedTokensUM) {
+    item(key = "predefined_title") {
+        Text(
+            text = stringResourceSafe(R.string.markets_portfolio_eligible_block_title),
+            style = TangemTheme.typography2.headingSemibold20,
+            color = TangemTheme.colors2.text.neutral.primary,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    start = TangemTheme.dimens.spacing16,
+                    end = TangemTheme.dimens.spacing16,
+                    bottom = TangemTheme.dimens.spacing8,
+                ),
+        )
+    }
+    itemsIndexed(
+        items = state.items,
+        key = { _, item -> "predefined_${item.id}" },
+        contentType = { _, _ -> PredefinedTokenItemUM::class.java },
+        itemContent = { index, item ->
+            PredefinedTokenItem(
+                state = item,
+                modifier = Modifier
+                    .roundedShapeItemDecoration(
+                        currentIndex = index,
+                        lastIndex = state.items.lastIndex,
+                        backgroundColor = TangemTheme.colors.background.primary,
+                    )
+                    .testTag(BuyTokenScreenTestTags.LAZY_LIST_ITEM)
+                    .semantics { lazyListItemPosition = index },
+            )
+        },
+    )
+}
+
+@Composable
+private fun PredefinedTokenItem(state: PredefinedTokenItemUM, modifier: Modifier = Modifier) {
+    val tokenRowUM = remember(state) {
+        val iconState = CurrencyIconState.TokenIcon(
+            url = state.iconUrl,
+            topBadgeIconResId = getActiveIconRes(Blockchain.fromNetworkId(state.networkId) ?: Blockchain.Unknown),
+            isGrayscale = false,
+            shouldShowCustomBadge = false,
+            fallbackTint = TangemColorPalette.Black,
+            fallbackBackground = TangemColorPalette.Meadow,
+        )
+        TangemTokenRowUM.Content(
+            id = state.id,
+            headIconUM = TangemIconUM.Currency(currencyIconState = iconState),
+            titleUM = TangemTokenRowUM.TitleUM.Content(text = stringReference(state.symbol)),
+            subtitleUM = TangemTokenRowUM.SubtitleUM.Content(
+                text = resourceReference(
+                    id = R.string.domain_receive_assets_onboarding_network_name,
+                    formatArgs = wrappedList(state.networkName),
+                ),
+            ),
+            topEndContentUM = TangemTokenRowUM.EndContentUM.Empty,
+            bottomEndContentUM = TangemTokenRowUM.EndContentUM.Empty,
+            tailUM = TangemRowTailUM.Empty,
+            onItemClick = null,
+            onItemLongClick = null,
+        )
+    }
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TangemTokenRow(
+            tokenRowUM = tokenRowUM,
+            isBalanceHidden = false,
+            modifier = Modifier.weight(1f),
+        )
+        SecondaryTangemButton(
+            onClick = state.onAddClick,
+            modifier = Modifier.padding(start = TangemTheme.dimens2.x2, end = TangemTheme.dimens2.x4),
+            text = resourceReference(R.string.common_add),
+            size = TangemButtonSize.X9,
+            shape = TangemButtonShape.Default,
+        )
+    }
+}
+
 private fun LazyListScope.emptyTokensList(modifier: Modifier = Modifier) {
     item("EmptyTokensList") {
         Box(
             modifier = modifier
-                .background(
-                    color = if (LocalRedesignEnabled.current) {
-                        TangemTheme.colors2.surface.level2
-                    } else {
-                        TangemTheme.colors.background.secondary
-                    },
-                )
+                .background(color = TangemTheme.colors2.surface.level2)
                 .fillParentMaxSize(),
         ) {
             Column(modifier = Modifier.align(Alignment.Center)) {
@@ -741,13 +831,7 @@ private fun LazyListScope.tokensNotFound(modifier: Modifier = Modifier) {
     item("TokensNotFound") {
         Box(
             modifier = modifier
-                .background(
-                    color = if (LocalRedesignEnabled.current) {
-                        TangemTheme.colors2.surface.level2
-                    } else {
-                        TangemTheme.colors.background.secondary
-                    },
-                )
+                .background(color = TangemTheme.colors2.surface.level2)
                 .fillParentMaxSize(),
         ) {
             Text(
@@ -767,7 +851,7 @@ private fun LazyListScope.tokensNotFound(modifier: Modifier = Modifier) {
 @Preview
 @Composable
 private fun TokenScreenPreview(@PreviewParameter(ChooseTokenScreenPreviewProvider::class) state: ChooseTokenFullUM) {
-    TangemThemePreview {
+    TangemThemePreviewRedesign {
         ChooseTokenScreen(
             state = state,
             modifier = Modifier,
@@ -865,6 +949,25 @@ private val wallets
         ),
     )
 
+private val predefinedTokens = persistentListOf(
+    PredefinedTokenItemUM(
+        id = "usdc-ethereum",
+        symbol = "USDC",
+        networkName = stringReference("Ethereum"),
+        networkId = "ethereum",
+        iconUrl = null,
+        onAddClick = {},
+    ),
+    PredefinedTokenItemUM(
+        id = "usdt-tron",
+        symbol = "USDT",
+        networkName = stringReference("Tron"),
+        networkId = "tron",
+        iconUrl = null,
+        onAddClick = {},
+    ),
+)
+
 private val initialUM = ChooseTokenInitialUM(
     screenTitle = stringReference("Choose token"),
     isAppBarShown = true,
@@ -885,7 +988,7 @@ private class ChooseTokenScreenPreviewProvider : PreviewParameterProvider<Choose
                     accounts.size,
                 ),
             ),
-            marketsBlock = SwapSelectTokenPreviewProvider.marketState,
+            chooserBlock = ChooserBlockUM.Market(SwapSelectTokenPreviewProvider.marketState),
         ),
         ChooseTokenFullUM(
             initialUM = initialUM,
@@ -895,7 +998,20 @@ private class ChooseTokenScreenPreviewProvider : PreviewParameterProvider<Choose
                 isSearching = false,
                 tokensListData = TokenListUMData.EmptyList,
             ),
-            marketsBlock = null,
+            chooserBlock = null,
+        ),
+        ChooseTokenFullUM(
+            initialUM = initialUM,
+            portfolioBlock = ChooseTokenPortfolioFullBlockUM(
+                walletList = WalletListUM(wallets),
+                isBalanceHidden = false,
+                isSearching = false,
+                tokensListData = TokenListUMData.AccountList(
+                    tokensList = accounts,
+                    accounts.size,
+                ),
+            ),
+            chooserBlock = ChooserBlockUM.Predefined(PredefinedTokensUM(items = predefinedTokens)),
         ),
     )
 }

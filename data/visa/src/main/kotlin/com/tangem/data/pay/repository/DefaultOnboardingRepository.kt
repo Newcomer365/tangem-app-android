@@ -6,18 +6,22 @@ import arrow.core.left
 import arrow.core.right
 import com.tangem.core.analytics.api.AnalyticsEventHandler
 import com.tangem.data.pay.store.PaymentAccountStatusesStore
+import com.tangem.data.pay.util.BankCredentialsConverter
 import com.tangem.data.pay.util.CustomerInfoConverter
 import com.tangem.datasource.api.pay.TangemPayApi
 import com.tangem.datasource.api.pay.models.request.DeeplinkValidityRequest
 import com.tangem.datasource.api.pay.models.request.OrderRequest
 import com.tangem.datasource.api.pay.models.request.SetTangemPayEnabledRequest
+import com.tangem.datasource.api.pay.models.request.VirtualAccountOrderRequest
 import com.tangem.datasource.api.pay.models.response.CustomerMeResponse
 import com.tangem.datasource.api.pay.models.response.OrderResponse
 import com.tangem.datasource.local.visa.TangemPayCardFrozenStateStore
-import com.tangem.datasource.local.visa.TangemPayStorage
+import com.tangem.data.pay.store.TangemPayStorage
+import com.tangem.datasource.local.visa.TangemPayTxHistoryItemsStore
 import com.tangem.domain.common.wallets.UserWalletsListRepository
 import com.tangem.domain.models.account.Account
 import com.tangem.domain.models.account.AccountStatus
+import com.tangem.domain.models.account.BankCredentials
 import com.tangem.domain.models.account.PaymentAccountStatusValue
 import com.tangem.domain.models.kyc.KycStatus
 import com.tangem.domain.models.pay.TangemPayEligibilityType
@@ -25,6 +29,7 @@ import com.tangem.domain.models.wallet.UserWallet
 import com.tangem.domain.models.wallet.UserWalletId
 import com.tangem.domain.pay.datasource.TangemPayAuthDataSource
 import com.tangem.domain.pay.model.CustomerInfo
+import com.tangem.domain.pay.model.OrderType
 import com.tangem.domain.pay.repository.OnboardingRepository
 import com.tangem.domain.tangempay.TangemPayAnalyticsEvents
 import com.tangem.domain.visa.error.VisaApiError
@@ -36,7 +41,7 @@ import javax.inject.Inject
 
 private const val VALID_STATUS = "valid"
 
-@Suppress("LongParameterList")
+@Suppress("LongParameterList", "TooManyFunctions")
 internal class DefaultOnboardingRepository @Inject constructor(
     private val analytics: AnalyticsEventHandler,
     private val dispatcherProvider: CoroutineDispatcherProvider,
@@ -47,6 +52,7 @@ internal class DefaultOnboardingRepository @Inject constructor(
     private val cardFrozenStateStore: TangemPayCardFrozenStateStore,
     private val userWalletsListRepository: UserWalletsListRepository,
     private val paymentAccountStatusStore: PaymentAccountStatusesStore,
+    private val txHistoryItemsStore: TangemPayTxHistoryItemsStore,
 ) : OnboardingRepository {
 
     // Save data for a session
@@ -95,14 +101,29 @@ internal class DefaultOnboardingRepository @Inject constructor(
         return requestHelper.performRequest(userWalletId) { authHeader -> tangemPayApi.getCustomerMe(authHeader) }
             .flatMap { response ->
                 val result = response.result ?: return@flatMap VisaApiError.UnknownWithoutCode.left()
-                val status = result.productInstance?.status
-                val isDeactivated = status == CustomerMeResponse.ProductInstance.Status.DEACTIVATED
+                val productInstances = result.productInstances
+
+                val isDeactivated = productInstances.isNotEmpty() &&
+                    productInstances.all { it.status == CustomerMeResponse.ProductInstance.Status.DEACTIVATED }
+
                 val isFormer = result.state.let { CustomerInfo.State.fromString(it) } == CustomerInfo.State.FORMER
                 if (isDeactivated || isFormer) {
                     tangemPayStorage.storeIsTangemPayDeactivated(userWalletId)
                 }
                 getCustomerInfo(userWalletId = userWalletId, response = result).right()
             }
+    }
+
+    override suspend fun getBankCredentials(
+        userWalletId: UserWalletId,
+        productInstanceId: String,
+    ): Either<VisaApiError, BankCredentials> {
+        return requestHelper.performRequest(userWalletId) { authHeader ->
+            tangemPayApi.getBankCredentials(authHeader = authHeader, productInstanceId = productInstanceId)
+        }.flatMap { response ->
+            val result = response.result ?: return@flatMap VisaApiError.UnknownWithoutCode.left()
+            BankCredentialsConverter.convert(result).right()
+        }
     }
 
     override suspend fun isTangemPayDeactivated(userWalletId: UserWalletId): Boolean {
@@ -144,7 +165,11 @@ internal class DefaultOnboardingRepository @Inject constructor(
 
             val walletAddress = requestHelper.getCustomerWalletAddress(userWalletId)
             requestHelper.performRequest(userWalletId) { authHeader ->
-                val data = OrderRequest.Data(customerWalletAddress = walletAddress)
+                val data = OrderRequest.Data(
+                    customerWalletAddress = walletAddress,
+                    specificationName = "SP_000004",
+                    type = OrderType.CARD_ISSUE_VIRTUAL_RAIN_KYC.wireValue,
+                )
                 tangemPayApi.createOrder(
                     authHeader = authHeader,
                     body = OrderRequest(data = data, idempotencyKey = UUID.randomUUID().toString()),
@@ -155,6 +180,42 @@ internal class DefaultOnboardingRepository @Inject constructor(
                 result.id
             }
         }
+
+    override suspend fun createVirtualAccountOrder(
+        userWalletId: UserWalletId,
+        paymentAccountAddress: String,
+        idempotencyKey: String,
+    ): Either<VisaApiError, String> = withContext(dispatcherProvider.io) {
+        requestHelper.performRequest(userWalletId) { authHeader ->
+            tangemPayApi.createVirtualAccountOrder(
+                authHeader = authHeader,
+                body = VirtualAccountOrderRequest(
+                    data = VirtualAccountOrderRequest.Data(depositAddress = paymentAccountAddress),
+                    idempotencyKey = idempotencyKey,
+                ),
+            )
+        }.map { response -> requireNotNull(response.result).id }
+    }
+
+    override suspend fun getVirtualAccountOrderId(userWalletId: UserWalletId): String? =
+        withContext(dispatcherProvider.io) {
+            val customerWalletAddress = requestHelper.getCustomerWalletAddress(userWalletId)
+            tangemPayStorage.getVirtualAccountOrderId(customerWalletAddress)
+        }
+
+    override suspend fun storeVirtualAccountOrderId(userWalletId: UserWalletId, vaOrderId: String) {
+        withContext(dispatcherProvider.io) {
+            val customerWalletAddress = requestHelper.getCustomerWalletAddress(userWalletId)
+            tangemPayStorage.storeVirtualAccountOrderId(customerWalletAddress, vaOrderId)
+        }
+    }
+
+    override suspend fun clearVirtualAccountOrderId(userWalletId: UserWalletId) {
+        withContext(dispatcherProvider.io) {
+            val customerWalletAddress = requestHelper.getCustomerWalletAddress(userWalletId)
+            tangemPayStorage.clearVirtualAccountOrderId(customerWalletAddress)
+        }
+    }
 
     private fun getUserWallet(userWalletId: UserWalletId): UserWallet {
         return userWalletsListRepository.userWallets.value?.firstOrNull { it.walletId == userWalletId }
@@ -170,7 +231,7 @@ internal class DefaultOnboardingRepository @Inject constructor(
         sendKycAnalytics(customerInfo.kycStatus)
 
         // Keep the per-card frozen state up to date for every card.
-        customerInfo.productInstances.forEach { instance ->
+        customerInfo.cardProductInstances.forEach { instance ->
             cardFrozenStateStore.store(key = instance.cardId, value = instance.frozenState)
         }
 
@@ -203,7 +264,7 @@ internal class DefaultOnboardingRepository @Inject constructor(
             tangemPayStorage.storeCheckCustomerWalletResult(userWalletId = userWalletId, shouldShowTangemPayBlock)
             shouldShowTangemPayBlock
         }.mapLeft { error ->
-            if (error is VisaApiError.NotPaeraCustomer) {
+            if (error is VisaApiError.NotFound) {
                 tangemPayStorage.storeCheckCustomerWalletResult(userWalletId = userWalletId, false)
             }
             error
@@ -224,6 +285,16 @@ internal class DefaultOnboardingRepository @Inject constructor(
 
     override suspend fun getCustomerEligibility(): List<TangemPayEligibilityType> {
         return tangemPayStorage.getTangemPayEligibility().map(TangemPayEligibilityType::fromString)
+    }
+
+    override suspend fun fetchCustomerEligibility(
+        userWalletId: UserWalletId,
+    ): Either<VisaApiError, List<TangemPayEligibilityType>> {
+        return requestHelper.performRequest(userWalletId) { authHeader ->
+            tangemPayApi.getUserEligibilityChannels(authHeader)
+        }.map { response ->
+            response.result.channels.map(TangemPayEligibilityType::fromString)
+        }
     }
 
     override suspend fun getHideMainOnboardingBanner(userWalletId: UserWalletId): Boolean {
@@ -250,6 +321,7 @@ internal class DefaultOnboardingRepository @Inject constructor(
         }.map {
             val address = requestHelper.getCustomerWalletAddress(userWalletId)
             tangemPayStorage.clearAll(userWalletId = userWalletId, customerWalletAddress = address)
+            txHistoryItemsStore.remove(userWalletId.stringValue)
             setHideMainOnboardingBanner(userWalletId)
         }
     }

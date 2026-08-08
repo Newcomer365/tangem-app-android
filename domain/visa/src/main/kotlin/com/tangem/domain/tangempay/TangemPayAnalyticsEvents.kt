@@ -293,4 +293,157 @@ sealed class TangemPayAnalyticsEvents(
         categoryName = "Visa Card Management",
         event = "Visa Extra Card Issuance Confirmed",
     )
+
+    class VaTopupButtonShowed : TangemPayAnalyticsEvents(
+        categoryName = "Visa VA Topup",
+        event = "Visa VA Topup Button Showed",
+    )
+
+    class VaTopupButtonClicked : TangemPayAnalyticsEvents(
+        categoryName = "Visa VA Topup",
+        event = "Visa VA Topup Button Clicked",
+    )
+
+    class VaConditionsPopupShowedFirstTime : TangemPayAnalyticsEvents(
+        categoryName = "Visa VA Topup",
+        event = "Conditions Popup Showed First Time",
+    )
+
+    class VaShowDetailsFirstTimeClicked : TangemPayAnalyticsEvents(
+        categoryName = "Visa VA Topup",
+        event = "Show Details First Time Clicked",
+    )
+
+    class VaSuccessScreenActivation : TangemPayAnalyticsEvents(
+        categoryName = "Visa VA Topup",
+        event = "Success Screen Activation",
+    )
+
+    class VaPreparationPopupShowed : TangemPayAnalyticsEvents(
+        categoryName = "Visa VA Topup",
+        event = "Preparation Popup Showed",
+    )
+
+    class VaConditionsPopupShowed : TangemPayAnalyticsEvents(
+        categoryName = "Visa VA Topup",
+        event = "Conditions Popup Showed",
+    )
+
+    class VaShowDetailsClicked : TangemPayAnalyticsEvents(
+        categoryName = "Visa VA Topup",
+        event = "Show Details Clicked",
+    )
+
+    class VaBankingDetailsShowed : TangemPayAnalyticsEvents(
+        categoryName = "Visa VA Topup",
+        event = "Banking Details Showed",
+    )
+
+    class VaDetailsErrorShowed : TangemPayAnalyticsEvents(
+        categoryName = "Visa VA Topup",
+        event = "Details Error Showed",
+    )
+
+    class VaShareDetailsButtonClicked : TangemPayAnalyticsEvents(
+        categoryName = "Visa VA Topup",
+        event = "Share Details Button Clicked",
+    )
+
+    data class VaCopyFieldClicked(val field: String) : TangemPayAnalyticsEvents(
+        categoryName = "Visa VA Topup",
+        event = "Copy Field Clicked",
+        params = mapOf("field" to field),
+    )
+
+    object Tiers {
+
+        private const val CATEGORY = "Visa Tiers"
+
+        class TierSelectionScreenShowed : TangemPayAnalyticsEvents(
+            categoryName = CATEGORY,
+            event = "Tier Selection Screen Showed",
+        )
+
+        class TiersSwiped : TangemPayAnalyticsEvents(
+            categoryName = CATEGORY,
+            event = "Tiers Swiped",
+        )
+
+        class ComparePlansClicked : TangemPayAnalyticsEvents(
+            categoryName = CATEGORY,
+            event = "Compare Plans Clicked",
+        )
+
+        class PlansComparisonPopupShowed : TangemPayAnalyticsEvents(
+            categoryName = CATEGORY,
+            event = "Plans Comparison Popup Showed",
+        )
+
+        class PlansComparisonPopupClosed : TangemPayAnalyticsEvents(
+            categoryName = CATEGORY,
+            event = "Plans Comparison Popup Closed",
+        )
+
+        data class PlanSelectedClick(val tierId: String) : TangemPayAnalyticsEvents(
+            categoryName = CATEGORY,
+            event = "Plan Selected Click",
+            params = mapOf("Plan" to tierId),
+        )
+
+        class TopUpBannerForPlusShowed : TangemPayAnalyticsEvents(
+            categoryName = CATEGORY,
+            event = "Topup Banner For Plus Showed",
+        )
+
+        class CancelPlusMoveToBasicClicked : TangemPayAnalyticsEvents(
+            categoryName = CATEGORY,
+            event = "Cancel Plus Move To Basic Clicked",
+        )
+
+        class CurrentPlanClicked : TangemPayAnalyticsEvents(
+            categoryName = CATEGORY,
+            event = "Current Plan Clicked",
+        )
+
+        class ChangePlanClicked : TangemPayAnalyticsEvents(
+            categoryName = CATEGORY,
+            event = "Change Plan Clicked",
+        )
+
+        data class PlanChangeConfirmationScreenShowed(val tierId: String) : TangemPayAnalyticsEvents(
+            categoryName = CATEGORY,
+            event = "Plan Change Confirmation Screen Showed",
+            params = mapOf("Plan" to tierId),
+        )
+
+        class PlanChangeCancelClicked : TangemPayAnalyticsEvents(
+            categoryName = CATEGORY,
+            event = "Plan Change Cancel Clicked",
+        )
+
+        class PlanChangeUpgradeClicked : TangemPayAnalyticsEvents(
+            categoryName = CATEGORY,
+            event = "Plan Change Upgrade Clicked",
+        )
+
+        class PlusCardsClosureWarningBannerShowed : TangemPayAnalyticsEvents(
+            categoryName = CATEGORY,
+            event = "Plus Cards Closure Warning Banner Showed",
+        )
+
+        class StayOnPlusConditionsClicked : TangemPayAnalyticsEvents(
+            categoryName = CATEGORY,
+            event = "Stay On Plus Conditions Clicked",
+        )
+
+        class StayOnPlusPopupShowed : TangemPayAnalyticsEvents(
+            categoryName = CATEGORY,
+            event = "Stay On Plus Popup Showed",
+        )
+
+        class StayOnPlusPopupClicked : TangemPayAnalyticsEvents(
+            categoryName = CATEGORY,
+            event = "Stay On Plus Popup Clicked",
+        )
+    }
 }
